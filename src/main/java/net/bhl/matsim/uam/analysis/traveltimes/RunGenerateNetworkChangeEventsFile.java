@@ -30,7 +30,7 @@ import java.util.List;
 public class RunGenerateNetworkChangeEventsFile {
 	private double timeStep = 15 * 60; // Time step set to 15 minutes
 	private double minFreeSpeed = 3;
-	private double endTime = 30 * 60 * 60; // end time set to 30 hours
+	private double endTime = 36 * 60 * 60; // end time set to 30 hours
 
 	public RunGenerateNetworkChangeEventsFile() {
 	}
