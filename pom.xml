@@ -5,7 +5,7 @@
 
 	<groupId>net.bhl.matsim</groupId>
 	<artifactId>matsim-uam</artifactId>
-	<version>3.0.0</version>
+	<version>3.0.0_AMI-AirShuttle</version>
 	<packaging>jar</packaging>
 
 	<properties>
@@ -36,6 +36,15 @@
 						<descriptorRef>jar-with-dependencies</descriptorRef>
 					</descriptorRefs>
 				</configuration>
+				<executions>
+					<execution>
+						<id>make-assembly</id>
+						<phase>package</phase>
+						<goals>
+							<goal>single</goal>
+						</goals>
+					</execution>
+				</executions>
 			</plugin>
 		</plugins>
 		<extensions>
