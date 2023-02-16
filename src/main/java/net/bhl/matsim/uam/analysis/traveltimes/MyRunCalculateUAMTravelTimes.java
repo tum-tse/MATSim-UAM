@@ -1,14 +1,9 @@
 package net.bhl.matsim.uam.analysis.traveltimes;
 
-import java.io.BufferedWriter;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.OutputStreamWriter;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ExecutorService;
@@ -17,7 +12,6 @@ import java.util.concurrent.Executors;
 import org.apache.log4j.Logger;
 import org.matsim.api.core.v01.Scenario;
 import org.matsim.api.core.v01.TransportMode;
-import org.matsim.api.core.v01.network.Link;
 import org.matsim.api.core.v01.network.Network;
 import org.matsim.contrib.dvrp.run.DvrpConfigGroup;
 import org.matsim.core.config.Config;
@@ -29,7 +23,6 @@ import org.matsim.core.network.NetworkUtils;
 import org.matsim.core.network.algorithms.TransportModeNetworkFilter;
 import org.matsim.core.router.AStarLandmarksFactory;
 import org.matsim.core.router.DijkstraFactory;
-import org.matsim.core.router.LinkWrapperFacility;
 import org.matsim.core.router.RoutingModule;
 import org.matsim.core.router.TeleportationRoutingModule;
 import org.matsim.core.router.util.LeastCostPathCalculator;
@@ -39,10 +32,7 @@ import org.matsim.core.router.util.TravelDisutilityUtils;
 import org.matsim.core.router.util.TravelTime;
 import org.matsim.core.scenario.ScenarioUtils;
 import org.matsim.core.trafficmonitoring.TravelTimeCalculator;
-import org.matsim.facilities.Facility;
 import org.matsim.pt.router.TransitRouter;
-
-import com.opencsv.CSVParser;
 
 import ch.sbb.matsim.routing.pt.raptor.DefaultRaptorIntermodalAccessEgress;
 import ch.sbb.matsim.routing.pt.raptor.DefaultRaptorParametersForPerson;
@@ -55,17 +45,10 @@ import net.bhl.matsim.uam.analysis.traveltimes.utils.ThreadCounter;
 import net.bhl.matsim.uam.analysis.traveltimes.utils.TripItem;
 import net.bhl.matsim.uam.analysis.traveltimes.utils.TripItemReader;
 import net.bhl.matsim.uam.config.UAMConfigGroup;
-import net.bhl.matsim.uam.data.UAMRoute;
 import net.bhl.matsim.uam.data.UAMStationConnectionGraph;
 import net.bhl.matsim.uam.dispatcher.UAMManager;
 import net.bhl.matsim.uam.infrastructure.UAMStations;
 import net.bhl.matsim.uam.infrastructure.readers.UAMXMLReader;
-import net.bhl.matsim.uam.router.strategy.UAMMinAccessDistanceStrategy;
-import net.bhl.matsim.uam.router.strategy.UAMMinAccessTravelTimeStrategy;
-import net.bhl.matsim.uam.router.strategy.UAMMinDistanceStrategy;
-import net.bhl.matsim.uam.router.strategy.UAMMinTravelTimeStrategy;
-import net.bhl.matsim.uam.router.strategy.UAMStrategy;
-import net.bhl.matsim.uam.router.strategy.UAMStrategyUtils;
 import net.bhl.matsim.uam.run.UAMConstants;
 
 /**
@@ -73,7 +56,7 @@ import net.bhl.matsim.uam.run.UAMConstants;
  * trips. The trips file must contain departure time and origin and destination
  * coordinates for the trips.
  *
- * @author Aitanm (Aitan Militao), RRothfeld (Raoul Rothfeld)
+ * @author haowuintub (Hao Wu) based on Aitanm (Aitan Militao), RRothfeld (Raoul Rothfeld)
  */
 
 public class MyRunCalculateUAMTravelTimes {
