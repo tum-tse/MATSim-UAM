@@ -42,6 +42,7 @@ public class NoiseBasedTravelDisutility implements TravelDisutility, TravelTime,
     private final String noiseEmissionResults;
     private final double timeBin; // unit in seconds. e.g. 3600.0
     private final int simulationEndHour; // simulation hour counts start from 1. The simulation end hour could be for example 34
+    private final double measureTime;
     private Map<Double, Map<Id<Link>, Double>> noiseEmissionsMap;
     private Map<Double, Double> maxNoiseEmissionValue;
     /**
@@ -52,7 +53,7 @@ public class NoiseBasedTravelDisutility implements TravelDisutility, TravelTime,
      * @param noiseEmissionResults Please use MATSim noise contrib to generate the noise emission results.
      */
     public NoiseBasedTravelDisutility(double scaledMarginalUtilityOfTraveling, double scaledMarginalUtilityOfPerforming,
-                                            double scaledMarginalUtilityOfDistance, String noiseEmissionResults, double timeBin, int simulationEndHour){
+                                            double scaledMarginalUtilityOfDistance, String noiseEmissionResults, double timeBin, int simulationEndHour, double measureTime){
         // usually, the travel-utility should be negative (it's a disutility)
         // but for the cost, the cost should be positive.
         this.travelCostFactor = -scaledMarginalUtilityOfTraveling + scaledMarginalUtilityOfPerforming;
@@ -74,6 +75,7 @@ public class NoiseBasedTravelDisutility implements TravelDisutility, TravelTime,
         this.noiseEmissionResults = noiseEmissionResults;
         this.timeBin = timeBin;
         this.simulationEndHour = simulationEndHour;
+        this.measureTime = measureTime;
         this.readNoiseEmissionResults();
     }
 
@@ -85,10 +87,12 @@ public class NoiseBasedTravelDisutility implements TravelDisutility, TravelTime,
 
     // read the necessary input data
     public void readNoiseEmissionResults() {
+        noiseEmissionsMap = new HashMap<>();
+        maxNoiseEmissionValue  = new HashMap<>();
 
         for (int i=1;i<=simulationEndHour;i++) {
             String noiseEmissionResultsFile = noiseEmissionResults + "emission_" + this.timeBin*i + ".csv";
-            List<String[]> nodes = CSVReaders.readCSV(noiseEmissionResultsFile);
+            List<String[]> nodes = CSVReaders.readSemicolonSV(noiseEmissionResultsFile);
 
             Map<Id<Link>, Double> newEntry = new HashMap<>();
             // read noise emission values of the links by the time of the day
@@ -128,14 +132,16 @@ public class NoiseBasedTravelDisutility implements TravelDisutility, TravelTime,
 
         // add noise based cost
         double totalCost = defaultCost;
-        double timeWindow = Math.floor(time/timeBin)*timeBin;
+        // ToDo: Should find the average value of the UAM flight duration to assign to the right timeWindow (for the case that the time is at the end of the current timeWindow!)
+        double timeWindow = Math.floor(this.measureTime/timeBin)*timeBin;
         double maximalNoiseEmissionValueForThisTimePoint = maxNoiseEmissionValue.get(timeWindow);
-        totalCost = maximalNoiseEmissionValueForThisTimePoint - this.noiseEmissionsMap.get(timeWindow).get(link.getId())
+        totalCost = maximalNoiseEmissionValueForThisTimePoint - this.noiseEmissionsMap.get(timeWindow).get((Id<Link>) link.getAttributes().getAttribute("oringinalgroundlinkid"))
         + totalCost;
         return totalCost;
     }
 
-    // ToDo: This method is currently unused!
+    // ToDo: This method is currently unused! Could the method deleted?
+    @Deprecated
     @Override
     public double getLinkMinimumTravelDisutility(Link link) {
         return 0;
