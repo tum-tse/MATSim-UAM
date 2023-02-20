@@ -17,6 +17,8 @@ import org.matsim.vehicles.Vehicle;
 
 import org.matsim.contrib.util.CSVReaders;
 
+import net.bhl.matsim.uam.router.UAMFlightSegments;
+
 import com.google.common.collect.Iterables;
 
 /**<p>
@@ -135,8 +137,21 @@ public class NoiseBasedTravelDisutility implements TravelDisutility, TravelTime,
         // ToDo: Should find the average value of the UAM flight duration to assign to the right timeWindow (for the case that the time is at the end of the current timeWindow!)
         double timeWindow = Math.floor(this.measureTime/timeBin)*timeBin;
         double maximalNoiseEmissionValueForThisTimePoint = maxNoiseEmissionValue.get(timeWindow);
-        totalCost = maximalNoiseEmissionValueForThisTimePoint - this.noiseEmissionsMap.get(timeWindow).get((Id<Link>) link.getAttributes().getAttribute("oringinalgroundlinkid"))
-        + totalCost;
+        if (link.getAttributes().getAttribute(UAMFlightSegments.ATTRIBUTE).equals(UAMFlightSegments.HORIZONTAL)) {
+            if (link.getAttributes().getAttribute("oringinalgroundlinkid")!=null) {
+                Id<Link> originalGroundLinkId = Id.createLinkId((String) link.getAttributes().getAttribute("oringinalgroundlinkid"));
+                totalCost = maximalNoiseEmissionValueForThisTimePoint - this.noiseEmissionsMap.get(timeWindow).get(originalGroundLinkId)
+                        + totalCost;
+            } else {
+                // ToDo: need to assign the noise value for the direct horizontal UAM links which connect the UAM stations to the nearest UAM links!
+
+            }
+        } else if (link.getAttributes().getAttribute(UAMFlightSegments.ATTRIBUTE).equals(UAMFlightSegments.VERTICAL)) {
+            // ToDo: should define a proper value for this!!!!! Although this part does not affect the results too much if not too many vertical UAM links are used.
+
+        } else {
+            throw new RuntimeException("The link is not UAM link!");
+        }
         return totalCost;
     }
 

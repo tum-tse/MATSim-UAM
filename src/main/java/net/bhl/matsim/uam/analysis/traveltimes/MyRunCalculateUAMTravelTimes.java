@@ -9,6 +9,7 @@ import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import net.bhl.matsim.uam.analysis.traveltimes.traveldisutility.NoiseBasedTravelDisutility;
 import org.apache.log4j.Logger;
 import org.matsim.api.core.v01.Scenario;
 import org.matsim.api.core.v01.TransportMode;
@@ -66,15 +67,23 @@ public class MyRunCalculateUAMTravelTimes {
     private static ArrayBlockingQueue<TransitRouter> ptRouters = new ArrayBlockingQueue<>(processes);
     private static ArrayBlockingQueue<LeastCostPathCalculator> uamRouters = new ArrayBlockingQueue<>(processes);
 
+    // My addings
+    public enum MyRoutingStrategyType {Default, Noise}
+
     public static void main(String[] args) throws Exception {
-        System.out.println("ARGS: config.xml* trips.csv* outputfile-name*");
+        System.out.println("ARGS: config.xml* trips.csv* outputfile-name*    Note: may need to provide other input params!!!");
         System.out.println("(* required)");
 
         // ARGS
         int j = 0;
         String configInput = args[j++];
         String tripsInput = args[j++];
-        String outputPath = args[j];
+        String outputPath = args[j++];
+        MyRoutingStrategyType myRoutingStrategy = MyRoutingStrategyType.valueOf(args[j++]);
+        String noiseEmissionResultsPath = null;
+        if (myRoutingStrategy.equals(MyRoutingStrategyType.Noise)){
+            noiseEmissionResultsPath = args[j++];
+        }
 
         UAMConfigGroup uamConfigGroup = new UAMConfigGroup();
         Config config = ConfigUtils.loadConfig(configInput, uamConfigGroup, new DvrpConfigGroup());
@@ -113,6 +122,15 @@ public class MyRunCalculateUAMTravelTimes {
         TravelTime travelTime = ttc.getLinkTravelTimes();
         TravelDisutility travelDisutility = TravelDisutilityUtils
                 .createFreespeedTravelTimeAndDisutility(config.planCalcScore());
+        TravelDisutility uamTravelDisutility = null;
+        if (myRoutingStrategy.equals(MyRoutingStrategyType.Default)) {
+            uamTravelDisutility = TravelDisutilityUtils
+                    .createFreespeedTravelTimeAndDisutility(config.planCalcScore());
+        } else if (myRoutingStrategy.equals(MyRoutingStrategyType.Noise)) {
+            uamTravelDisutility = new NoiseBasedTravelDisutility(0,0,0, noiseEmissionResultsPath, 3600.0, 34, 30600);
+        } else {
+            throw new RuntimeException("Wrong MyRoutingStrategy type! or equals() do not work!");
+        }
 
         com.google.inject.Injector injector = Injector.createInjector(config, new AbstractModule() {
             @Override
@@ -125,7 +143,7 @@ public class MyRunCalculateUAMTravelTimes {
 
         // This router is used only to create the UAMStationConnectionGraph class
         LeastCostPathCalculator pathCalculatorForStations = new DijkstraFactory().createPathCalculator(networkUAM,
-                travelDisutility, travelTime);
+                uamTravelDisutility, travelTime);
         UAMStationConnectionGraph stationConnectionutilities = new UAMStationConnectionGraph(uamManager,
                 pathCalculatorForStations);
 
@@ -137,7 +155,7 @@ public class MyRunCalculateUAMTravelTimes {
             ptRouters.add(new SwissRailRaptor(data, new DefaultRaptorParametersForPerson(config),
                     new LeastCostRaptorRouteSelector(),
                     new DefaultRaptorStopFinder(null, new DefaultRaptorIntermodalAccessEgress(), router)));
-            uamRouters.add(new DijkstraFactory().createPathCalculator(networkUAM, travelDisutility, travelTime));
+            uamRouters.add(new DijkstraFactory().createPathCalculator(networkUAM, uamTravelDisutility, travelTime));
         }
 
         // READ TRIPS INPUT
