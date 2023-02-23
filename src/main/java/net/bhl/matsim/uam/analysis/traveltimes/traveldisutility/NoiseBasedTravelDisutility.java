@@ -126,22 +126,21 @@ public class NoiseBasedTravelDisutility implements TravelDisutility, TravelTime,
     @Override
     public double getLinkTravelDisutility(Link link, double time, Person person, Vehicle vehicle) {
         double defaultCost = 0.;
-/*        if (this.marginalUtlOfDistance == 0.0) {
+        if (this.marginalUtlOfDistance == 0.0) {
             defaultCost = (link.getLength() / link.getFreespeed(time)) * this.travelCostFactor;
         } else {
             defaultCost = (link.getLength() / link.getFreespeed(time)) * this.travelCostFactor - this.marginalUtlOfDistance * link.getLength();
-        }*/
+        }
 
         // add noise based cost
-        double totalCost = defaultCost;
+        double reverseNoiseValue = 0.;
         // ToDo: Should find the average value of the UAM flight duration to assign to the right timeWindow (for the case that the time is at the end of the current timeWindow!)
         double timeWindow = Math.floor(this.measureTime/timeBin)*timeBin;
         double maximalNoiseEmissionValueForThisTimePoint = maxNoiseEmissionValue.get(timeWindow);
         if (link.getAttributes().getAttribute(UAMFlightSegments.ATTRIBUTE).equals(UAMFlightSegments.HORIZONTAL)) {
             if (link.getAttributes().getAttribute("oringinalgroundlinkid")!=null) {
                 Id<Link> originalGroundLinkId = Id.createLinkId((String) link.getAttributes().getAttribute("oringinalgroundlinkid"));
-                totalCost = maximalNoiseEmissionValueForThisTimePoint - this.noiseEmissionsMap.get(timeWindow).get(originalGroundLinkId)
-                        + totalCost;
+                reverseNoiseValue = maximalNoiseEmissionValueForThisTimePoint - this.noiseEmissionsMap.get(timeWindow).get(originalGroundLinkId);
             } else {
                 // ToDo: need to assign the noise value for the direct horizontal UAM links which connect the UAM stations to the nearest UAM links!
 
@@ -152,7 +151,10 @@ public class NoiseBasedTravelDisutility implements TravelDisutility, TravelTime,
         } else {
             throw new RuntimeException("The link is not UAM link!");
         }
-        return totalCost;
+        // ToDo: need to find a plausible value for valueOfNoise!
+        double valueOfNoise = 1;
+        double noiseCost = reverseNoiseValue * valueOfNoise;
+        return defaultCost + noiseCost;
     }
 
     // ToDo: This method is currently unused! Could the method deleted?

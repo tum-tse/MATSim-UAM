@@ -34,6 +34,7 @@ import org.matsim.core.router.util.TravelTime;
 import org.matsim.core.scenario.ScenarioUtils;
 import org.matsim.core.trafficmonitoring.TravelTimeCalculator;
 import org.matsim.pt.router.TransitRouter;
+import org.matsim.utils.MemoryObserver;
 
 import ch.sbb.matsim.routing.pt.raptor.DefaultRaptorIntermodalAccessEgress;
 import ch.sbb.matsim.routing.pt.raptor.DefaultRaptorParametersForPerson;
@@ -84,6 +85,8 @@ public class MyRunCalculateUAMTravelTimes {
         if (myRoutingStrategy.equals(MyRoutingStrategyType.Noise)){
             noiseEmissionResultsPath = args[j++];
         }
+        int memoryObserverInterval = Integer.parseInt(args[j++]);
+        MemoryObserver.start(memoryObserverInterval);
 
         UAMConfigGroup uamConfigGroup = new UAMConfigGroup();
         Config config = ConfigUtils.loadConfig(configInput, uamConfigGroup, new DvrpConfigGroup());
@@ -127,7 +130,7 @@ public class MyRunCalculateUAMTravelTimes {
             uamTravelDisutility = TravelDisutilityUtils
                     .createFreespeedTravelTimeAndDisutility(config.planCalcScore());
         } else if (myRoutingStrategy.equals(MyRoutingStrategyType.Noise)) {
-            uamTravelDisutility = new NoiseBasedTravelDisutility(0,0,0, noiseEmissionResultsPath, 3600.0, 34, 30600);
+            uamTravelDisutility = new NoiseBasedTravelDisutility(-6/3600.0,6/3600.0,0, noiseEmissionResultsPath, 3600.0, 34, 30600);
         } else {
             throw new RuntimeException("Wrong MyRoutingStrategy type! or equals() do not work!");
         }
@@ -188,5 +191,6 @@ public class MyRunCalculateUAMTravelTimes {
         RunCalculateUAMTravelTimes.write(outputPath, trips);
         log.info("...done.");
 
+        MemoryObserver.stop();
     }
 }
