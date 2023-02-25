@@ -138,7 +138,7 @@ public class NoiseBasedTravelDisutility implements TravelDisutility, TravelTime,
         double timeWindow = Math.floor(this.measureTime/timeBin)*timeBin;
         double maximalNoiseEmissionValueForThisTimePoint = maxNoiseEmissionValue.get(timeWindow);
         if (link.getAttributes().getAttribute(UAMFlightSegments.ATTRIBUTE).equals(UAMFlightSegments.HORIZONTAL)) {
-            if (link.getAttributes().getAttribute("oringinalgroundlinkid")!=null) {
+            if (!link.getAttributes().getAttribute("oringinalgroundlinkid").equals("none")) {
                 Id<Link> originalGroundLinkId = Id.createLinkId((String) link.getAttributes().getAttribute("oringinalgroundlinkid"));
                 reverseNoiseValue = maximalNoiseEmissionValueForThisTimePoint - this.noiseEmissionsMap.get(timeWindow).get(originalGroundLinkId);
             } else {
