@@ -56,7 +56,7 @@ import net.bhl.matsim.uam.scenario.utils.ConfigAddUAMParameters;
  */
 public class RunCreateUAMRoutedScenario {
 	// SETTINGS
-	private static final boolean useZCoordinate = true; // default: false, i.e. use pseudo-3D (i.e. 2D) network
+	private static final boolean useZCoordinate = false; // default: false, i.e. use pseudo-3D (i.e. 2D) network
 	private static final double detourFactor = 1.0; // default: 1.0, i.e. no detour from link distance
 
 	// LATERALS
