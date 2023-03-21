@@ -97,6 +97,7 @@
 			<scope>test</scope>
 		</dependency>
 
+		<!-- This specifies the version of two geotools artifacts which is only for the class RunNetworkToSHP -->
 		<dependency>
 			<groupId>org.geotools</groupId>
 			<artifactId>gt-epsg-wkt</artifactId>
@@ -107,5 +108,7 @@
 			<artifactId>gt-referencing</artifactId>
 			<version>24.2</version>
 		</dependency>
+		<!-- This specifies the version of two geotools artifacts which is only for the class RunNetworkToSHP -->
+
 	</dependencies>
 </project>
