@@ -1,0 +1,6 @@
+Steps for optimization of vertiport locations:
+1. Prepare the trips file with the following columns: tripID, personID, originX, originY, destinationX, destinationY, departureTime (in seconds), pTravelTime, pTripLength, pInvehicleTime, pWaitingTime, carTravelTime, carTripLength, tripPurpose, carTravelCost, pTravelCost, carUtility, pUtility, UAMUtilityFix (only related to the traveller itself, including income, age,...), carGeneralizedCost, pGeneralizedCost, Income (€/year) # All times are in seconds, all distances are in meters, all costs are in €
+2. Prepare the vertiport locations file with the following columns: vertiportID, vertiportX, vertiportY
+3. Run the class "preCalculateAccessEgressCost"
+4. Run the classes "VertiportOptimizer..." Note: for VertiportOptimizerGenetic, you need to provide the path for output file in the arguments of the main method as well, it records the fest fitness of each generation.
+5. Examples of input file see "examples\OptimizationExamples"

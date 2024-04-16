@@ -1,9 +1,11 @@
 package net.bhl.matsim.uam.optimization;
-
 import net.bhl.matsim.uam.analysis.traveltimes.utils.ThreadCounter;
 import net.bhl.matsim.uam.analysis.traveltimes.utils.TripItem;
 import net.bhl.matsim.uam.analysis.traveltimes.utils.TripItemReader;
 import net.bhl.matsim.uam.config.UAMConfigGroup;
+import net.bhl.matsim.uam.optimization.Vertiport;
+import net.bhl.matsim.uam.optimization.VertiportCollector;
+import net.bhl.matsim.uam.optimization.VertiportReader;
 import org.matsim.api.core.v01.Scenario;
 import org.matsim.api.core.v01.TransportMode;
 import org.matsim.api.core.v01.network.Link;
@@ -24,8 +26,15 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.ObjectOutputStream;
 import java.util.*;
+import java.util.List;
 import java.util.concurrent.ArrayBlockingQueue;
 public class PreCalculateAccessEgressCost {
+    // This class is used to calculate the access and egress time and distance for each vertiport candidate of each trip
+    // Input in args: trip file, config file, vertiport candidate file, output file
+    // Format of trip file csv: tripID, personID, originX, originY, destinationX, destinationY, departureTime (in seconds), pTravelTime, pTripLength, pInvehicleTime, pWaitingTime, carTravelTime, carTripLength, tripPurpose, carTravelCost, pTravelCost, carUtility, pUtility, UAMUtilityFix (only related to the traveller itself, including income, age,...), carGeneralizedCost, pGeneralizedCost, Income (€/year) # All times are in seconds, all distances are in meters, all costs are in €
+    // Format of vertiport candidate file csv: vertiportID, coordX, coordY, constructionCost (optional)
+    // Output file should be in format: .dat
+    // Warning: if you make any changes to the TripItem class or Vertiport class, you need to run this class again to update the serialized file, even if you just add some space or empty lines.
     private static String configPath;
     private static String tripFile;
     private static String vertiportCandidateFile;
