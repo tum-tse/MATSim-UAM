@@ -15,6 +15,7 @@ public class TripItemReader {
         for (String[] row : rows.subList(1, rows.size())) {
             int j = 0;
             TripItem trip = new TripItem();
+            trip.tripId = row[j++];
             trip.origin = new Coord(Double.parseDouble(row[j++]), Double.parseDouble(row[j++]));
             trip.destination = new Coord(Double.parseDouble(row[j++]), Double.parseDouble(row[j++]));
             trip.departureTime = Time.parseTime(row[j]);

@@ -4,6 +4,7 @@ import org.matsim.api.core.v01.Coord;
 
 
 public class TripItem {
+    public String tripId;
     public Coord origin;
     public Coord destination;
     public double departureTime;
