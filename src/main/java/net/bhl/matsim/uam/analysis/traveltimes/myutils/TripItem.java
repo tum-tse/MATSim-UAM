@@ -9,6 +9,9 @@ public class TripItem {
     public Coord destination;
     public double departureTime;
     public double travelTime;
+    public double ptWaitingTime;
+    public double ptInVehicleTime;
+    public int ptTransfers;
     public String description;
 
     public double distance;

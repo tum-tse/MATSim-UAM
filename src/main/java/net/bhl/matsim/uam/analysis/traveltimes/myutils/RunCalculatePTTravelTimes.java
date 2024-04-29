@@ -24,6 +24,7 @@ import org.matsim.core.router.LinkWrapperFacility;
 import org.matsim.core.router.RoutingModule;
 import org.matsim.core.router.TeleportationRoutingModule;
 import org.matsim.core.scenario.ScenarioUtils;
+import org.matsim.core.scoring.EventsToLegs;
 import org.matsim.pt.router.TransitRouter;
 
 import com.opencsv.CSVParser;
@@ -129,8 +130,8 @@ public class RunCalculatePTTravelTimes {
             writer.write(String.join(String.valueOf(CSVParser.DEFAULT_SEPARATOR),
                     new String[]{trip.tripId, String.valueOf(trip.origin.getX()), String.valueOf(trip.origin.getY()),
                             String.valueOf(trip.destination.getX()), String.valueOf(trip.destination.getY()),
-                            String.valueOf(trip.departureTime), String.valueOf(trip.travelTime),
-                            String.valueOf(trip.distance), trip.description})
+                            String.valueOf(trip.departureTime), String.valueOf(trip.ptWaitingTime), String.valueOf(trip.ptInVehicleTime), String.valueOf(trip.travelTime),
+                            String.valueOf(trip.distance), trip.description, String.valueOf(trip.ptTransfers)})
                     + "\n");
         }
 
@@ -141,7 +142,7 @@ public class RunCalculatePTTravelTimes {
     private static String formatHeader() {
         return String.join(String.valueOf(CSVParser.DEFAULT_SEPARATOR),
                 new String[]{"trip_id", "origin_x", "origin_y", "destination_x", "destination_y",
-                        "departure_time", "travel_time", "distance", "description"});
+                        "departure_time", "pt_waiting_time", "pt_in_vehicle_time", "travel_time", "distance", "description", "transfers"});
     }
 
     static class PTTravelTimeCalculator implements Runnable {
@@ -175,8 +176,13 @@ public class RunCalculatePTTravelTimes {
                         new LinkWrapperFacility(to), trip.departureTime, null);
                 double time = 0;
                 double distance = 0;
+                double totalWaitingTime = 0;
+                int transfers = 0;
                 StringBuilder routeList = new StringBuilder();
                 for (Leg leg : legs) {
+                    if(leg.getMode().equals(TransportMode.pt))
+                        transfers++;
+
                     if (time != 0 && writeDescription)
                         routeList.append("->");
                     time += leg.getTravelTime().seconds();
@@ -188,10 +194,23 @@ public class RunCalculatePTTravelTimes {
                         routeList.append("[time:").append(leg.getTravelTime()).append("]");
                         routeList.append("[distance:").append(leg.getRoute().getDistance()).append("]");
                     }
+                    // Calculate waiting time //TODO: How to include also the real waiting times?
+/*                    Double boardingTime = (Double) leg.getAttributes().getAttribute(EventsToLegs.ENTER_VEHICLE_TIME_ATTRIBUTE_NAME);
+                    if (boardingTime != null) {
+                        double waitingTime = boardingTime - leg.getDepartureTime().seconds();
+                        totalWaitingTime += waitingTime;
+                    }*/
+                    if (leg.getMode().equals(TransportMode.walk)) {
+                        double walkingTime = leg.getTravelTime().seconds();
+                        totalWaitingTime += walkingTime;
+                    }
                 }
                 trip.travelTime = time;
+                trip.ptWaitingTime = totalWaitingTime;
+                trip.ptInVehicleTime = time - totalWaitingTime;
                 trip.distance = distance;
                 trip.description = routeList.toString();
+                trip.ptTransfers = transfers-1;
             } catch (NullPointerException e) {
                 // Do nothing; failed trip will show as null in results.
             }
