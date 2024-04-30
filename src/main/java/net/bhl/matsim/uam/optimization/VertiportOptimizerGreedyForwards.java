@@ -289,8 +289,14 @@ public static double getPairScore(List<Integer> vertiportsPair, HashMap<List<Int
             tripItem.uamProbability=calculateModeProbability(tripItem.uamUtility,tripItem.carUtility,tripItem.ptUtility).get(0);
             tripItem.carProbability=calculateModeProbability(tripItem.uamUtility,tripItem.carUtility,tripItem.ptUtility).get(1);
             tripItem.ptProbability=calculateModeProbability(tripItem.uamUtility,tripItem.carUtility,tripItem.ptUtility).get(2);
+            // Create a double list to store the probability of each mode
+            Double [] modeProbability={tripItem.uamProbability,tripItem.carProbability,tripItem.ptProbability};
+            // Create a double list to store the generalized cost of each mode
+            Double [] modeGeneralizedCost={tripItem.UAMGeneralizedCost,tripItem.carGeneralizedCost,tripItem.ptGeneralizedCost};
             double generalizedCostOneTripBefore=tripItem.carGeneralizedCost*calculateModeProbability(-9999,tripItem.carUtility,tripItem.ptUtility).get(1)+tripItem.ptGeneralizedCost*calculateModeProbability(-9999,tripItem.carUtility,tripItem.ptUtility).get(2);
-            double generalizedCostOneTripAfter=tripItem.UAMGeneralizedCost*tripItem.uamProbability+tripItem.carGeneralizedCost*tripItem.carProbability+tripItem.ptGeneralizedCost*tripItem.ptProbability;
+            ModeDecider modeDecider=new ModeDecider(modeProbability,modeGeneralizedCost);
+
+            double generalizedCostOneTripAfter= modeDecider.calculateAverageCost(100);
             double savedGeneralizedCostOneTrip=generalizedCostOneTripBefore-generalizedCostOneTripAfter;
             if (savedGeneralizedCostOneTrip<0){
                 savedGeneralizedCostOneTrip=0;

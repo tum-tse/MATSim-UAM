@@ -135,7 +135,7 @@ public class PreCalculateAccessEgressCost {
                 System.out.println("Trip " + i + " is processed.");
             }
         }
-// Assuming 'trips' is a List<Trip> containing all the trip data
+
         try (FileOutputStream fileOut = new FileOutputStream(outputTripFile);
              ObjectOutputStream out = new ObjectOutputStream(fileOut)) {
             out.writeObject(tripItems);
@@ -143,9 +143,9 @@ public class PreCalculateAccessEgressCost {
             e.printStackTrace();
         }
 
-
-        // Save the access and egress time and distance for each vertiport candidate of each trip and store in a file}
     }
+        // Save the access and egress time and distance for each vertiport candidate of each trip and store in a file
+
     public static Path estimatePath(Link from, Link to, double departureTime, Network carNetwork,
                                      LeastCostPathCalculator pathCalculator) {
         if (carNetwork.getLinks().get(from.getId()) == null)

@@ -20,8 +20,10 @@ public class TripItem implements java.io.Serializable{
 	public double UAMUtilityVar;
 	public double uamTravelTime;
 	public double VOT;
-	/*
+
+
 	public int currentMode; // 0: car, 1: pt
+	/*
 	public boolean carAvailable;
 	public double accessDistance;
 	public double egressDistance;
@@ -33,12 +35,14 @@ public class TripItem implements java.io.Serializable{
 	*/
 	public String tripPurpose;
 
-
+    public double carEmission;
+	public double ptEmission;
 	public double UAMCost;
 	public double UAMGeneralizedCost;
 	public double carGeneralizedCost;
 	public double ptGeneralizedCost;
-	public double generalizedCost;
+	public double currentGeneralizedCost;
+	public double currentEmission;
 	public double carTravelTime;
 	public double ptTravelTime;
 	public double carTravelCost;

@@ -1,31 +1,33 @@
 package net.bhl.matsim.uam.optimization;
-
+import java.util.concurrent.ThreadLocalRandom;
 public class ModeDecider {
-    public ModeDecider(double carProbability, double ptProbability, double uamProbability) {
-        this.carProbability = carProbability;
-        this.ptProbability = ptProbability;
-        this.uamProbability = uamProbability;
+    public Double [] probabilities;
+
+    public ModeDecider(Double [] probabilities) {
+        this.probabilities = probabilities;
+
     }
 
-    public double carProbability;
-public double ptProbability;
-public double uamProbability;
 
+    // return the number of samples of each mode in a Integer array
+    public Double [] sample(int samplesize) {
+        Double [] samples = new Double[probabilities.length];
+        double r = ThreadLocalRandom.current().nextDouble();
+        double sum = 0;
+        for(int i=0; i< samplesize; i++) {
+            for (int j = 0; j < probabilities.length; j++) {
+                sum += probabilities[j];
+                if (r < sum) {
+                    samples[j] += 1;
+                    break;
+                }
+            }
+        }
+        return new Double[]{ (samples[0] / samplesize), samples[1] / samplesize, samples[2] / samplesize};
 
-    public String decideMode() {
-
-Double random=Math.random();
-// Decide the mode by Mote carlo sampling based on the probability
-if (random<this.carProbability){
- return "car";
-}
-else if (random<this.carProbability+this.ptProbability){
-return "pt";
-}
-else{
-    return "uam";
-}
     }
+
+
 
 
 }

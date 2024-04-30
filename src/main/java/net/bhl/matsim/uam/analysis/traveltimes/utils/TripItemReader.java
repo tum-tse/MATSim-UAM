@@ -9,6 +9,9 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class TripItemReader {
+	public static final double CAR_EMISSION_FACTOR = 0.4;
+	public static final double PT_EMISSION_FACTOR = 0.1;
+	public static final double CARBON_EQUIVALENCE= 0.1;
 
 	public static List<TripItem> getTripItemsSimple (String tripsInput) throws IOException{
 		List<TripItem> trips = new ArrayList<>();
@@ -50,7 +53,19 @@ public class TripItemReader {
 			trip.UAMUtilityFix = Double.parseDouble(row[j++]);
 			trip.carGeneralizedCost=Double.parseDouble(row[j++]);
 			trip.ptGeneralizedCost=Double.parseDouble(row[j++]);
-			trip.VOT=Double.parseDouble(row[j])/2080/3600;
+			trip.VOT=Double.parseDouble(row[j++])/2080/3600;
+			if (row[j].contains("auto"))
+				trip.currentMode=0;
+			else
+				trip.currentMode=1;
+			trip.carEmission=CAR_EMISSION_FACTOR*trip.carTripLength/1000;
+			trip.ptEmission=CAR_EMISSION_FACTOR*trip.ptTripLength/1000;
+			if (trip.currentMode==0)
+			{trip.currentGeneralizedCost=trip.carGeneralizedCost;
+			    trip.currentEmission=trip.carEmission;}
+			else
+			{trip.currentGeneralizedCost=trip.ptGeneralizedCost;
+			    trip.currentEmission=trip.ptEmission;}
 			trips.add(trip);
 		}
 
