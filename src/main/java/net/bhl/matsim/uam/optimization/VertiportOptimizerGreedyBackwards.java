@@ -32,7 +32,7 @@ public class VertiportOptimizerGreedyBackwards {
 
         log.info("Loading the vertiport candidates...");
         VertiportReader vertiportReader = new VertiportReader();
-        List<Vertiport> vertiportsCandidates = VertiportReader.getVertiports(vertiportCandidateFile);
+        List<Vertiport> vertiportsCandidates = vertiportReader.getVertiports(vertiportCandidateFile);
         // Test
         // Only the first 50 vertiports are used for testing
         //      vertiportsCandidates = vertiportsCandidates.subList(0, 50);

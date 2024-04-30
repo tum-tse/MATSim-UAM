@@ -32,7 +32,7 @@ public class VertiportOptimizerGreedyForwards {
 
         log.info("Loading the vertiport candidates...");
         VertiportReader vertiportReader = new VertiportReader();
-        List<Vertiport> vertiportsCandidates = VertiportReader.getVertiports(vertiportCandidateFile);
+        List<Vertiport> vertiportsCandidates = vertiportReader.getVertiports(vertiportCandidateFile);
         // Test
         // Only the first 50 vertiports are used for testing
    //      vertiportsCandidates = vertiportsCandidates.subList(0, 50);
@@ -294,9 +294,9 @@ public static double getPairScore(List<Integer> vertiportsPair, HashMap<List<Int
             // Create a double list to store the generalized cost of each mode
             Double [] modeGeneralizedCost={tripItem.UAMGeneralizedCost,tripItem.carGeneralizedCost,tripItem.ptGeneralizedCost};
             double generalizedCostOneTripBefore=tripItem.carGeneralizedCost*calculateModeProbability(-9999,tripItem.carUtility,tripItem.ptUtility).get(1)+tripItem.ptGeneralizedCost*calculateModeProbability(-9999,tripItem.carUtility,tripItem.ptUtility).get(2);
-            ModeDecider modeDecider=new ModeDecider(modeProbability,modeGeneralizedCost);
-
-            double generalizedCostOneTripAfter= modeDecider.calculateAverageCost(100);
+            ModeDecider modeDecider=new ModeDecider(modeProbability);
+            Double [] modeSamples=modeDecider.sample(100);
+            double generalizedCostOneTripAfter= tripItem.carGeneralizedCost*modeSamples[0]+tripItem.ptGeneralizedCost*modeSamples[1]+tripItem.UAMGeneralizedCost*modeSamples[2];
             double savedGeneralizedCostOneTrip=generalizedCostOneTripBefore-generalizedCostOneTripAfter;
             if (savedGeneralizedCostOneTrip<0){
                 savedGeneralizedCostOneTrip=0;
