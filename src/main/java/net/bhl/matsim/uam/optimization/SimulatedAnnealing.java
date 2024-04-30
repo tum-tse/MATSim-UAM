@@ -10,7 +10,7 @@ import java.io.ObjectInputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
-
+import org.matsim.utils.MemoryObserver;
 
 
 public class SimulatedAnnealing {
@@ -33,6 +33,7 @@ public class SimulatedAnnealing {
     public static final double CARBON_EQUIVALENCE_FACTOR=2.48; // Euro/kgCO2
     public static final boolean CONSIDER_CARBON= true; // Euro/kgCO2
     public static void main(String[] args) throws IOException {
+        MemoryObserver.start(600);
         // Provide the file via program arguments
         if (args.length > 0) {
             serializedTripItemFile = args[0];

@@ -28,6 +28,7 @@ import java.io.ObjectOutputStream;
 import java.util.*;
 import java.util.List;
 import java.util.concurrent.ArrayBlockingQueue;
+import org.matsim.utils.MemoryObserver;
 public class PreCalculateAccessEgressCost {
     // This class is used to calculate the access and egress time and distance for each vertiport candidate of each trip
     // Input in args: trip file, config file, vertiport candidate file, output file
@@ -44,6 +45,7 @@ public class PreCalculateAccessEgressCost {
     private static ArrayBlockingQueue<LeastCostPathCalculator> carRouters = new ArrayBlockingQueue<>(processes);
 
     public static void main(String[] args) throws IOException {
+        MemoryObserver.start(600);
         // Provide the file via program arguments
         if (args.length > 0) {
             tripFile = args[0];
