@@ -13,7 +13,7 @@ public class TripItemReader {
 	public static final double PT_EMISSION_FACTOR = 0.1;
 	public static final double CARBON_EQUIVALENCE= 0.1;
 
-	public static List<TripItem> getTripItemsSimple (String tripsInput) throws IOException{
+	public static List<TripItem> getTripItems (String tripsInput) throws IOException{
 		List<TripItem> trips = new ArrayList<>();
 		List<String[]> rows = CSVReaders.readCSV(tripsInput);
 		for (String[] row : rows.subList(1, rows.size())) {
@@ -28,7 +28,7 @@ public class TripItemReader {
 		}
 		return trips;
 	}
-	public static List<TripItem> getTripItems(String tripsInput) throws IOException {
+	public List<TripItem> getTripItemsForOptimization(String tripsInput) throws IOException {
 		List<TripItem> trips = new ArrayList<>();
 		List<String[]> rows = CSVReaders.readCSV(tripsInput);
 		for (String[] row : rows.subList(1, rows.size())) {

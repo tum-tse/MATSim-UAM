@@ -38,7 +38,7 @@ public class SimulatedAnnealingCaseStudy2 {
 
         log.info("Loading the vertiport candidates...");
         VertiportReader vertiportReader = new VertiportReader();
-        List<Vertiport> vertiportsCandidates = VertiportReader.getVertiports(vertiportCandidateFile);
+        List<Vertiport> vertiportsCandidates = vertiportReader.getVertiports(vertiportCandidateFile);
 
         log.info("Finished loading the vertiport candidates.");
         log.info("Loading the trips...");

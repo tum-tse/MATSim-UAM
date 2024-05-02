@@ -160,17 +160,23 @@ public class RunCalculateCarTravelTimes {
 		return pathCalculator.calcLeastCostPath(from.getFromNode(), to.getToNode(), departureTime, null, null);
 	}
 
-	static class CarTravelTimeCalculator implements Runnable {
+	public static class CarTravelTimeCalculator implements Runnable {
 
 		private TripItem trip;
 		private ThreadCounter threadCounter;
 		private Network networkCar;
 		private LeastCostPathCalculator plcpccar;
-
-		CarTravelTimeCalculator(ThreadCounter threadCounter, Network network, TripItem trip) {
+		private ArrayBlockingQueue<LeastCostPathCalculator> carRouters;
+		public CarTravelTimeCalculator(ThreadCounter threadCounter, Network network, TripItem trip) {
 			this.threadCounter = threadCounter;
 			this.networkCar = network;
 			this.trip = trip;
+		}
+		public CarTravelTimeCalculator(ThreadCounter threadCounter, Network network, TripItem trip, ArrayBlockingQueue<LeastCostPathCalculator> carRouters) {
+			this.threadCounter = threadCounter;
+			this.networkCar = network;
+			this.trip = trip;
+			this.carRouters = carRouters;
 		}
 
 		@Override

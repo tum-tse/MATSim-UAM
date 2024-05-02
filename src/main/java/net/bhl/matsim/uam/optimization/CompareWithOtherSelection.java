@@ -90,7 +90,7 @@ public class CompareWithOtherSelection {
         LeastCostPathCalculator pathCalculator = pathCalculatorFactory.createPathCalculator(networkCar, travelDisutility, travelTime);
         // Read the trip file and store in a list
         TripItemReader tripItemReader = new TripItemReader();
-        List<TripItem> tripItems = tripItemReader.getTripItems(tripFile);
+        List<TripItem> tripItems = tripItemReader.getTripItemsForOptimization(tripFile);
         List<TripItem> uamEnabledTrips = new ArrayList<>();
         for (int i=0;i<tripItems.size();i++) {
             TripItem currentTrip = tripItems.get(i);
