@@ -305,9 +305,8 @@ public class RunCalculateUAMTravelTimes {
 
                 trip.travelTime = trip.accessTime + trip.flightTime + trip.egressTime + trip.processTime;
 
-                trip.flightTime = strategyUtils.getFlightDistance(uamRoute.bestOriginStation,
+                trip.flightDistance = strategyUtils.getFlightDistance(uamRoute.bestOriginStation,
                         uamRoute.bestDestinationStation);
-
                 trip.accessDistance = strategyUtils.getAccessDistance(fromFacility, trip.departureTime,
                         uamRoute.bestOriginStation, uamRoute.accessMode);
                 trip.egressDistance = strategyUtils.getEgressDistance(fromFacility, trip.departureTime,
