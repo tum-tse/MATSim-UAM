@@ -211,6 +211,10 @@ public class UAMStrategyUtils {
 		return estimateAccessLeg(true, fromFacility, time, departureStation, mode).travelTime;
 	}
 
+	public double getAccessDistance(Facility fromFacility, Double time, UAMStation departureStation, String mode) {
+		return estimateAccessLeg(true, fromFacility, time, departureStation, mode).distance;
+	}
+
 	public double getFlightTime(UAMStation originStation, UAMStation destinationStation) {
 		return stationConnections.getFlightLeg(originStation.getId(), destinationStation.getId()).travelTime;
 	}
@@ -221,5 +225,9 @@ public class UAMStrategyUtils {
 
 	public double getEgressTime(Facility toFacility, Double time, UAMStation destinationStation, String mode) {
 		return estimateAccessLeg(false, toFacility, time, destinationStation, mode).travelTime;
+	}
+
+	public double getEgressDistance(Facility toFacility, Double time, UAMStation destinationStation, String mode) {
+		return estimateAccessLeg(false, toFacility, time, destinationStation, mode).distance;
 	}
 }

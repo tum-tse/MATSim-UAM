@@ -15,9 +15,12 @@ public class TripItem {
     public String description;
 
     public double distance;
+    public double flightDistance;
     public double accessTime;
+    public double accessDistance;
     public double flightTime;
     public double egressTime;
+    public double egressDistance;
     public double processTime;
     public String accessMode;
     public String egressMode;

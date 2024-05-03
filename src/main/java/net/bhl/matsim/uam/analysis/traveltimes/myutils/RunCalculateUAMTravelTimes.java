@@ -200,7 +200,7 @@ public class RunCalculateUAMTravelTimes {
                             String.valueOf(trip.departureTime), String.valueOf(trip.travelTime),
                             String.valueOf(trip.accessTime), String.valueOf(trip.flightTime),
                             String.valueOf(trip.egressTime), trip.accessMode, trip.egressMode, trip.originStation,
-                            trip.destinationStation })
+                            trip.destinationStation, String.valueOf(trip.processTime), String.valueOf(trip.accessDistance), String.valueOf(trip.egressDistance)})
                     + "\n");
         }
 
@@ -212,7 +212,7 @@ public class RunCalculateUAMTravelTimes {
         return String.join(String.valueOf(CSVParser.DEFAULT_SEPARATOR),
                 new String[] { "trip_id", "origin_x", "origin_y", "destination_x", "destination_y", "departure_time",
                         "travel_time", "access_time", "flight_time", "egress_time", "access_mode", "egress_mode",
-                        "orig_station", "dest_station" });
+                        "orig_station", "dest_station" , "process_time", "access_distance", "egress_distance"});
     }
 
     static class UAMTravelTimeCalculator implements Runnable {
@@ -304,6 +304,14 @@ public class RunCalculateUAMTravelTimes {
                         uamRoute.bestDestinationStation, uamRoute.egressMode);
 
                 trip.travelTime = trip.accessTime + trip.flightTime + trip.egressTime + trip.processTime;
+
+                trip.flightTime = strategyUtils.getFlightDistance(uamRoute.bestOriginStation,
+                        uamRoute.bestDestinationStation);
+
+                trip.accessDistance = strategyUtils.getAccessDistance(fromFacility, trip.departureTime,
+                        uamRoute.bestOriginStation, uamRoute.accessMode);
+                trip.egressDistance = strategyUtils.getEgressDistance(fromFacility, trip.departureTime,
+                        uamRoute.bestOriginStation, uamRoute.accessMode);
             }
 
             try {
