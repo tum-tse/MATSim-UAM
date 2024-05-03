@@ -200,7 +200,7 @@ public class RunCalculateUAMTravelTimes {
                             String.valueOf(trip.departureTime), String.valueOf(trip.travelTime),
                             String.valueOf(trip.accessTime), String.valueOf(trip.flightTime),
                             String.valueOf(trip.egressTime), trip.accessMode, trip.egressMode, trip.originStation,
-                            trip.destinationStation, String.valueOf(trip.processTime), String.valueOf(trip.accessDistance), String.valueOf(trip.egressDistance)})
+                            trip.destinationStation, String.valueOf(trip.processTime), String.valueOf(trip.accessDistance), String.valueOf(trip.egressDistance), String.valueOf(trip.flightDistance)})
                     + "\n");
         }
 
@@ -212,7 +212,7 @@ public class RunCalculateUAMTravelTimes {
         return String.join(String.valueOf(CSVParser.DEFAULT_SEPARATOR),
                 new String[] { "trip_id", "origin_x", "origin_y", "destination_x", "destination_y", "departure_time",
                         "travel_time", "access_time", "flight_time", "egress_time", "access_mode", "egress_mode",
-                        "orig_station", "dest_station" , "process_time", "access_distance", "egress_distance"});
+                        "orig_station", "dest_station" , "process_time", "access_distance", "egress_distance", "flight_distance"});
     }
 
     static class UAMTravelTimeCalculator implements Runnable {
