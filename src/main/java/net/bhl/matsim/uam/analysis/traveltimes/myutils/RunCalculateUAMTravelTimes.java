@@ -52,8 +52,8 @@ import ch.sbb.matsim.routing.pt.raptor.RaptorUtils;
 import ch.sbb.matsim.routing.pt.raptor.SwissRailRaptor;
 import ch.sbb.matsim.routing.pt.raptor.SwissRailRaptorData;
 import net.bhl.matsim.uam.analysis.traveltimes.utils.ThreadCounter;
-import net.bhl.matsim.uam.analysis.traveltimes.utils.TripItem;
-import net.bhl.matsim.uam.analysis.traveltimes.utils.TripItemReader;
+import net.bhl.matsim.uam.analysis.traveltimes.myutils.TripItem;
+import net.bhl.matsim.uam.analysis.traveltimes.myutils.TripItemReader;
 import net.bhl.matsim.uam.config.UAMConfigGroup;
 import net.bhl.matsim.uam.data.UAMRoute;
 import net.bhl.matsim.uam.data.UAMStationConnectionGraph;
@@ -195,7 +195,7 @@ public class RunCalculateUAMTravelTimes {
         writer.write(formatHeader() + "\n");
         for (TripItem trip : trips) {
             writer.write(String.join(String.valueOf(CSVParser.DEFAULT_SEPARATOR),
-                    new String[] { String.valueOf(trip.origin.getX()), String.valueOf(trip.origin.getY()),
+                    new String[] { trip.tripId, String.valueOf(trip.origin.getX()), String.valueOf(trip.origin.getY()),
                             String.valueOf(trip.destination.getX()), String.valueOf(trip.destination.getY()),
                             String.valueOf(trip.departureTime), String.valueOf(trip.travelTime),
                             String.valueOf(trip.accessTime), String.valueOf(trip.flightTime),
@@ -210,7 +210,7 @@ public class RunCalculateUAMTravelTimes {
 
     private static String formatHeader() {
         return String.join(String.valueOf(CSVParser.DEFAULT_SEPARATOR),
-                new String[] { "origin_x", "origin_y", "destination_x", "destination_y", "departure_time",
+                new String[] { "trip_id", "origin_x", "origin_y", "destination_x", "destination_y", "departure_time",
                         "travel_time", "access_time", "flight_time", "egress_time", "access_mode", "egress_mode",
                         "orig_station", "dest_station" });
     }
