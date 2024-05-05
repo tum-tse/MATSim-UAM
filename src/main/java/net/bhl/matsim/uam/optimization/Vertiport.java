@@ -11,7 +11,7 @@ public class Vertiport implements java.io.Serializable{
     public double constructionCost;
     public double capacity;
     // double array of saturation rates for each hour of the day with the length of 24
-    public HashMap<Integer,Double> saturationRates;
+    public HashMap<Integer,Double> saturationRates=new HashMap<>();
     public double maxSaturationRate;
     public List<Vertiport> neighbors;
 }

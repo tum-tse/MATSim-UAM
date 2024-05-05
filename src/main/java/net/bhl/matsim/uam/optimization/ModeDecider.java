@@ -12,6 +12,9 @@ public class ModeDecider {
     // return the number of samples of each mode in a Integer array
     public Double [] sample(int samplesize) {
         Double [] samples = new Double[probabilities.length];
+        for(int i=0; i< samples.length; i++) {
+            samples[i] = 0.0;
+        }
         double r = ThreadLocalRandom.current().nextDouble();
         double sum = 0;
         for(int i=0; i< samplesize; i++) {

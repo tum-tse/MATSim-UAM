@@ -1,6 +1,6 @@
 package net.bhl.matsim.uam.heuristic;
 
-import net.bhl.matsim.uam.analysis.traveltimes.utils.TripItem;
+import net.bhl.matsim.uam.optimization.utils.TripItemForOptimization;
 import net.bhl.matsim.uam.optimization.Vertiport;
 
 import java.util.ArrayList;
@@ -12,12 +12,12 @@ public class Population {
 
         private Chromosome[] population;
         public List<Vertiport> vertiportCandidates;
-        public List<TripItem> deserializedTripItems;
+        public List<TripItemForOptimization> deserializedTripItemForOptimizations;
 
-        public Population(int populationSize,List<Vertiport> vertiportCandidates, List<TripItem> deserializedTripItems) {
+        public Population(int populationSize,List<Vertiport> vertiportCandidates, List<TripItemForOptimization> deserializedTripItemForOptimizations) {
             this.population = new Chromosome[populationSize];
             this.vertiportCandidates=vertiportCandidates;
-            this.deserializedTripItems=deserializedTripItems;
+            this.deserializedTripItemForOptimizations = deserializedTripItemForOptimizations;
         }
 
         public void initializePopulation() {
@@ -28,7 +28,7 @@ public class Population {
 
         public void calculateFitnessOfAllChromosomes() {
             for (Chromosome chromosome : this.population) {
-                chromosome.calculateFitness(this.vertiportCandidates,this.deserializedTripItems);
+                chromosome.calculateFitness(this.vertiportCandidates,this.deserializedTripItemForOptimizations);
             }
         }
 
