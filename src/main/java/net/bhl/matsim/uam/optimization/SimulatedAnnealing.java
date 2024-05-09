@@ -32,6 +32,7 @@ public class SimulatedAnnealing {
     public static final double UAM_EMISSION_FACTOR=0.1; // kg/km
     public static final double CARBON_EQUIVALENCE_FACTOR=2.48; // Euro/kgCO2
     public static final boolean CONSIDER_CARBON= false; // Euro/kgCO2
+    private static final int SIMULATION_HOURS=36;
     public static void main(String[] args) throws IOException {
         MemoryObserver.start(600);
         // Provide the file via program arguments
@@ -69,7 +70,7 @@ public class SimulatedAnnealing {
             List<Integer> newSolutionID= generateNewSolution(random,currentSolutionID,vertiportsCandidates,CONSIDER_CARBON);
             // set the saturation rate of all vertiports to 0
             for (Vertiport vertiport:vertiportsCandidates){
-                for (int i=0;i<24;i++){
+                for (int i=0;i<SIMULATION_HOURS;i++){
                     vertiport.saturationRates.put(i,0.0);
                 }
             }
@@ -174,9 +175,6 @@ public class SimulatedAnnealing {
         }
 
         for (TripItemForOptimization tripItemForOptimization : uamAvailableTrips) {
-            if (tripItemForOptimization.tripID.equals("1146924")){
-                System.out.println("tripID: "+tripItemForOptimization.tripID);
-            }
             for (Vertiport vertiport : tripItemForOptimization.originNeighborVertiports) {
                 tripItemForOptimization.originNeighborVertiportsTimeAndDistance.put(vertiport, tripItemForOptimization.originNeighborVertiportCandidatesTimeAndDistance.get(vertiport));
             }
@@ -245,13 +243,8 @@ public class SimulatedAnnealing {
             // update the saturation rate of the access and egress vertiport
 
             int arriveVertiportHour=(int)Math.floor((tripItemForOptimization.departureTime+ tripItemForOptimization.accessTime)/3600);
-            if (arriveVertiportHour>=24){
-                arriveVertiportHour=arriveVertiportHour-24;
-            }
+
             int leaveVertiportHour=(int)Math.floor((tripItemForOptimization.departureTime+ tripItemForOptimization.accessTime+UAM_PROCESS_TIME+ tripItemForOptimization.flightTime)/3600);
-            if (leaveVertiportHour>=24){
-                leaveVertiportHour=leaveVertiportHour-24;
-            }
             vertiportsCandidates.get(tripItemForOptimization.accessVertiport.ID).saturationRates.put(arriveVertiportHour,  vertiportsCandidates.get(tripItemForOptimization.accessVertiport.ID).saturationRates.get(arriveVertiportHour)+ tripItemForOptimization.uamProbability/ tripItemForOptimization.accessVertiport.capacity);
             vertiportsCandidates.get(tripItemForOptimization.egressVertiport.ID).saturationRates.put(leaveVertiportHour,  vertiportsCandidates.get(tripItemForOptimization.egressVertiport.ID).saturationRates.get(leaveVertiportHour)+ tripItemForOptimization.uamProbability/ tripItemForOptimization.egressVertiport.capacity);
 
@@ -299,7 +292,7 @@ public static List<Integer> generateNewSolution (Random random, List<Integer> cu
         for (Vertiport vertiport:newSolution){
             // get the maxSaturationRate for each vertiport
             double maxSaturationRate=0;
-            for (int i=0;i<24;i++){
+            for (int i=0;i<SIMULATION_HOURS;i++){
                 if (vertiport.saturationRates.get(i)>vertiport.maxSaturationRate){
                     vertiport.maxSaturationRate=vertiport.saturationRates.get(i);
                 }
