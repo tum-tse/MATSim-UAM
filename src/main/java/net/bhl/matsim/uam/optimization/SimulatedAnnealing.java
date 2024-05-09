@@ -55,18 +55,18 @@ public class SimulatedAnnealing {
         double bestEnergy= currentEnergey;
         double currentTemperature = INITIAL_TEMPERATURE;
         int notChangeCount=0;
-        int saturedVertiportCount=0;
+        int saturatedVertiportCount=0;
         double maxSaturationRate=0;
         for (Integer vertiportID:currentSolutionID){
             if (vertiportsCandidates.get(vertiportID).maxSaturationRate>1){
-                saturedVertiportCount++;
+                saturatedVertiportCount++;
             }
             if (vertiportsCandidates.get(vertiportID).maxSaturationRate>maxSaturationRate){
                 maxSaturationRate=vertiportsCandidates.get(vertiportID).maxSaturationRate;
             }
         }
         for (int iteration=0;iteration<10000;iteration++ ){
-            List<Integer> newSolutionID= generateNewSolution(random,currentSolutionID,vertiportsCandidates);
+            List<Integer> newSolutionID= generateNewSolution(random,currentSolutionID,vertiportsCandidates,CONSIDER_CARBON);
             // set the saturation rate of all vertiports to 0
             for (Vertiport vertiport:vertiportsCandidates){
                 for (int i=0;i<24;i++){
@@ -82,7 +82,7 @@ public class SimulatedAnnealing {
                 currentEnergey=newEnergy;
                 for (Integer vertiportID:currentSolutionID){
                     if (vertiportsCandidates.get(vertiportID).maxSaturationRate>1){
-                        saturedVertiportCount++;
+                        saturatedVertiportCount++;
                     }
                     if (vertiportsCandidates.get(vertiportID).maxSaturationRate>maxSaturationRate){
                         maxSaturationRate=vertiportsCandidates.get(vertiportID).maxSaturationRate;
@@ -103,12 +103,14 @@ public class SimulatedAnnealing {
 
             // update the temperature
             currentTemperature=currentTemperature*ANNEALING_RATE;
-            log.info("Iteration: "+iteration+" Current Temperature: "+currentTemperature+" Current Energy: "+currentEnergey+" Best Energy: "+bestEnergy+ " Satured Vertiport Count: "+saturedVertiportCount+" Max Saturation Rate: "+maxSaturationRate);
+            log.info("Iteration: "+iteration+" Current Temperature: "+currentTemperature+" Current Energy: "+currentEnergey+" Best Energy: "+bestEnergy+ " Saturated Vertiport Count: "+saturatedVertiportCount+" Max Saturation Rate: "+maxSaturationRate);
 
             // if the best solution is not updated for more than 2000 iterations, break
             if(notChangeCount>2000){
                 break;
             }
+            saturatedVertiportCount=0;
+            maxSaturationRate=0;
         }
 
         log.info("Best Solution: "+ bestSolutionID + " Best Energy: "+ bestEnergy);
@@ -285,7 +287,7 @@ public class SimulatedAnnealing {
 
 
 }
-public static List<Integer> generateNewSolution (Random random, List<Integer> currentSolutionID, List<Vertiport> vertiportsCandidates){
+public static List<Integer> generateNewSolution (Random random, List<Integer> currentSolutionID, List<Vertiport> vertiportsCandidates, boolean considerCarbon){
         List<Integer> newSolutionID=new ArrayList<>(currentSolutionID);
         List<Integer> notChosenVertiportID = new ArrayList<>();
         List<Integer> SaturationVertiportsID = new ArrayList<>();
@@ -315,7 +317,7 @@ public static List<Integer> generateNewSolution (Random random, List<Integer> cu
                 notChosenVertiportID.add(vertiport.ID);
             }
         }
-        if (SaturationVertiportsID.size()>0)
+        if (SaturationVertiportsID.size()>0 && considerCarbon)
             // get the vertiport with highest saturationRate in SaturationVertiports
         {
             Integer vertiportWithHighestSaturationRateID=SaturationVertiportsID.get(0);
