@@ -10,7 +10,7 @@ import java.util.List;
 
 public class TripItemForOptimization implements java.io.Serializable{
 
-	public int tripID;
+	public String tripID;
 	public int personID;
 	public Coord origin;
 	public Coord destination;

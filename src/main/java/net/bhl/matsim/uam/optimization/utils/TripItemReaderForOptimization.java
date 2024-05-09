@@ -20,7 +20,7 @@ public class TripItemReaderForOptimization {
 		for (String[] row : rows.subList(1, rows.size())) {
 			int j = 0;
 			TripItemForOptimization trip = new TripItemForOptimization();
-			trip.tripID = Integer.parseInt(row[j++]);
+			trip.tripID = row[j++];
 			trip.personID = Integer.parseInt(row[j++]);
 			trip.origin = new Coord(Double.parseDouble(row[j++]), Double.parseDouble(row[j++]));
 			trip.destination = new Coord(Double.parseDouble(row[j++]), Double.parseDouble(row[j++]));
@@ -35,7 +35,7 @@ public class TripItemReaderForOptimization {
 		for (String[] row : rows.subList(1, rows.size())) {
 			int j = 0;
 			TripItemForOptimization trip = new TripItemForOptimization();
-			trip.tripID = Integer.parseInt(row[j++]);
+			trip.tripID = row[j++];
 			trip.personID = Integer.parseInt(row[j++]);
 			trip.origin = new Coord(Double.parseDouble(row[j++]), Double.parseDouble(row[j++]));
 			trip.destination = new Coord(Double.parseDouble(row[j++]), Double.parseDouble(row[j++]));

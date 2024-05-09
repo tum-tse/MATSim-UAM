@@ -174,7 +174,7 @@ public class SimulatedAnnealing {
         }
 
         for (TripItemForOptimization tripItemForOptimization : uamAvailableTrips) {
-            if (tripItemForOptimization.tripID==1146924){
+            if (tripItemForOptimization.tripID.equals("1146924")){
                 System.out.println("tripID: "+tripItemForOptimization.tripID);
             }
             for (Vertiport vertiport : tripItemForOptimization.originNeighborVertiports) {

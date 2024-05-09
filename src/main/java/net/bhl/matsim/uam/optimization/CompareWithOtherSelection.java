@@ -114,14 +114,14 @@ public class CompareWithOtherSelection {
         System.out.println("The number of trips that can be served by UAM in current Vertiport Selection is: "+uamEnabledTrips.size());
 // Create the LeastCostPathCalculator
 // write out the trips ID that can be served by UAM
-        List<Integer> uamAvailableTripsID = new ArrayList<>();
+        List<String> uamAvailableTripsID = new ArrayList<>();
         for (TripItemForOptimization tripItemForOptimization : uamEnabledTrips) {
             uamAvailableTripsID.add(tripItemForOptimization.tripID);
         }
         FileWriter fileWriter = new FileWriter(servedTripsIDFile);
         CSVWriter csvWriter = new CSVWriter(fileWriter);
         csvWriter.writeNext(new String[]{"tripID"});
-        for (Integer tripID : uamAvailableTripsID) {
+        for (String tripID : uamAvailableTripsID) {
             csvWriter.writeNext(new String[]{tripID.toString()});
         }
         csvWriter.close();

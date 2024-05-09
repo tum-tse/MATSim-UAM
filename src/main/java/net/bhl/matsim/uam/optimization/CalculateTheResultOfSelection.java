@@ -186,14 +186,14 @@ AllCandidates=new int[200];
 
         System.out.println("The number of served trips is "+uamAvailableTrips.size());
 
-        List<Integer> uamAvailableTripsID = new ArrayList<>();
+        List<String> uamAvailableTripsID = new ArrayList<>();
         for (TripItemForOptimization tripItemForOptimization : uamAvailableTrips) {
             uamAvailableTripsID.add(tripItemForOptimization.tripID);
         }
         FileWriter fileWriter = new FileWriter(servedTripsIDFile);
         CSVWriter csvWriter = new CSVWriter(fileWriter);
         csvWriter.writeNext(new String[]{"tripID"});
-        for (Integer tripID : uamAvailableTripsID) {
+        for (String tripID : uamAvailableTripsID) {
             csvWriter.writeNext(new String[]{tripID.toString()});
         }
         csvWriter.close();
