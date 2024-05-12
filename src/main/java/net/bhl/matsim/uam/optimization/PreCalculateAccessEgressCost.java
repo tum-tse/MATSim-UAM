@@ -47,6 +47,7 @@ public class PreCalculateAccessEgressCost {
     private static final Logger log = Logger.getLogger(PreCalculateAccessEgressCost.class);
     private static ArrayBlockingQueue<LeastCostPathCalculator> carRouters = new ArrayBlockingQueue<>(processes);
     private static ArrayBlockingQueue<TransitRouter> ptRouters = new ArrayBlockingQueue<>(processes);
+    private static boolean considerPT = false;
 
     public static void main(String[] args) throws IOException, InterruptedException {
         MemoryObserver.start(60);

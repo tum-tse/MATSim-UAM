@@ -33,7 +33,9 @@ public class CompareWithOtherSelection {
     private static String vertiportCandidateFile;
     private static final int processes = Runtime.getRuntime().availableProcessors();
     private static String servedTripsIDFile;
-
+    private static int sampleSize=100;
+    private static final int [] RANDOM_SEEDS={100,800,1000,2000,3000,4000,5000,6000,7000,8000};
+    private static int num_of_run;
     private static ArrayBlockingQueue<LeastCostPathCalculator> carRouters = new ArrayBlockingQueue<>(processes);
 
     public static void main(String[] args) throws IOException {
@@ -43,7 +45,8 @@ public class CompareWithOtherSelection {
             configPath=args[1];
             vertiportCandidateFile=args[2];
             servedTripsIDFile=args[3];
-
+            sampleSize=Integer.parseInt(args[4]);
+            num_of_run=Integer.parseInt(args[5]);
 
 
         }
@@ -148,7 +151,7 @@ public class CompareWithOtherSelection {
         for (int i=0;i<vertiportsCandidatesOBUAM.size();i++){
             vertiportIDList.add(i);
         }
-        double Score=calculateSelectionScore(vertiportsCandidatesOBUAM,vertiportIDList,uamEnabledTrips);
+        double Score=calculateSelectionScore(vertiportsCandidatesOBUAM,vertiportIDList,uamEnabledTrips,new Random(RANDOM_SEEDS[0]));
         System.out.println("The score of the current Vertiport Selection is: "+Score);
 
         // Save the access and egress time and distance for each vertiport candidate of each trip and store in a file}
@@ -211,7 +214,7 @@ public class CompareWithOtherSelection {
             return travelInfo;
         }
     }
-    public static double calculateSelectionScore( List<Vertiport> vertiportCandidate,List<Integer> chosenVertiportID, List<TripItemForOptimization> deserializedTripItemForOptimizations) throws IOException {
+    public static double calculateSelectionScore( List<Vertiport> vertiportCandidate,List<Integer> chosenVertiportID, List<TripItemForOptimization> deserializedTripItemForOptimizations, Random random) throws IOException {
         // 实现适应度函数的具体逻辑
         double sumGeneralizedCost=0.0;
         double sumVertiportConstructionCost=0.0;
@@ -287,11 +290,10 @@ public class CompareWithOtherSelection {
                 }
             }
             // determine the probability of mode choice of each trip
-            tripItemForOptimization.uamProbability=calculateModeProbability(tripItemForOptimization.uamUtility, tripItemForOptimization.carUtility, tripItemForOptimization.ptUtility).get(0);
-            tripItemForOptimization.carProbability=calculateModeProbability(tripItemForOptimization.uamUtility, tripItemForOptimization.carUtility, tripItemForOptimization.ptUtility).get(1);
-            tripItemForOptimization.ptProbability=calculateModeProbability(tripItemForOptimization.uamUtility, tripItemForOptimization.carUtility, tripItemForOptimization.ptUtility).get(2);
-            double generalizedCostOneTripBefore= tripItemForOptimization.carGeneralizedCost*calculateModeProbability(-9999, tripItemForOptimization.carUtility, tripItemForOptimization.ptUtility).get(1)+ tripItemForOptimization.ptGeneralizedCost*calculateModeProbability(-9999, tripItemForOptimization.carUtility, tripItemForOptimization.ptUtility).get(2);
-            double generalizedCostOneTripAfter= tripItemForOptimization.UAMGeneralizedCost* tripItemForOptimization.uamProbability+ tripItemForOptimization.carGeneralizedCost* tripItemForOptimization.carProbability+ tripItemForOptimization.ptGeneralizedCost* tripItemForOptimization.ptProbability;
+            ModeDecider modeDecider=new ModeDecider(tripItemForOptimization.uamUtility,tripItemForOptimization.carUtility,tripItemForOptimization.ptUtility,random);
+            Double [] modeSamples=modeDecider.sample(sampleSize);
+            double generalizedCostOneTripBefore=tripItemForOptimization.currentGeneralizedCost;
+            double generalizedCostOneTripAfter= tripItemForOptimization.carGeneralizedCost*modeSamples[1]+ tripItemForOptimization.ptGeneralizedCost*modeSamples[2]+ tripItemForOptimization.UAMGeneralizedCost*modeSamples[0];
             double savedGeneralizedCostOneTrip=generalizedCostOneTripBefore-generalizedCostOneTripAfter;
             if (savedGeneralizedCostOneTrip<0){
                 savedGeneralizedCostOneTrip=0;
@@ -300,7 +302,6 @@ public class CompareWithOtherSelection {
                 savedGeneralizedCostOneTrip=savedGeneralizedCostOneTrip*2;
             }
             savedGeneralizedCost=savedGeneralizedCost+savedGeneralizedCostOneTrip;
-
 
         }
 

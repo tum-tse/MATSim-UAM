@@ -15,6 +15,7 @@ import java.util.concurrent.ArrayBlockingQueue;
 public class VertiportCollector implements Runnable {
     /*This class aims to collect all the neighboring vertiports for a given trip to its origin and destination. */
     private static final int processes = Runtime.getRuntime().availableProcessors();
+    private static final boolean considerPT=false;
     public VertiportCollector(TripItemForOptimization trip, Network networkCar ,Network networkPt, List<Vertiport> vertiportsCandidates, ThreadCounter threadCounter, ArrayBlockingQueue<LeastCostPathCalculator> carRouters, ArrayBlockingQueue<TransitRouter> ptRouters) {
         this.vertiportsCandidates = vertiportsCandidates;
         this.trip = trip;
@@ -49,7 +50,6 @@ public class VertiportCollector implements Runnable {
     private Network ptNetwork;
     List<HashMap<Vertiport,HashMap<String,Double>>> initialMatchingVertiports=new ArrayList<>(); // the first element is the access vertiport, the second element is the egress vertiport
 
-
   public double calculateEuciDistance(Coord coord1, Coord coord2) {
       double euciDistance = Math.sqrt(Math.pow(coord1.getX() - coord2.getX(), 2) + Math.pow(coord1.getY() - coord2.getY(), 2));
       return euciDistance;
@@ -72,124 +72,154 @@ public class VertiportCollector implements Runnable {
 
   public void run() {
       // if both the originNeighborVertiportCandidates and destinationNeighborVertiportCandidates are not null
-      if (!(this.trip.originNeighborVertiportCandidates.isEmpty() || this.trip.destinationNeighborVertiportCandidates.isEmpty())){
-      // iterate all vertiports in the originNeighborVertiportCandidates list
-        Iterator<Vertiport> originNeighborVertiportCandidatesIterator = this.trip.originNeighborVertiportCandidates.iterator();
-        while (originNeighborVertiportCandidatesIterator.hasNext()) {
-            Vertiport currentAccessVertiport=originNeighborVertiportCandidatesIterator.next();
-            TripItemForOptimization tripItemForOptimizationAccess =new TripItemForOptimization();
-            tripItemForOptimizationAccess.origin=this.trip.origin;
-            tripItemForOptimizationAccess.destination=currentAccessVertiport.coord;
-            tripItemForOptimizationAccess.departureTime=this.trip.departureTime;
-            RunCalculateCarTravelTimes.CarTravelTimeCalculator carTravelTimeCalculatorAccess = new RunCalculateCarTravelTimes.CarTravelTimeCalculator(this.threadCounter, carNetwork, tripItemForOptimizationAccess,this.carRouters);
-            RunCalculatePTTravelTimes.PTTravelTimeCalculator ptTravelTimeCalculatorAccess = new RunCalculatePTTravelTimes.PTTravelTimeCalculator(this.threadCounter, carNetwork, tripItemForOptimizationAccess,this.ptRouters);
-            carTravelTimeCalculatorAccess.run();
-            double carAccessTravelTime= tripItemForOptimizationAccess.travelTime;
-            double carAccessTravelDistance= tripItemForOptimizationAccess.distance;
-            double carAccessTravelGeneralizedCost=0.428*carAccessTravelDistance/1000+this.trip.VOT *carAccessTravelTime;
-            ptTravelTimeCalculatorAccess.run();
-            double ptAccessTravelTime;
-            double ptAccessTravelDistance;
-            double ptAccessTravelGeneralizedCost;
+      if (!(this.trip.originNeighborVertiportCandidates.isEmpty() || this.trip.destinationNeighborVertiportCandidates.isEmpty())) {
+          // iterate all vertiports in the originNeighborVertiportCandidates list
+          Iterator<Vertiport> originNeighborVertiportCandidatesIterator = this.trip.originNeighborVertiportCandidates.iterator();
+          while (originNeighborVertiportCandidatesIterator.hasNext()) {
+              Vertiport currentAccessVertiport = originNeighborVertiportCandidatesIterator.next();
+              TripItemForOptimization tripItemForOptimizationAccess = new TripItemForOptimization();
+              tripItemForOptimizationAccess.origin = this.trip.origin;
+              tripItemForOptimizationAccess.destination = currentAccessVertiport.coord;
+              tripItemForOptimizationAccess.departureTime = this.trip.departureTime;
+              RunCalculateCarTravelTimes.CarTravelTimeCalculator carTravelTimeCalculatorAccess = new RunCalculateCarTravelTimes.CarTravelTimeCalculator(this.threadCounter, carNetwork, tripItemForOptimizationAccess, this.carRouters);
+              carTravelTimeCalculatorAccess.run();
+              double carAccessTravelTime = tripItemForOptimizationAccess.travelTime;
+              double carAccessTravelDistance = tripItemForOptimizationAccess.distance;
+              double carAccessTravelGeneralizedCost = 0.428 * carAccessTravelDistance / 1000 + this.trip.VOT * carAccessTravelTime;
 
-            if (tripItemForOptimizationAccess.travelTime !=0){
-                ptAccessTravelTime= tripItemForOptimizationAccess.travelTime;
-                ptAccessTravelDistance= tripItemForOptimizationAccess.distance;
-                ptAccessTravelGeneralizedCost=0.81+this.trip.VOT *ptAccessTravelTime;}
-            else{
-                ptAccessTravelTime=9999;
-                ptAccessTravelDistance=9999;
-                ptAccessTravelGeneralizedCost=9999;
-            }
+              double walkAccessTravelDistance = calculateEuciDistance(tripItemForOptimizationAccess.origin, tripItemForOptimizationAccess.destination) * 1.2;
+              double walkAccessTravelTime = walkAccessTravelDistance / 1.1;
+              double walkAccessTravelGeneralizedCost = this.trip.VOT * walkAccessTravelTime;
+              HashMap<String, Double> accessInformation = new HashMap<>();
+              if (considerPT) {
+                  RunCalculatePTTravelTimes.PTTravelTimeCalculator ptTravelTimeCalculatorAccess = new RunCalculatePTTravelTimes.PTTravelTimeCalculator(this.threadCounter, carNetwork, tripItemForOptimizationAccess, this.ptRouters);
+                  ptTravelTimeCalculatorAccess.run();
+                  double ptAccessTravelTime;
+                  double ptAccessTravelDistance;
+                  double ptAccessTravelGeneralizedCost;
 
-            double walkAccessTravelDistance=calculateEuciDistance(tripItemForOptimizationAccess.origin, tripItemForOptimizationAccess.destination)*1.2;
-            double walkAccessTravelTime=walkAccessTravelDistance/1.1;
-            double walkAccessTravelGeneralizedCost = this.trip.VOT*walkAccessTravelTime;
-            HashMap<String, Double> accessInformation=new HashMap<>();
-            // find the mode with the lowest generalized cost
-            if (carAccessTravelGeneralizedCost<ptAccessTravelGeneralizedCost && carAccessTravelGeneralizedCost<walkAccessTravelGeneralizedCost){
-                this.trip.accessMode="car";
-                accessInformation.put("travelTime",carAccessTravelTime);
-                accessInformation.put("distance",carAccessTravelDistance);
-                accessInformation.put("generalizedCost",carAccessTravelGeneralizedCost);
-                accessInformation.put("accssMode",1.0); // 1.0 means car, 0.0 means walk
-            }
-            else if (ptAccessTravelGeneralizedCost<carAccessTravelGeneralizedCost && ptAccessTravelGeneralizedCost<walkAccessTravelGeneralizedCost){
-                this.trip.accessMode="pt";
-                accessInformation.put("travelTime",ptAccessTravelTime);
-                accessInformation.put("distance",ptAccessTravelDistance);
-                accessInformation.put("generalizedCost",ptAccessTravelGeneralizedCost);
-                accessInformation.put("accssMode",2.0); // 1.0 means car, 0.0 means walk
-            }
-            else {
-                this.trip.accessMode="walk";
-                accessInformation.put("travelTime",walkAccessTravelTime);
-                accessInformation.put("distance",walkAccessTravelDistance);
-                accessInformation.put("generalizedCost",walkAccessTravelGeneralizedCost);
-                accessInformation.put("accssMode",0.0); // 1.0 means car, 0.0 means walk
-            }
 
-            this.trip.originNeighborVertiportCandidatesTimeAndDistance.put(currentAccessVertiport,accessInformation);
-        }
-        // iterate all vertiports in the destinationNeighborVertiportCandidates list
-        Iterator<Vertiport> destinationNeighborVertiportCandidatesIterator = this.trip.destinationNeighborVertiportCandidates.iterator();
-        while (destinationNeighborVertiportCandidatesIterator.hasNext()){
-            Vertiport currentEgressVertiport=destinationNeighborVertiportCandidatesIterator.next();
-            TripItemForOptimization tripItemForOptimizationEgress =new TripItemForOptimization();
-            tripItemForOptimizationEgress.origin=currentEgressVertiport.coord;
-            tripItemForOptimizationEgress.destination=this.trip.destination;
-            tripItemForOptimizationEgress.departureTime=this.trip.departureTime+20*60;
-            RunCalculateCarTravelTimes.CarTravelTimeCalculator carTravelTimeCalculatorEgress = new RunCalculateCarTravelTimes.CarTravelTimeCalculator(this.threadCounter, carNetwork, tripItemForOptimizationEgress,this.carRouters);
-            RunCalculatePTTravelTimes.PTTravelTimeCalculator ptTravelTimeCalculatorEgress = new RunCalculatePTTravelTimes.PTTravelTimeCalculator(this.threadCounter, carNetwork, tripItemForOptimizationEgress,this.ptRouters);
-            carTravelTimeCalculatorEgress.run();
-            double carEgressTravelTime= tripItemForOptimizationEgress.travelTime;
-            double carEgressTravelDistance= tripItemForOptimizationEgress.distance;
-            double carEgressTravelGeneralizedCost=0.428*carEgressTravelDistance/1000+this.trip.VOT *carEgressTravelTime;
-            ptTravelTimeCalculatorEgress.run();
-            double ptEgressTravelTime;
-            double ptEgressTravelDistance;
-            double ptEgressTravelGeneralizedCost;
+                  if (tripItemForOptimizationAccess.travelTime != 0) {
+                      ptAccessTravelTime = tripItemForOptimizationAccess.travelTime;
+                      ptAccessTravelDistance = tripItemForOptimizationAccess.distance;
+                      ptAccessTravelGeneralizedCost = 0.81 + this.trip.VOT * ptAccessTravelTime;
+                  } else {
+                      ptAccessTravelTime = 9999;
+                      ptAccessTravelDistance = 9999;
+                      ptAccessTravelGeneralizedCost = 9999;
+                  }
 
-            if (tripItemForOptimizationEgress.travelTime !=0){
-                ptEgressTravelTime= tripItemForOptimizationEgress.travelTime;
-                ptEgressTravelDistance= tripItemForOptimizationEgress.distance;
-                ptEgressTravelGeneralizedCost=0.81+this.trip.VOT *ptEgressTravelTime;}
-            else{
-                ptEgressTravelTime=9999;
-                ptEgressTravelDistance=9999;
-                ptEgressTravelGeneralizedCost=9999;
-            }
-            double walkEgressTravelDistance=calculateEuciDistance(tripItemForOptimizationEgress.origin, tripItemForOptimizationEgress.destination)*1.2;
-            double walkEgressTravelTime=walkEgressTravelDistance/1.1;
-            double walkEgressTravelGeneralizedCost = this.trip.VOT *walkEgressTravelTime;
-            HashMap<String,Double> egressInformation=new HashMap<>();
-            // find the mode with the lowest generalized cost
-            if (carEgressTravelGeneralizedCost<ptEgressTravelGeneralizedCost && carEgressTravelGeneralizedCost<walkEgressTravelGeneralizedCost){
-                this.trip.egressMode="car";
-                egressInformation.put("travelTime",carEgressTravelTime);
-                egressInformation.put("distance",carEgressTravelDistance);
-                egressInformation.put("generalizedCost",carEgressTravelGeneralizedCost);
-                egressInformation.put("egressMode",1.0); // 1.0 means car, 0.0 means walk
-            }
-            else if (ptEgressTravelGeneralizedCost<carEgressTravelGeneralizedCost && ptEgressTravelGeneralizedCost<walkEgressTravelGeneralizedCost){
-                this.trip.egressMode="pt";
-                egressInformation.put("travelTime",ptEgressTravelTime);
-                egressInformation.put("distance",ptEgressTravelDistance);
-                egressInformation.put("generalizedCost",ptEgressTravelGeneralizedCost);
-                egressInformation.put("egressMode",2.0); // 1.0 means car, 0.0 means walk
-            }
-            else {
-                this.trip.egressMode="walk";
-                egressInformation.put("travelTime",walkEgressTravelTime);
-                egressInformation.put("distance",walkEgressTravelDistance);
-                egressInformation.put("generalizedCost",walkEgressTravelGeneralizedCost);
-                egressInformation.put("egressMode",0.0); // 1.0 means car, 0.0 means walk
-            }
+                  // find the mode with the lowest generalized cost
+                  if (carAccessTravelGeneralizedCost < ptAccessTravelGeneralizedCost && carAccessTravelGeneralizedCost < walkAccessTravelGeneralizedCost) {
+                      this.trip.accessMode = "car";
+                      accessInformation.put("travelTime", carAccessTravelTime);
+                      accessInformation.put("distance", carAccessTravelDistance);
+                      accessInformation.put("generalizedCost", carAccessTravelGeneralizedCost);
+                      accessInformation.put("accessMode", 1.0); // 1.0 means car, 0.0 means walk
+                  } else if (ptAccessTravelGeneralizedCost < carAccessTravelGeneralizedCost && ptAccessTravelGeneralizedCost < walkAccessTravelGeneralizedCost) {
+                      this.trip.accessMode = "pt";
+                      accessInformation.put("travelTime", ptAccessTravelTime);
+                      accessInformation.put("distance", ptAccessTravelDistance);
+                      accessInformation.put("generalizedCost", ptAccessTravelGeneralizedCost);
+                      accessInformation.put("accessMode", 2.0); // 1.0 means car, 0.0 means walk
+                  } else {
+                      this.trip.accessMode = "walk";
+                      accessInformation.put("travelTime", walkAccessTravelTime);
+                      accessInformation.put("distance", walkAccessTravelDistance);
+                      accessInformation.put("generalizedCost", walkAccessTravelGeneralizedCost);
+                      accessInformation.put("accessMode", 0.0); // 1.0 means car, 0.0 means walk
+                  }
+              } else {
+                  if (carAccessTravelGeneralizedCost < walkAccessTravelGeneralizedCost) {
+                      this.trip.accessMode = "car";
+                      accessInformation.put("travelTime", carAccessTravelTime);
+                      accessInformation.put("distance", carAccessTravelDistance);
+                      accessInformation.put("generalizedCost", carAccessTravelGeneralizedCost);
+                      accessInformation.put("accessMode", 1.0); // 1.0 means car, 0.0 means walk
+                  } else {
+                      this.trip.accessMode = "walk";
+                      accessInformation.put("travelTime", walkAccessTravelTime);
+                      accessInformation.put("distance", walkAccessTravelDistance);
+                      accessInformation.put("generalizedCost", walkAccessTravelGeneralizedCost);
+                      accessInformation.put("accessMode", 0.0); // 1.0 means car, 0.0 means walk
+                  }
+              }
 
-            this.trip.destinationNeighborVertiportCandidatesTimeAndDistance.put(currentEgressVertiport,egressInformation);
-        }
+
+              this.trip.originNeighborVertiportCandidatesTimeAndDistance.put(currentAccessVertiport, accessInformation);
+          }
+          // iterate all vertiports in the destinationNeighborVertiportCandidates list
+          Iterator<Vertiport> destinationNeighborVertiportCandidatesIterator = this.trip.destinationNeighborVertiportCandidates.iterator();
+          while (destinationNeighborVertiportCandidatesIterator.hasNext()) {
+              Vertiport currentEgressVertiport = destinationNeighborVertiportCandidatesIterator.next();
+              TripItemForOptimization tripItemForOptimizationEgress = new TripItemForOptimization();
+              tripItemForOptimizationEgress.origin = currentEgressVertiport.coord;
+              tripItemForOptimizationEgress.destination = this.trip.destination;
+              tripItemForOptimizationEgress.departureTime = this.trip.departureTime + 20 * 60;
+              RunCalculateCarTravelTimes.CarTravelTimeCalculator carTravelTimeCalculatorEgress = new RunCalculateCarTravelTimes.CarTravelTimeCalculator(this.threadCounter, carNetwork, tripItemForOptimizationEgress, this.carRouters);
+              carTravelTimeCalculatorEgress.run();
+              double carEgressTravelTime = tripItemForOptimizationEgress.travelTime;
+              double carEgressTravelDistance = tripItemForOptimizationEgress.distance;
+              double carEgressTravelGeneralizedCost = 0.428 * carEgressTravelDistance / 1000 + this.trip.VOT * carEgressTravelTime;
+              double walkEgressTravelDistance = calculateEuciDistance(tripItemForOptimizationEgress.origin, tripItemForOptimizationEgress.destination) * 1.2;
+              double walkEgressTravelTime = walkEgressTravelDistance / 1.1;
+              double walkEgressTravelGeneralizedCost = this.trip.VOT * walkEgressTravelTime;
+              HashMap<String, Double> egressInformation = new HashMap<>();
+              if (considerPT) {
+                  RunCalculatePTTravelTimes.PTTravelTimeCalculator ptTravelTimeCalculatorEgress = new RunCalculatePTTravelTimes.PTTravelTimeCalculator(this.threadCounter, carNetwork, tripItemForOptimizationEgress, this.ptRouters);
+                  ptTravelTimeCalculatorEgress.run();
+                  double ptEgressTravelTime;
+                  double ptEgressTravelDistance;
+                  double ptEgressTravelGeneralizedCost;
+                  if (tripItemForOptimizationEgress.travelTime != 0) {
+                      ptEgressTravelTime = tripItemForOptimizationEgress.travelTime;
+                      ptEgressTravelDistance = tripItemForOptimizationEgress.distance;
+                      ptEgressTravelGeneralizedCost = 0.81 + this.trip.VOT * ptEgressTravelTime;
+                  } else {
+                      ptEgressTravelTime = 9999;
+                      ptEgressTravelDistance = 9999;
+                      ptEgressTravelGeneralizedCost = 9999;
+                  }
+                  // find the mode with the lowest generalized cost
+                  if (carEgressTravelGeneralizedCost < ptEgressTravelGeneralizedCost && carEgressTravelGeneralizedCost < walkEgressTravelGeneralizedCost) {
+                      this.trip.egressMode = "car";
+                      egressInformation.put("travelTime", carEgressTravelTime);
+                      egressInformation.put("distance", carEgressTravelDistance);
+                      egressInformation.put("generalizedCost", carEgressTravelGeneralizedCost);
+                      egressInformation.put("egressMode", 1.0); // 1.0 means car, 0.0 means walk
+                  } else if (ptEgressTravelGeneralizedCost < carEgressTravelGeneralizedCost && ptEgressTravelGeneralizedCost < walkEgressTravelGeneralizedCost) {
+                      this.trip.egressMode = "pt";
+                      egressInformation.put("travelTime", ptEgressTravelTime);
+                      egressInformation.put("distance", ptEgressTravelDistance);
+                      egressInformation.put("generalizedCost", ptEgressTravelGeneralizedCost);
+                      egressInformation.put("egressMode", 2.0); // 1.0 means car, 0.0 means walk
+                  } else {
+                      this.trip.egressMode = "walk";
+                      egressInformation.put("travelTime", walkEgressTravelTime);
+                      egressInformation.put("distance", walkEgressTravelDistance);
+                      egressInformation.put("generalizedCost", walkEgressTravelGeneralizedCost);
+                      egressInformation.put("egressMode", 0.0); // 1.0 means car, 0.0 means walk
+                  }
+              }
+              else {
+                  if (carEgressTravelGeneralizedCost < walkEgressTravelGeneralizedCost) {
+                      this.trip.egressMode = "car";
+                      egressInformation.put("travelTime", carEgressTravelTime);
+                      egressInformation.put("distance", carEgressTravelDistance);
+                      egressInformation.put("generalizedCost", carEgressTravelGeneralizedCost);
+                      egressInformation.put("egressMode", 1.0); // 1.0 means car, 0.0 means walk
+                  } else {
+                      this.trip.egressMode = "walk";
+                      egressInformation.put("travelTime", walkEgressTravelTime);
+                      egressInformation.put("distance", walkEgressTravelDistance);
+                      egressInformation.put("generalizedCost", walkEgressTravelGeneralizedCost);
+                      egressInformation.put("egressMode", 0.0); // 1.0 means car, 0.0 means walk
+                  }
+              }
+              this.trip.destinationNeighborVertiportCandidatesTimeAndDistance.put(currentEgressVertiport, egressInformation);
+          }
+
       }
-
   }
 
     public void neighbourVertiportCandidateTimeAndDistanceCalculatorForCompare(){

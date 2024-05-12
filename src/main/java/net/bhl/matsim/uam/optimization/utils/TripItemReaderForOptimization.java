@@ -1,5 +1,6 @@
 package net.bhl.matsim.uam.optimization.utils;
 
+import net.bhl.matsim.uam.optimization.ModeDecider;
 import net.bhl.matsim.uam.optimization.utils.TripItemForOptimization;
 import org.matsim.api.core.v01.Coord;
 import org.matsim.contrib.util.CSVReaders;
@@ -61,12 +62,8 @@ public class TripItemReaderForOptimization {
 				trip.currentMode=1;
 			trip.carEmission=CAR_EMISSION_FACTOR*trip.carTripLength/1000;
 			trip.ptEmission=CAR_EMISSION_FACTOR*trip.ptTripLength/1000;
-			if (trip.currentMode==0)
-			{trip.currentGeneralizedCost=trip.carGeneralizedCost;
-			    trip.currentEmission=trip.carEmission;}
-			else
-			{trip.currentGeneralizedCost=trip.ptGeneralizedCost;
-			    trip.currentEmission=trip.ptEmission;}
+		    Double [] probabilities = ModeDecider.calculateModeProbability(-9999, trip.carUtility, trip.ptUtility).toArray(new Double[3]);
+			trip.currentGeneralizedCost=trip.carGeneralizedCost*probabilities[1]+trip.ptGeneralizedCost*probabilities[2];
 			trips.add(trip);
 		}
 
