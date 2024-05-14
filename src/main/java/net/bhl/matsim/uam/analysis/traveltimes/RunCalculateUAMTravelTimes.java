@@ -230,8 +230,8 @@ public class RunCalculateUAMTravelTimes {
 		private TransitRouter transitRouter;
 
 		UAMTravelTimeCalculator(ThreadCounter threadCounter, Network network, Config config, TripItem trip,
-				UAMManager uamManager, Network networkCar, Scenario scenario,
-				UAMStationConnectionGraph stationConnectionutilities) {
+								UAMManager uamManager, Network networkCar, Scenario scenario,
+								UAMStationConnectionGraph stationConnectionutilities) {
 			this.trip = trip;
 			this.network = network;
 			this.config = config;
@@ -264,21 +264,21 @@ public class RunCalculateUAMTravelTimes {
 					stationConnectionutilities, networkCar, transitRouter, plcpccar);
 			UAMStrategy strategy = null;
 			switch (uamConfig.getRoutingStrategy()) {
-			case MINTRAVELTIME:
-				strategy = new UAMMinTravelTimeStrategy(strategyUtils);
-				break;
-			case MINACCESSTRAVELTIME:
-				strategy = new UAMMinAccessTravelTimeStrategy(strategyUtils);
-				break;
-			case MINDISTANCE:
-				strategy = new UAMMinDistanceStrategy(strategyUtils);
-				break;
-			case MINACCESSDISTANCE:
-				strategy = new UAMMinAccessDistanceStrategy(strategyUtils);
-				break;
-			default:
-				log.warn("Strategy not available, please provide an available strategy.");
-				System.exit(-1);
+				case MINTRAVELTIME:
+					strategy = new UAMMinTravelTimeStrategy(strategyUtils);
+					break;
+				case MINACCESSTRAVELTIME:
+					strategy = new UAMMinAccessTravelTimeStrategy(strategyUtils);
+					break;
+				case MINDISTANCE:
+					strategy = new UAMMinDistanceStrategy(strategyUtils);
+					break;
+				case MINACCESSDISTANCE:
+					strategy = new UAMMinAccessDistanceStrategy(strategyUtils);
+					break;
+				default:
+					log.warn("Strategy not available, please provide an available strategy.");
+					System.exit(-1);
 			}
 
 			Optional<UAMRoute> optionalUamRoute = strategy.getRoute(null, fromFacility, toFacility, trip.departureTime);

@@ -1,7 +1,7 @@
 package net.bhl.matsim.uam.optimization;
 
 import com.opencsv.CSVWriter;
-import net.bhl.matsim.uam.analysis.traveltimes.utils.TripItem;
+import net.bhl.matsim.uam.optimization.utils.TripItemForOptimization;
 import net.bhl.matsim.uam.heuristic.Chromosome;
 import net.bhl.matsim.uam.heuristic.Population;
 import org.apache.log4j.Logger;
@@ -34,21 +34,21 @@ public class VertiportOptimizerGenetic {
             vertiportCandidateFile=args[1];
             outputfile=args[2];
         }
-        // Get the object TripItem from the serialized file
+        // Get the object TripItemForOptimization from the serialized file
         log.info("Loading the vertiport candidates...");
 
         VertiportReader vertiportReader= new VertiportReader();
-        List<Vertiport> vertiportsCandidates = VertiportReader.getVertiports(vertiportCandidateFile);
+        List<Vertiport> vertiportsCandidates = vertiportReader.getVertiports(vertiportCandidateFile);
         log.info("Finished loading the vertiport candidates.");
         log.info("Loading the trips...");
-        List<TripItem> deserializedTripItems = deserializeTripItems(fileName);
+        List<TripItemForOptimization> deserializedTripItemForOptimizations = deserializeTripItems(fileName);
         log.info("Finished loading the trips.");
         List<Vertiport> vertiports = new ArrayList<>();
        double vertiportCost = 0.0;
        double sumGeneralizedCost=0.0;
 
        // implement the population
-        Population population = new Population(50,vertiportsCandidates,deserializedTripItems);
+        Population population = new Population(50,vertiportsCandidates, deserializedTripItemForOptimizations);
         // initialize the population
         population.initializePopulation();
         // calculate the fitness of all chromosomes in the population
@@ -102,26 +102,26 @@ public class VertiportOptimizerGenetic {
         log.info("Best Fitness: " + bestFitness);
         log.info("Best Vertiport ID: " + bestChromosome.encodeChromosome());
 
-       // check if the chosenVertiport is in the origin and destination neighbour vertiport of each trip in the deserializedTripItems
+       // check if the chosenVertiport is in the origin and destination neighbour vertiport of each trip in the deserializedTripItemForOptimizations
 
 
     }
 
 
-    public static List<TripItem> deserializeTripItems(String fileName) {
-        List<TripItem> tripItems = new ArrayList<>();
+    public static List<TripItemForOptimization> deserializeTripItems(String fileName) {
+        List<TripItemForOptimization> tripItemForOptimizations = new ArrayList<>();
 
         try  {
             FileInputStream fileIn = new FileInputStream(fileName);
             ObjectInputStream objectIn = new ObjectInputStream(fileIn)  ;
-            tripItems = (List<TripItem>) objectIn.readObject();
+            tripItemForOptimizations = (List<TripItemForOptimization>) objectIn.readObject();
 
 
         } catch (Exception e) {
             e.printStackTrace();
         }
 
-        return tripItems;
+        return tripItemForOptimizations;
     }
     public static List<Vertiport> findAvailableNeighbourVertiports(List<Integer> intList, List<Vertiport> vertiportList) {
         List<Vertiport> duplicates = new ArrayList<>();

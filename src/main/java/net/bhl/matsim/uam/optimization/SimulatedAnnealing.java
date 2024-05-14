@@ -1,6 +1,6 @@
 package net.bhl.matsim.uam.optimization;
 
-import net.bhl.matsim.uam.analysis.traveltimes.utils.TripItem;
+import net.bhl.matsim.uam.optimization.utils.TripItemForOptimization;
 import org.apache.log4j.Logger;
 import org.matsim.api.core.v01.Coord;
 
@@ -10,7 +10,7 @@ import java.io.ObjectInputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
-
+import org.matsim.utils.MemoryObserver;
 
 
 public class SimulatedAnnealing {
@@ -21,167 +21,280 @@ public class SimulatedAnnealing {
     public static final int NUM_OF_SELECTED_VERTIPORTS=74;
     public static final double INITIAL_TEMPERATURE=5000;
     public static final double FINAL_TEMPERATURE=0.1;
-    public static final double ANNEALING_RATE=0.999;
+    public static final double ANNEALING_RATE=0.99;
+    public static final double MAX_ITERATION=6000;
+    public static final double MAX_NOT_CHANGE_COUNT=1000;
     public static String serializedTripItemFile;
     public static String vertiportCandidateFile;
     public static final double flightSpeed= 350/3.6; // m/s
     public static final double UAM_PROCESS_TIME= 10*60; // s
     public static final double takeOffLandingTime= 60; // s
+    public static final double CAR_EMISSION_FACTOR=0.42; // kg/km
+    public static final double PT_EMISSION_FACTOR=0.1; // kg/km
+    public static final double UAM_EMISSION_FACTOR=0.1; // kg/km
+    public static final double CARBON_EQUIVALENCE_FACTOR=2.48; // Euro/kgCO2
+    public static final boolean CONSIDER_CARBON= false; // Euro/kgCO2
+    private static final int SIMULATION_HOURS=36;
+    private static final int MEMORY_CHECK_INTERVAL=600;
+    private static final double UAM_FIX_COST=6.1;
+    private static final double UAM_KM_COST=0.6;
+    private static  int sampleSize;
+    private static final int [] RANDOM_SEEDS={100,800,1000,2000,3000,4000,5000,6000,7000,8000};
+    private static int num_of_run;
+    // Number of parallel tasks
 
-
-    public static void main(String[] args) throws IOException {
+    public static void main(String[] args) throws IOException, InterruptedException {
+        MemoryObserver.start(MEMORY_CHECK_INTERVAL);
         // Provide the file via program arguments
         if (args.length > 0) {
             serializedTripItemFile = args[0];
             vertiportCandidateFile = args[1];
+            sampleSize = Integer.parseInt(args[2]);
+            num_of_run = Integer.parseInt(args[3]);
         }
-        // Get the object TripItem from the serialized file
+        // Get the object TripItemForOptimization from the serialized file
 
         log.info("Loading the vertiport candidates...");
         VertiportReader vertiportReader = new VertiportReader();
-        List<Vertiport> vertiportsCandidates = VertiportReader.getVertiports(vertiportCandidateFile);
-
+        List<Vertiport> vertiportsCandidates = vertiportReader.getVertiportsWithNeighbors(vertiportCandidateFile);
         log.info("Finished loading the vertiport candidates.");
         log.info("Loading the trips...");
-        List<TripItem> deserializedTripItems = deserializeTripItems(serializedTripItemFile);
+        List<TripItemForOptimization> deserializedTripItemForOptimizations = deserializeTripItems(serializedTripItemFile);
         log.info("Finished loading the trips.");
 
-        List<Integer> currentSolution = generateRandomSolution();
-        double currentEnergey = calculateFitness(currentSolution,vertiportsCandidates,deserializedTripItems);
-        List<Integer> bestSolution = new ArrayList<>(currentSolution);
-        double bestEnergy= currentEnergey;
-        double currentTemperature = INITIAL_TEMPERATURE;
-        int notChangeCount=0;
-        for (int iteration=0;iteration<10000;iteration++ ){
-            List<Integer> newSolution= generateNewSolution(currentSolution);
-            double newEnergy= calculateFitness(newSolution,vertiportsCandidates,deserializedTripItems);
-            double deltaEnergy= newEnergy-currentEnergey;
-            Random random=new Random();
-            if(deltaEnergy>0 || Math.exp(deltaEnergy/currentTemperature)>random.nextDouble()){
-                currentSolution=new ArrayList<>(newSolution);
-                currentEnergey=newEnergy;
+        // run the simulated annealing 10 times
+        for (int index_of_run=0;index_of_run<num_of_run;index_of_run++) {
+
+            log.info("Run: " + index_of_run+1);
+            Random random = new Random(RANDOM_SEEDS[index_of_run]);
+            List<Integer> currentSolutionID = generateRandomSolution(random, vertiportsCandidates, NUM_OF_SELECTED_VERTIPORTS);
+            double currentEnergey = calculateFitness(currentSolutionID, vertiportsCandidates, deserializedTripItemForOptimizations,random);
+            List<Integer> bestSolutionID = new ArrayList<>(currentSolutionID);
+            double bestEnergy = currentEnergey;
+            double currentTemperature = INITIAL_TEMPERATURE;
+            int notChangeCount = 0;
+            int saturatedVertiportCount = 0;
+            double maxSaturationRate = 0;
+
+            if (CONSIDER_CARBON) {
+                for (Integer vertiportID : currentSolutionID) {
+                    if (vertiportsCandidates.get(vertiportID).maxSaturationRate > 1) {
+                        saturatedVertiportCount++;
+                    }
+                    if (vertiportsCandidates.get(vertiportID).maxSaturationRate > maxSaturationRate) {
+                        maxSaturationRate = vertiportsCandidates.get(vertiportID).maxSaturationRate;
+                    }
+                }
             }
-            // update the best solution
-            if (currentEnergey>bestEnergy){
-                bestSolution=new ArrayList<>(currentSolution);
-                bestEnergy=currentEnergey;
-                notChangeCount=0;
-            }
-            else {
-                notChangeCount++;
-            }
+            for (int iteration = 0; iteration < MAX_ITERATION; iteration++) {
+                List<Integer> newSolutionID = generateNewSolution(random, currentSolutionID, vertiportsCandidates);
+                // set the saturation rate of all vertiports to 0
+                if (CONSIDER_CARBON) {
+                    for (Vertiport vertiport : vertiportsCandidates) {
+                        for (int i = 0; i < SIMULATION_HOURS; i++) {
+                            vertiport.saturationRates.put(i, 0.0);
+                        }
+                    }
+                }
+                double newEnergy = calculateFitness(newSolutionID, vertiportsCandidates, deserializedTripItemForOptimizations,random);
+                double deltaEnergy = newEnergy - currentEnergey;
 
 
-            // update the temperature
-            currentTemperature=currentTemperature*ANNEALING_RATE;
-            log.info("Iteration: "+iteration+" Current Temperature: "+currentTemperature+" Current Energy: "+currentEnergey+" Best Energy: "+bestEnergy);
+                if (deltaEnergy > 0 || Math.exp(deltaEnergy / currentTemperature) > random.nextDouble()) {
+                    currentSolutionID = new ArrayList<>(newSolutionID);
+                    currentEnergey = newEnergy;
 
-            // if the best solution is not updated for more than 2000 iterations, break
-            if(notChangeCount>2000){
-                break;
+                    if (CONSIDER_CARBON) {
+                        for (Integer vertiportID : currentSolutionID) {
+                            if (vertiportsCandidates.get(vertiportID).maxSaturationRate > 1) {
+                                saturatedVertiportCount++;
+                            }
+                            if (vertiportsCandidates.get(vertiportID).maxSaturationRate > maxSaturationRate) {
+                                maxSaturationRate = vertiportsCandidates.get(vertiportID).maxSaturationRate;
+                            }
+                        }
+                    }
+                }
+                // update the best solution
+                if (currentEnergey > bestEnergy) {
+                    bestSolutionID = new ArrayList<>(currentSolutionID);
+                    bestEnergy = currentEnergey;
+                    notChangeCount = 0;
+                } else {
+                    notChangeCount++;
+                }
+
+
+                // update the temperature
+                currentTemperature = currentTemperature * ANNEALING_RATE;
+                if (CONSIDER_CARBON) {
+                    log.info("Iteration: " + iteration + " Current Temperature: " + currentTemperature + " Current Energy: " + currentEnergey + " Best Energy: " + bestEnergy + " Saturated Vertiport Count: " + saturatedVertiportCount + " Max Saturation Rate: " + maxSaturationRate);
+                } else {
+                    log.info("Iteration: " + iteration + " Current Temperature: " + currentTemperature + " Current Energy: " + currentEnergey + " Best Energy: " + bestEnergy);
+                }
+                // if the best solution is not updated for more than 1000 iterations, break
+                if (notChangeCount > MAX_NOT_CHANGE_COUNT) {
+                    break;
+                }
+                saturatedVertiportCount = 0;
+                maxSaturationRate = 0;
             }
+
+            log.info("Best Solution: " + bestSolutionID + " Best Energy: " + bestEnergy);
+
         }
-        log.info("Best Solution: "+ bestSolution + " Best Energy: "+ bestEnergy);
+    }
 
+    private static void runSimulation(int index_of_run, List<Vertiport> vertiportsCandidates, List<TripItemForOptimization> deserializedTripItemForOptimizations) {
+        // Extracted simulation code from your original main method
+        // Use index_of_run and the lists passed as parameters
+        // Log results within this method
 
     }
 
-    public static List<Integer> generateRandomSolution() {
-        // generate a Integer List with a length of 200, 74 of them are 1, the rest are 0
-        List<Integer> solution = new ArrayList<>();
-        Random random = new Random();
-        while (solution.size() < NUM_OF_SELECTED_VERTIPORTS) {
-            int randomNum = random.nextInt(NUM_OF_CANDIDATE_VERTIPORTS);
-            if(!solution.contains(randomNum)) {
-            solution.add(randomNum);}
-        }
-        return solution;
+    public static List<Integer> generateRandomSolution(Random random,List<Vertiport> VertiportCandidates, int numOfSelectedVertiports) {
+
+      List<Integer> selectedVertiportsID = new ArrayList<>();
+      while (selectedVertiportsID.size() < numOfSelectedVertiports) {
+          int vertiportID = VertiportCandidates.get(random.nextInt(VertiportCandidates.size())).ID;
+          if (!selectedVertiportsID.contains(vertiportID)) {
+              selectedVertiportsID.add(vertiportID);
+          }
+      }
+      return selectedVertiportsID;
     }
 
-    public static double calculateFitness(List<Integer> chosenVertiportID,List<Vertiport> vertiportCandidates, List<TripItem> deserializedTripItems) {
+    public static double calculateFitness(List<Integer> chosenVertiportID, List<Vertiport> vertiportsCandidates,List<TripItemForOptimization> deserializedTripItemForOptimizations, Random random) {
         // 实现适应度函数的具体逻辑
 
         double sumVertiportConstructionCost=0.0;
         double savedGeneralizedCost=0.0;
-
-        List<TripItem> uamAvailableTrips = new ArrayList<>();
-        // calculate the sum of vertiport construction cost
+// decode the chosenVertiportID to the vertiport object
+        List<Vertiport> chosenVertiport = new ArrayList<>();
         for (Integer vertiportID:chosenVertiportID){
-            sumVertiportConstructionCost=sumVertiportConstructionCost+vertiportCandidates.get(vertiportID).constructionCost;
+            chosenVertiport.add(vertiportsCandidates.get(vertiportID));
         }
+        List<TripItemForOptimization> uamAvailableTrips = new ArrayList<>();
+//        // calculate the sum of vertiport construction cost
+//        for (Integer vertiportID:chosenVertiportID){
+//            sumVertiportConstructionCost=sumVertiportConstructionCost+vertiportCandidates.get(vertiportID).constructionCost;
+//        }
 
-        for (TripItem tripItem : deserializedTripItems)
+        for (TripItemForOptimization tripItemForOptimization : deserializedTripItemForOptimizations)
         {
-            tripItem.isUAMAvailable = false;
-            tripItem.uamUtility=-9999;
-            List<Vertiport> originNeighbourVertiports = findAvailableNeighbourVertiports(chosenVertiportID, tripItem.originNeighborVertiportCandidates);
-            List<Vertiport> destinationNeighbourVertiports = findAvailableNeighbourVertiports(chosenVertiportID, tripItem.destinationNeighborVertiportCandidates);
+            tripItemForOptimization.isUAMAvailable = false;
+            tripItemForOptimization.uamUtility=-9999;
+            List<Vertiport> originNeighbourVertiports = findAvailableNeighbourVertiports(chosenVertiportID, tripItemForOptimization.originNeighborVertiportCandidates);
+            List<Vertiport> destinationNeighbourVertiports = findAvailableNeighbourVertiports(chosenVertiportID, tripItemForOptimization.destinationNeighborVertiportCandidates);
             if (originNeighbourVertiports.size() > 0 && destinationNeighbourVertiports.size() > 0) {
-                tripItem.isUAMAvailable = true;
-                tripItem.originNeighborVertiports = originNeighbourVertiports;
-                tripItem.destinationNeighborVertiports = destinationNeighbourVertiports;
-                uamAvailableTrips.add(tripItem);}
+                if(originNeighbourVertiports.size()>1 || destinationNeighbourVertiports.size()>1){
+                    tripItemForOptimization.isUAMAvailable = true;
+                    tripItemForOptimization.originNeighborVertiports = new ArrayList<>();
+                    tripItemForOptimization.destinationNeighborVertiports = new ArrayList<>();
+                    tripItemForOptimization.originNeighborVertiports.addAll(originNeighbourVertiports);
+                    tripItemForOptimization.destinationNeighborVertiports.addAll(destinationNeighbourVertiports);
+                    uamAvailableTrips.add(tripItemForOptimization);
+                }
+                else if (originNeighbourVertiports.get(0).ID != destinationNeighbourVertiports.get(0).ID) {
+                    tripItemForOptimization.isUAMAvailable = true;
+                    tripItemForOptimization.originNeighborVertiports = new ArrayList<>();
+                    tripItemForOptimization.destinationNeighborVertiports = new ArrayList<>();
+                    tripItemForOptimization.originNeighborVertiports.addAll(originNeighbourVertiports);
+                    tripItemForOptimization.destinationNeighborVertiports.addAll(destinationNeighbourVertiports);
+                    uamAvailableTrips.add(tripItemForOptimization);
+                }
+ }
         }
 
-        for (TripItem tripItem : uamAvailableTrips) {
-
-            for (Vertiport vertiport : tripItem.originNeighborVertiports) {
-                tripItem.originNeighborVertiportsTimeAndDistance.put(vertiport,tripItem.originNeighborVertiportCandidatesTimeAndDistance.get(vertiport));
+        for (TripItemForOptimization tripItemForOptimization : uamAvailableTrips) {
+            for (Vertiport vertiport : tripItemForOptimization.originNeighborVertiports) {
+                tripItemForOptimization.originNeighborVertiportsTimeAndDistance.put(vertiport, tripItemForOptimization.originNeighborVertiportCandidatesTimeAndDistance.get(vertiport));
             }
-            for (Vertiport vertiport : tripItem.destinationNeighborVertiports) {
-                tripItem.destinationNeighborVertiportsTimeAndDistance.put(vertiport,tripItem.destinationNeighborVertiportCandidatesTimeAndDistance.get(vertiport));
+            for (Vertiport vertiport : tripItemForOptimization.destinationNeighborVertiports) {
+                tripItemForOptimization.destinationNeighborVertiportsTimeAndDistance.put(vertiport, tripItemForOptimization.destinationNeighborVertiportCandidatesTimeAndDistance.get(vertiport));
             }
-
+            double objectiveFunctionBefore;
+            double objectiveFunctionAfter;
+            double depatureTime= tripItemForOptimization.departureTime;
             // Initialize the Vertiport Allocation
             // Find the vertiport pair for a trip with the lowest uam generalized cost, the access and ergress vertiport could not be the same
             double lowestUAMGeneralizedCost = Double.MAX_VALUE;
             Vertiport originVertiport = null;
             Vertiport destinationVertiport = null;
-            for (Vertiport origin : tripItem.originNeighborVertiports) {
-                for (Vertiport destination :  tripItem.destinationNeighborVertiports) {
+            for (Vertiport origin : tripItemForOptimization.originNeighborVertiports) {
+                for (Vertiport destination :  tripItemForOptimization.destinationNeighborVertiports) {
                     if (origin.ID != destination.ID) {
-                        double accessTime = tripItem.originNeighborVertiportsTimeAndDistance.get(origin).get("travelTime");
-                        double egressTime = tripItem.destinationNeighborVertiportsTimeAndDistance.get(destination).get("travelTime");
-                        double accessDistance = tripItem.originNeighborVertiportsTimeAndDistance.get(origin).get("distance");
-                        double egressDistance = tripItem.destinationNeighborVertiportsTimeAndDistance.get(destination).get("distance");
+                        double accessTime = tripItemForOptimization.originNeighborVertiportsTimeAndDistance.get(origin).get("travelTime");
+                        double egressTime = tripItemForOptimization.destinationNeighborVertiportsTimeAndDistance.get(destination).get("travelTime");
+                        double accessDistance = tripItemForOptimization.originNeighborVertiportsTimeAndDistance.get(origin).get("distance");
+                        double egressDistance = tripItemForOptimization.destinationNeighborVertiportsTimeAndDistance.get(destination).get("distance");
                         double accessCost =0;
                         double egressCost =0;
+                        double accessEmisson =0;
+                        double egressEmisson =0;
                         double flightDistance= calculateEuciDistance(origin.coord,destination.coord);
                         double flightTime=flightDistance/flightSpeed+takeOffLandingTime;
-                        double flightCost=6.1+ calculateEuciDistance(origin.coord,destination.coord)/1000*0.6;
+                        double flightCost=UAM_FIX_COST+ flightDistance/1000*UAM_KM_COST;
+                        double flightEmission=flightDistance/1000*UAM_EMISSION_FACTOR;
                         double uamTravelTime=accessTime+egressTime+flightTime+UAM_PROCESS_TIME;
-                        if (tripItem.accessMode.equals("car") ){
+
+                        if (tripItemForOptimization.accessMode.equals("car") ){
                             accessCost=accessDistance/1000*0.42;
+                            accessEmisson=accessDistance/1000*CAR_EMISSION_FACTOR;
                         }
-                        if (tripItem.egressMode.equals("car") ){
+                        if (tripItemForOptimization.egressMode.equals("car") ){
                             egressCost=egressDistance/1000*0.42;
+                            egressEmisson=egressDistance/1000*CAR_EMISSION_FACTOR;
                         }
                         double UAMCost=accessCost+egressCost+flightCost;
-                        double UAMGeneralizedCost=UAMCost+uamTravelTime*tripItem.VOT;
+                        double UAMGeneralizedCost=UAMCost+uamTravelTime* tripItemForOptimization.VOT;
+                        if (CONSIDER_CARBON){
+                            UAMGeneralizedCost=UAMGeneralizedCost+CARBON_EQUIVALENCE_FACTOR*(accessEmisson+egressEmisson+flightEmission);
+                        }
                         if (UAMGeneralizedCost < lowestUAMGeneralizedCost) {
-                            tripItem.uamTravelTime=uamTravelTime;
-                            tripItem.UAMCost=UAMCost;
-                            tripItem.UAMUtilityVar=-2.48*UAMCost/100-4.28*flightTime/6000-6.79*(uamTravelTime-flightTime)/6000;
-                            tripItem.uamUtility=tripItem.UAMUtilityFix+tripItem.UAMUtilityVar;
-                            tripItem.UAMGeneralizedCost=UAMGeneralizedCost;
-                            tripItem.accessVertiport = origin;
-                            tripItem.egressVertiport = destination;
+                            tripItemForOptimization.uamTravelTime=uamTravelTime;
+                            tripItemForOptimization.UAMCost=UAMCost;
+                            tripItemForOptimization.UAMUtilityVar=-2.48*UAMCost/100-4.28*flightTime/6000-6.79*(uamTravelTime-flightTime)/6000;
+                            tripItemForOptimization.uamUtility= tripItemForOptimization.UAMUtilityFix+ tripItemForOptimization.UAMUtilityVar;
+                            tripItemForOptimization.UAMGeneralizedCost=UAMGeneralizedCost;
+                            tripItemForOptimization.accessVertiport = origin;
+                            tripItemForOptimization.egressVertiport = destination;
+                            tripItemForOptimization.accessTime=accessTime;
+                            tripItemForOptimization.egressTime=egressTime;
+                            tripItemForOptimization.flightTime=flightTime;
                             lowestUAMGeneralizedCost = UAMGeneralizedCost;
                         }
                     }
                 }
             }
-            // determine the probability of mode choice of each trip
-            tripItem.uamProbability=calculateModeProbability(tripItem.uamUtility,tripItem.carUtility,tripItem.ptUtility).get(0);
-            tripItem.carProbability=calculateModeProbability(tripItem.uamUtility,tripItem.carUtility,tripItem.ptUtility).get(1);
-            tripItem.ptProbability=calculateModeProbability(tripItem.uamUtility,tripItem.carUtility,tripItem.ptUtility).get(2);
-            double generalizedCostOneTripBefore=tripItem.carGeneralizedCost*calculateModeProbability(-9999,tripItem.carUtility,tripItem.ptUtility).get(1)+tripItem.ptGeneralizedCost*calculateModeProbability(-9999,tripItem.carUtility,tripItem.ptUtility).get(2);
-            double generalizedCostOneTripAfter=tripItem.UAMGeneralizedCost*tripItem.uamProbability+tripItem.carGeneralizedCost*tripItem.carProbability+tripItem.ptGeneralizedCost*tripItem.ptProbability;
-            double savedGeneralizedCostOneTrip=generalizedCostOneTripBefore-generalizedCostOneTripAfter;
+
+
+            // update the saturation rate of the access and egress vertiport
+            if (CONSIDER_CARBON) {
+                int arriveVertiportHour = (int) Math.floor((tripItemForOptimization.departureTime + tripItemForOptimization.accessTime) / 3600);
+                int leaveVertiportHour = (int) Math.floor((tripItemForOptimization.departureTime + tripItemForOptimization.accessTime + UAM_PROCESS_TIME + tripItemForOptimization.flightTime) / 3600);
+                vertiportsCandidates.get(tripItemForOptimization.accessVertiport.ID).saturationRates.put(arriveVertiportHour, vertiportsCandidates.get(tripItemForOptimization.accessVertiport.ID).saturationRates.get(arriveVertiportHour) + tripItemForOptimization.uamProbability / tripItemForOptimization.accessVertiport.capacity);
+                vertiportsCandidates.get(tripItemForOptimization.egressVertiport.ID).saturationRates.put(leaveVertiportHour, vertiportsCandidates.get(tripItemForOptimization.egressVertiport.ID).saturationRates.get(leaveVertiportHour) + tripItemForOptimization.uamProbability / tripItemForOptimization.egressVertiport.capacity);
+            }
+            // calculate the probability of each mode and do the mode choice
+            ModeDecider modeDecider=new ModeDecider(tripItemForOptimization.uamUtility,tripItemForOptimization.carUtility,tripItemForOptimization.ptUtility,random);
+            Double [] modeSamples=modeDecider.sample(sampleSize);
+            if (!CONSIDER_CARBON)
+            {objectiveFunctionBefore= tripItemForOptimization.currentGeneralizedCost;
+            objectiveFunctionAfter= modeSamples[1]* tripItemForOptimization.carGeneralizedCost+modeSamples[2]* tripItemForOptimization.ptGeneralizedCost+modeSamples[0]* tripItemForOptimization.UAMGeneralizedCost;
+            }
+            else {
+                objectiveFunctionBefore= tripItemForOptimization.currentGeneralizedCost+tripItemForOptimization.currentEmission*CARBON_EQUIVALENCE_FACTOR;;
+                objectiveFunctionAfter= modeSamples[1]*(tripItemForOptimization.carGeneralizedCost+ tripItemForOptimization.carEmission*CARBON_EQUIVALENCE_FACTOR)+modeSamples[2]*(tripItemForOptimization.ptGeneralizedCost+ tripItemForOptimization.ptEmission*CARBON_EQUIVALENCE_FACTOR)+modeSamples[0]* tripItemForOptimization.UAMGeneralizedCost;
+            }
+
+
+            double savedGeneralizedCostOneTrip=objectiveFunctionBefore-objectiveFunctionAfter;
+
             if (savedGeneralizedCostOneTrip<0){
                 savedGeneralizedCostOneTrip=0;
             }
-            if (tripItem.tripPurpose.startsWith("H")){
+            if (tripItemForOptimization.tripPurpose.startsWith("H")){
                 savedGeneralizedCostOneTrip=savedGeneralizedCostOneTrip*2;
             }
             savedGeneralizedCost=savedGeneralizedCost+savedGeneralizedCostOneTrip;
@@ -192,80 +305,118 @@ public class SimulatedAnnealing {
         }
 
 
-
-            /*
-            int carCount=0;
-            int ptCount=0;
-            int uamCount=0;
-            // generate 100 scenarios of each trip
-            int j=0;
-            for (int modeChoiceIterator=0;modeChoiceIterator<100;modeChoiceIterator++){
-                j=modeChoiceIterator;
-                ModeDecider modeDecider=new ModeDecider(tripItem.carProbability,tripItem.ptProbability,tripItem.uamProbability);
-                String mode=modeDecider.decideMode();
-                if (mode.equals("car")){
-                    generalizedCostOneTrip=generalizedCostOneTrip+tripItem.carGeneralizedCost;
-                    carCount++;
-                }
-                if (mode.equals("pt")){
-                    generalizedCostOneTrip=generalizedCostOneTrip+tripItem.ptGeneralizedCost;
-                    ptCount++;
-                }
-                if (mode.equals("uam")){
-                    generalizedCostOneTrip=generalizedCostOneTrip+tripItem.UAMGeneralizedCost;
-                    uamCount++;
-                }
-                if (tripItem.carProbability>0.9999 || tripItem.ptProbability>0.9999 || tripItem.uamProbability>0.9999){
-                    carCount=carCount*100;
-                    ptCount=ptCount*100;
-                    uamCount=uamCount*100;
-                    break;
-                }
-            }
-            // calculate the average generalized cost of each trip
-            generalizedCostOneTrip=generalizedCostOneTrip/(j+1);
-
-             */
-
        return savedGeneralizedCost;
 
 
 }
-public static List<Integer> generateNewSolution (List<Integer> currentSolution){
-        List<Integer> newSolution=new ArrayList<>(currentSolution);
-        List<Integer> notChosenVertiport = new ArrayList<>();
-        for (int i=0;i<200;i++){
-            if (!newSolution.contains(i)){
-                notChosenVertiport.add(i);
+public static List<Integer> generateNewSolution (Random random, List<Integer> currentSolutionID, List<Vertiport> vertiportsCandidates){
+        List<Integer> newSolutionID=new ArrayList<>(currentSolutionID);
+        List<Integer> notChosenVertiportID = new ArrayList<>();
+        List<Integer> SaturationVertiportsID = new ArrayList<>();
+        List<Vertiport> newSolution = new ArrayList<>();
+        for (Integer vertiportID:newSolutionID){
+            newSolution.add(vertiportsCandidates.get(vertiportID));
+    }
+        List<Integer> NotSaturationVertiportsID = new ArrayList<>();
+        if (CONSIDER_CARBON) {
+            for (Vertiport vertiport : newSolution) {
+                // get the maxSaturationRate for each vertiport
+                double maxSaturationRate = 0;
+                for (int i = 0; i < SIMULATION_HOURS; i++) {
+                    if (vertiport.saturationRates.get(i) > vertiport.maxSaturationRate) {
+                        vertiport.maxSaturationRate = vertiport.saturationRates.get(i);
+                    }
+                }
+
+                if (vertiport.maxSaturationRate > 1) {
+                    SaturationVertiportsID.add(vertiport.ID);
+                } else {
+                    NotSaturationVertiportsID.add(vertiport.ID);
+                }
             }
         }
-        // randomly substitute one element in newSolution with one element in notChosenVertiport
-    Random random=new Random();
-        int index1= random.nextInt(newSolution.size());
-        int index2= random.nextInt(notChosenVertiport.size());
-
-        newSolution.set(index1,notChosenVertiport.get(index2));
-
-    return newSolution;
+        for (Vertiport vertiport:vertiportsCandidates){
+            if (!currentSolutionID.contains(vertiport.ID)){
+                notChosenVertiportID.add(vertiport.ID);
+            }
+        }
+        if (SaturationVertiportsID.size()>0 && CONSIDER_CARBON)
+            // get the vertiport with highest saturationRate in SaturationVertiports
+        {
+            Integer vertiportWithHighestSaturationRateID=SaturationVertiportsID.get(0);
+            for (Integer vertiportID:SaturationVertiportsID){
+                if ( vertiportsCandidates.get(vertiportID).maxSaturationRate>vertiportsCandidates.get(vertiportWithHighestSaturationRateID).maxSaturationRate){
+                    vertiportWithHighestSaturationRateID=vertiportID;
+                }
+                }
+                Vertiport vertiportWithHighestSaturationRate=vertiportsCandidates.get(vertiportWithHighestSaturationRateID);
+            // randomly select a vertiport from the neighbors of the vertiportWithHighestSaturationRate and make sure it is not in the current solution
+                List<Vertiport> neighbors=vertiportWithHighestSaturationRate.neighbors;
+                List<Integer> neighborsID=new ArrayList<>();
+                for (Vertiport vertiport:neighbors){
+                    neighborsID.add(vertiport.ID);
+                }
+            // if the neighbors are all in the current solution, remove the vertiportWithHighestSaturationRate from the SaturationVertiports, repeat the process
+            while (currentSolutionID.containsAll(neighborsID)||neighborsID.size()==0){
+                SaturationVertiportsID.remove(vertiportWithHighestSaturationRateID);
+                if ( SaturationVertiportsID.size()>0){
+                    vertiportWithHighestSaturationRateID=SaturationVertiportsID.get(0);
+                    for (Integer vertiportID:SaturationVertiportsID){
+                        if ( vertiportsCandidates.get(vertiportID).maxSaturationRate>vertiportsCandidates.get(vertiportWithHighestSaturationRateID).maxSaturationRate){
+                            vertiportWithHighestSaturationRateID=vertiportID;
+                        }
+                    }
+                    vertiportWithHighestSaturationRate=vertiportsCandidates.get(vertiportWithHighestSaturationRateID);
+                    neighbors=vertiportWithHighestSaturationRate.neighbors;
+                    neighborsID=new ArrayList<>();
+                    for (Vertiport vertiport:neighbors){
+                        neighborsID.add(vertiport.ID);
+                    }
+                }
+                else {
+                    // randomly select a vertiport from the notChosenVertiport and remove a vertiport from the current solution
+                    Integer newVertiportID=notChosenVertiportID.get(random.nextInt(notChosenVertiportID.size()));
+                    Integer removedVertiportID=currentSolutionID.get(random.nextInt(currentSolutionID.size()));
+                    newSolutionID.remove(removedVertiportID);
+                    newSolutionID.add(newVertiportID);
+                    return newSolutionID;
+                }
+            }
+            Integer newVertiportID=neighborsID.get(random.nextInt(neighborsID.size()));
+            while (currentSolutionID.contains(newVertiportID)){
+                newVertiportID=neighborsID.get(random.nextInt(neighborsID.size()));
+        }
+            Integer removedVertiportID= NotSaturationVertiportsID.get(random.nextInt(NotSaturationVertiportsID.size()));
+            newSolutionID.remove(removedVertiportID);
+            newSolutionID.add(newVertiportID);
+        }
+        else {
+            // randomly select a vertiport from the notChosenVertiport and remove a vertiport from the current solution
+            Integer newVertiportID=notChosenVertiportID.get(random.nextInt(notChosenVertiportID.size()));
+            Integer removedVertiportID=currentSolutionID.get(random.nextInt(currentSolutionID.size()));
+            newSolutionID.remove(removedVertiportID);
+            newSolutionID.add(newVertiportID);
+        }
+    return newSolutionID;
 }
     public static double calculateEuciDistance(Coord coord1, Coord coord2) {
         double euciDistance = Math.sqrt(Math.pow(coord1.getX() - coord2.getX(), 2) + Math.pow(coord1.getY() - coord2.getY(), 2));
         return euciDistance;
     }
-    public static List<TripItem> deserializeTripItems(String fileName) {
-        List<TripItem> tripItems = new ArrayList<>();
+    public static List<TripItemForOptimization> deserializeTripItems(String fileName) {
+        List<TripItemForOptimization> tripItemForOptimizations = new ArrayList<>();
 
         try  {
             FileInputStream fileIn = new FileInputStream(fileName);
             ObjectInputStream objectIn = new ObjectInputStream(fileIn)  ;
-            tripItems = (List<TripItem>) objectIn.readObject();
+            tripItemForOptimizations = (List<TripItemForOptimization>) objectIn.readObject();
 
 
         } catch (Exception e) {
             e.printStackTrace();
         }
 
-        return tripItems;
+        return tripItemForOptimizations;
     }
     public static List<Vertiport> findAvailableNeighbourVertiports(List<Integer> intList, List<Vertiport> vertiportList) {
         List<Vertiport> duplicates = new ArrayList<>();
@@ -293,19 +444,7 @@ public static List<Integer> generateNewSolution (List<Integer> currentSolution){
         return list;
     }
 
-    public static List<Double> calculateModeProbability(double UAM_Utlility, double carUtility, double ptUtility){
 
-
-        double sumUtilityExponential = Math.exp(carUtility) + Math.exp(ptUtility) + Math.exp(UAM_Utlility);
-        double UAMProbability=Math.exp(UAM_Utlility)/ sumUtilityExponential;
-        double carProbability=Math.exp(carUtility)/ sumUtilityExponential;
-        double ptProbability=Math.exp(ptUtility)/ sumUtilityExponential;
-        List<Double> modeProbability=new ArrayList<>();
-        modeProbability.add(UAMProbability);
-        modeProbability.add(carProbability);
-        modeProbability.add(ptProbability);
-        return modeProbability;
-    }
 
 
 }
