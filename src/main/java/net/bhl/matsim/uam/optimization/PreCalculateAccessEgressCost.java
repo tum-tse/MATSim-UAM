@@ -107,7 +107,8 @@ public class PreCalculateAccessEgressCost {
                     new LeastCostRaptorRouteSelector(),
                     new DefaultRaptorStopFinder(null, new DefaultRaptorIntermodalAccessEgress(), router)));
         }
-
+        ThreadCounter threadCounter = new ThreadCounter();
+        ExecutorService es = Executors.newFixedThreadPool(processes);
         // Read the trip file and store in a list
         TripItemReaderForOptimization tripItemReaderForOptimization = new TripItemReaderForOptimization();
         List<TripItemForOptimization> tripItemForOptimizations = tripItemReaderForOptimization.getTripItemsForOptimization(tripFile);
@@ -115,10 +116,10 @@ public class PreCalculateAccessEgressCost {
         for (int i = 0; i < tripItemForOptimizations.size(); i++) {
             TripItemForOptimization currentTrip = tripItemForOptimizations.get(i);
             // Find the neighbouring vertiports for the origin and destination
-            VertiportCollector vertiportCollector = new VertiportCollector(currentTrip, networkCar, vertiportsCandidates);
+            VertiportCollector vertiportCollector = new VertiportCollector(currentTrip,networkCar,network,vertiportsCandidates,threadCounter,carRouters, ptRouters,"Munich_A");
             vertiportCollector.neighbourVertiportCandidateIdentifier();
             // provide information after each 100 trips
-            if (i % 100 == 0) {
+            if (i % 1000 == 0) {
                 log.info("Neighbour Vertiport Candidate Indentification: Trip " + i + " is processed.");
             }
             if (currentTrip.originNeighborVertiportCandidates.size() > 0 && currentTrip.destinationNeighborVertiportCandidates.size() > 0) {
@@ -132,8 +133,7 @@ public class PreCalculateAccessEgressCost {
         // Show information in logfile
         log.info("The number of trips that can be served by UAM is: " + uamEnabledTrips.size());
         log.info("Calculating travel times...");
-        ThreadCounter threadCounter = new ThreadCounter();
-        ExecutorService es = Executors.newFixedThreadPool(processes);
+
 
         for (int i = 0; i < uamEnabledTrips.size(); i++) {
             TripItemForOptimization currentTrip = uamEnabledTrips.get(i);
@@ -149,7 +149,7 @@ public class PreCalculateAccessEgressCost {
             }
             while (threadCounter.getProcesses() >= processes - 1)
                 Thread.sleep(200);
-            VertiportCollector vertiportCollector = new VertiportCollector(currentTrip,networkCar,network,vertiportsCandidates,threadCounter,carRouters, ptRouters);
+            VertiportCollector vertiportCollector = new VertiportCollector(currentTrip,networkCar,network,vertiportsCandidates,threadCounter,carRouters, ptRouters,"Munich_A");
             es.execute(vertiportCollector);
         }
         es.shutdown();

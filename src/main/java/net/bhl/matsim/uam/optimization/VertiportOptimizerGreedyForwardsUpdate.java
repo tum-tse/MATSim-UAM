@@ -14,6 +14,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.Callable;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class VertiportOptimizerGreedyForwardsUpdate {
     public static Logger log = Logger.getLogger(VertiportOptimizerGreedyForwardsUpdate.class);
@@ -56,17 +57,17 @@ public class VertiportOptimizerGreedyForwardsUpdate {
         }
         ScenarioSpecific scenarioSpecific = new ScenarioSpecific("Munich_A");
         scenarioSpecific.buildScenario();
-        NUM_OF_SELECTED_VERTIPORTS = ScenarioSpecific.num_of_selected_vertiports;
-        UAM_FIX_COST = ScenarioSpecific.uam_fix_cost;
-        UAM_KM_COST = ScenarioSpecific.uam_km_cost;
-        CAR_COST = ScenarioSpecific.car_km_cost;
-        flightSpeed = ScenarioSpecific.flight_speed;
-        UAM_PROCESS_TIME = ScenarioSpecific.uam_process_time;
-        takeOffLandingTime = ScenarioSpecific.uam_take_off_landing_time;
-        UAM_UTILITY_COST_PARAMETER = ScenarioSpecific.uam_utility_cost_parameter;
-        UAM_UTILITY_FLIGHT_TIME_PARAMETER = ScenarioSpecific.uam_utility_flight_time_parameter;
-        UAM_UTILITY_WAIT_TIME_PARAMETER = ScenarioSpecific.uam_utility_waiting_time_parameter;
-        considerReturnTrip = ScenarioSpecific.consider_return_trip;
+        NUM_OF_SELECTED_VERTIPORTS = scenarioSpecific.num_of_selected_vertiports;
+        UAM_FIX_COST = scenarioSpecific.uam_fix_cost;
+        UAM_KM_COST = scenarioSpecific.uam_km_cost;
+        CAR_COST = scenarioSpecific.car_km_cost;
+        flightSpeed = scenarioSpecific.flight_speed;
+        UAM_PROCESS_TIME = scenarioSpecific.uam_process_time;
+        takeOffLandingTime = scenarioSpecific.uam_take_off_landing_time;
+        UAM_UTILITY_COST_PARAMETER = scenarioSpecific.uam_utility_cost_parameter;
+        UAM_UTILITY_FLIGHT_TIME_PARAMETER = scenarioSpecific.uam_utility_flight_time_parameter;
+        UAM_UTILITY_WAIT_TIME_PARAMETER = scenarioSpecific.uam_utility_waiting_time_parameter;
+        considerReturnTrip = scenarioSpecific.consider_return_trip;
 
 
         log.info("Loading the vertiport candidates...");
@@ -80,11 +81,17 @@ public class VertiportOptimizerGreedyForwardsUpdate {
 
         for (int run_index = 0; run_index < num_of_run; run_index++) {
             log.info("The " + run_index + "th run starts.");
+            double maxScore = Double.NEGATIVE_INFINITY;
             Random random = new Random(RANDOM_SEEDS[run_index]);
             HashMap<List<Integer>, Double> vertiportPairsScore = new HashMap<>();
             // Calculate the score of each two vertiports selection
             log.info("Calculating the score of each two vertiports selection...");
-            int count = 0;
+            for (TripItemForOptimization tripItemForOptimization : deserializedTripItemForOptimizations) {
+                tripItemForOptimization.tempSavedGeneralizedCostsMap.clear();
+                tripItemForOptimization.savedGeneralizedCost = 0;
+                tripItemForOptimization.UAMUtilityVar=Double.NEGATIVE_INFINITY;
+                tripItemForOptimization.isUAMAvailable=false;
+            }
             HashMap<List<Integer>, Double> vertiportPairsAndScores = new HashMap<>();
             for (int i = 0; i < vertiportsCandidates.size(); i++) {
                 for (int j = i + 1; j < vertiportsCandidates.size(); j++) {
@@ -100,7 +107,7 @@ public class VertiportOptimizerGreedyForwardsUpdate {
             int batchSize = vertiportPairsAndScores.size() / processors;
             ExecutorService executor = Executors.newFixedThreadPool(processors);
             List<Future<HashMap<List<Integer>, Double>>> futures = new ArrayList<>();
-
+            AtomicInteger count = new AtomicInteger();
             for (int i = 0; i < processors; i++) {
                 int start = i * batchSize;
                 int end = (i == processors - 1) ? vertiportPairsAndScores.size() : (i + 1) * batchSize;
@@ -117,6 +124,11 @@ public class VertiportOptimizerGreedyForwardsUpdate {
                         List<Integer> vertiportPair = entry.getKey();
                         double score = calculateSelectionScore(vertiportPair, deserializedTripItemForOptimizations, random);
                         entry.setValue(score);
+                        count.getAndIncrement();
+                        if (count.get() % 1000 == 0) {
+                            log.info("Finish calculation of "+ count +" vertiport pairs.");
+                        }
+
                     }
                     return subMap;
                 };
@@ -144,7 +156,7 @@ public class VertiportOptimizerGreedyForwardsUpdate {
                     // select the first vertiport pair
                     Integer maxA = null;
                     Integer maxB = null;
-                    double maxScore = Double.NEGATIVE_INFINITY;
+                    maxScore = Double.NEGATIVE_INFINITY;
                     for (Map.Entry<List<Integer>, Double> entry : vertiportPairsScore.entrySet()) {
                         if (entry.getValue() > maxScore) {
                             maxScore = entry.getValue();
@@ -156,6 +168,13 @@ public class VertiportOptimizerGreedyForwardsUpdate {
                     currentSelectedVertiportsID.add(maxB);
                     remainVetiportsCandidatesID.remove(maxA);
                     remainVetiportsCandidatesID.remove(maxB);
+                    calculateSelectionScore(currentSelectedVertiportsID,currentSelectedVertiportsID ,deserializedTripItemForOptimizations, random);
+                    for (TripItemForOptimization tripItemForOptimization : deserializedTripItemForOptimizations) {
+                        if (tripItemForOptimization.tempSavedGeneralizedCostsMap.containsKey(currentSelectedVertiportsID)) {
+                            tripItemForOptimization.savedGeneralizedCost = tripItemForOptimization.tempSavedGeneralizedCostsMap.get(currentSelectedVertiportsID);
+                        }
+                        tripItemForOptimization.tempSavedGeneralizedCostsMap.clear();
+                    }
                     log.info("The first two vertiport pair is: " + maxA + " and " + maxB);
                 }
                 else {
@@ -163,9 +182,9 @@ public class VertiportOptimizerGreedyForwardsUpdate {
                     int batchSize2 = remainVetiportsCandidatesID.size() / processors2;
                     ExecutorService executor2 = Executors.newFixedThreadPool(processors2);
                     HashMap<List<Integer>,Double> allPossibleVertiportPairsAndScores = new HashMap<>();
-                    for (int i = 0; i < remainVetiportsCandidatesID.size(); i++) {
+                    for (Integer integer : remainVetiportsCandidatesID) {
                         List<Integer> vertiportPair = new ArrayList<>();
-                        vertiportPair.add(remainVetiportsCandidatesID.get(i));
+                        vertiportPair.add(integer);
                         vertiportPair.addAll(currentSelectedVertiportsID);
                         allPossibleVertiportPairsAndScores.put(vertiportPair, 0.0);
                     }
@@ -184,7 +203,9 @@ public class VertiportOptimizerGreedyForwardsUpdate {
                         Callable<HashMap<List<Integer>, Double>> task = () -> {
                             for (Map.Entry<List<Integer>, Double> entry : subMap.entrySet()) {
                                 List<Integer> vertiportPair = entry.getKey();
-                                double score = calculateSelectionScore(vertiportPair, deserializedTripItemForOptimizations, random);
+                                List<Integer> selectionDifference = new ArrayList<>();
+                                selectionDifference.add(vertiportPair.get(0))  ;
+                                double score = calculateSelectionScore(vertiportPair, selectionDifference, deserializedTripItemForOptimizations, random);
                                 entry.setValue(score);
                             }
                             return subMap;
@@ -203,7 +224,7 @@ public class VertiportOptimizerGreedyForwardsUpdate {
                     executor2.shutdown();
                     // Find the vertiport pair with the highest score
                     Integer [] max=null;
-                    double maxScore = Double.NEGATIVE_INFINITY;
+                    maxScore = Double.NEGATIVE_INFINITY;
                     for (Map.Entry<List<Integer>, Double> entry : allPossibleVertiportPairsAndScores.entrySet()) {
                         if (entry.getValue() > maxScore) {
                             maxScore = entry.getValue();
@@ -221,15 +242,20 @@ public class VertiportOptimizerGreedyForwardsUpdate {
                             break;
                         }
                     }
+                    for (TripItemForOptimization tripItemForOptimization : deserializedTripItemForOptimizations) {
+                        if (tripItemForOptimization.tempSavedGeneralizedCostsMap.containsKey(currentSelectedVertiportsID)) {
+                        tripItemForOptimization.savedGeneralizedCost = tripItemForOptimization.tempSavedGeneralizedCostsMap.get(currentSelectedVertiportsID);}
+                        tripItemForOptimization.tempSavedGeneralizedCostsMap.clear();
+                    }
                     log.info("The " + currentSelectedVertiportsID.size() + "th vertiport is "+ newVertiportID);
                 }
 
             }
 
             log.info("The selected vertiports are: " + currentSelectedVertiportsID);
-            log.info("The score of the selected vertiports is: " + calculateSelectionScore(currentSelectedVertiportsID, deserializedTripItemForOptimizations, random));
+            log.info("The score of the selected vertiports is: " + maxScore);
         }
-            }
+    }
 
 
 
@@ -264,6 +290,127 @@ public class VertiportOptimizerGreedyForwardsUpdate {
         return duplicates;
     }
 
+    public static double calculateSelectionScore(List<Integer> chosenVertiportID, List<Integer> selectionDifference, List<TripItemForOptimization> deserializedTripItemForOptimizations, Random random) {
+        List<TripItemForOptimization> uamAvailableTrips = new ArrayList<>();
+        List<TripItemForOptimization> differenceTrips = new ArrayList<>();
+        double totalSavedGeneralizedCost = 0;
+        for (TripItemForOptimization tripItemForOptimization : deserializedTripItemForOptimizations) {
+            boolean added = false;
+            for (Vertiport vertiport : tripItemForOptimization.originNeighborVertiportCandidates) {
+                if (selectionDifference.contains(vertiport.ID)) {
+                    differenceTrips.add(tripItemForOptimization);
+                    added = true;
+                    break;
+                }
+            }
+            if (added) {
+                continue;
+            }
+            for (Vertiport vertiport : tripItemForOptimization.destinationNeighborVertiportCandidates) {
+                if (selectionDifference.contains(vertiport.ID)) {
+                    differenceTrips.add(tripItemForOptimization);
+                    break;
+                }
+            }
+        }
+
+        for (TripItemForOptimization tripItemForOptimization : differenceTrips) {
+            List<Vertiport> originNeighbourVertiports = findAvailableNeighbourVertiports(chosenVertiportID, tripItemForOptimization.originNeighborVertiportCandidates);
+            List<Vertiport> destinationNeighbourVertiports = findAvailableNeighbourVertiports(chosenVertiportID, tripItemForOptimization.destinationNeighborVertiportCandidates);
+            if (!originNeighbourVertiports.isEmpty() && !destinationNeighbourVertiports.isEmpty()) {
+                tripItemForOptimization.isUAMAvailable = true;
+                tripItemForOptimization.originNeighborVertiports = originNeighbourVertiports;
+                tripItemForOptimization.destinationNeighborVertiports = destinationNeighbourVertiports;
+                uamAvailableTrips.add(tripItemForOptimization);
+            } else {
+                tripItemForOptimization.isUAMAvailable = false;
+                tripItemForOptimization.UAMUtilityVar = Double.NEGATIVE_INFINITY;
+                tripItemForOptimization.tempSavedGeneralizedCostsMap.put(selectionDifference, 0.0);
+            }
+        }
+
+
+        for (TripItemForOptimization tripItemForOptimization : uamAvailableTrips) {
+            calculateTripSavedCost(tripItemForOptimization, selectionDifference,random);
+        }
+
+        for (TripItemForOptimization tripItemForOptimization : deserializedTripItemForOptimizations) {
+            if (differenceTrips.contains(tripItemForOptimization)) {
+                totalSavedGeneralizedCost += tripItemForOptimization.tempSavedGeneralizedCostsMap.get(selectionDifference);
+            }
+            else {
+                totalSavedGeneralizedCost += tripItemForOptimization.savedGeneralizedCost;
+            }
+        }
+        return totalSavedGeneralizedCost;
+    }
+
+    public static void calculateTripSavedCost(TripItemForOptimization tripItemForOptimization, List<Integer> selectionDifference,Random random) {
+        for (Vertiport vertiport : tripItemForOptimization.originNeighborVertiports) {
+            tripItemForOptimization.originNeighborVertiportsTimeAndDistance.put(vertiport, tripItemForOptimization.originNeighborVertiportCandidatesTimeAndDistance.get(vertiport));
+        }
+        for (Vertiport vertiport : tripItemForOptimization.destinationNeighborVertiports) {
+            tripItemForOptimization.destinationNeighborVertiportsTimeAndDistance.put(vertiport, tripItemForOptimization.destinationNeighborVertiportCandidatesTimeAndDistance.get(vertiport));
+        }
+        double objectiveFunctionBefore;
+        double objectiveFunctionAfter;
+        // Initialize the Vertiport Allocation
+        // Find the vertiport pair for a trip with the lowest uam generalized cost, the access and ergress vertiport could not be the same
+        double lowestUAMGeneralizedCost = Double.MAX_VALUE;
+        for (Vertiport origin : tripItemForOptimization.originNeighborVertiports) {
+            for (Vertiport destination :  tripItemForOptimization.destinationNeighborVertiports) {
+                if (origin.ID != destination.ID) {
+                    double accessTime = tripItemForOptimization.originNeighborVertiportsTimeAndDistance.get(origin).get("travelTime");
+                    double egressTime = tripItemForOptimization.destinationNeighborVertiportsTimeAndDistance.get(destination).get("travelTime");
+                    double accessDistance = tripItemForOptimization.originNeighborVertiportsTimeAndDistance.get(origin).get("distance");
+                    double egressDistance = tripItemForOptimization.destinationNeighborVertiportsTimeAndDistance.get(destination).get("distance");
+                    double accessCost =0;
+                    double egressCost =0;
+                    double flightDistance= calculateEuciDistance(origin.coord,destination.coord);
+                    double flightTime=flightDistance/flightSpeed+takeOffLandingTime;
+                    double flightCost=UAM_FIX_COST+ calculateEuciDistance(origin.coord,destination.coord)/1000*UAM_KM_COST;
+                    double uamTravelTime=accessTime+egressTime+flightTime+UAM_PROCESS_TIME;
+                    if (tripItemForOptimization.accessMode.equals("car") ){
+                        accessCost=accessDistance/1000*CAR_COST;
+                    }
+                    if (tripItemForOptimization.egressMode.equals("car") ){
+                        egressCost=egressDistance/1000*CAR_COST;
+                    }
+                    double UAMCost=accessCost+egressCost+flightCost;
+                    double UAMGeneralizedCost=UAMCost+uamTravelTime* tripItemForOptimization.VOT;
+                    if (UAMGeneralizedCost < lowestUAMGeneralizedCost) {
+                        tripItemForOptimization.uamTravelTime=uamTravelTime;
+                        tripItemForOptimization.UAMCost=UAMCost;
+                        tripItemForOptimization.UAMUtilityVar=UAM_UTILITY_COST_PARAMETER*UAMCost/100+UAM_UTILITY_FLIGHT_TIME_PARAMETER*flightTime/6000+UAM_UTILITY_WAIT_TIME_PARAMETER*(uamTravelTime-flightTime)/6000;
+                        tripItemForOptimization.uamUtility= tripItemForOptimization.UAMUtilityFix+ tripItemForOptimization.UAMUtilityVar;
+                        tripItemForOptimization.UAMGeneralizedCost=UAMGeneralizedCost;
+                        tripItemForOptimization.accessVertiport = origin;
+                        tripItemForOptimization.egressVertiport = destination;
+                        lowestUAMGeneralizedCost = UAMGeneralizedCost;
+                    }
+                }
+            }
+        }
+        // determine the probability of mode choice of each trip
+
+        // Create a double list to store the probability of each mode
+        ModeDecider modeDecider=new ModeDecider(tripItemForOptimization.uamUtility,tripItemForOptimization.carUtility,tripItemForOptimization.ptUtility,random);
+        Double [] modeSamples=modeDecider.sample(sampleSize);
+
+        objectiveFunctionBefore= tripItemForOptimization.currentGeneralizedCost;
+        objectiveFunctionAfter= modeSamples[1]* tripItemForOptimization.carGeneralizedCost+modeSamples[2]* tripItemForOptimization.ptGeneralizedCost+modeSamples[0]* tripItemForOptimization.UAMGeneralizedCost;
+
+        double savedGeneralizedCostOneTrip=objectiveFunctionBefore-objectiveFunctionAfter;
+        if (savedGeneralizedCostOneTrip<0){
+            savedGeneralizedCostOneTrip=0;
+        }
+        if (tripItemForOptimization.tripPurpose.startsWith("H") && considerReturnTrip){
+            savedGeneralizedCostOneTrip=savedGeneralizedCostOneTrip*2;
+        }
+
+        // Include your logic here that was previously inside the loop over all trips
+        tripItemForOptimization.tempSavedGeneralizedCostsMap.put(selectionDifference, savedGeneralizedCostOneTrip);
+    }
     public static double calculateSelectionScore( List<Integer> chosenVertiportID, List<TripItemForOptimization> deserializedTripItemForOptimizations,Random random) {
         List<TripItemForOptimization> uamAvailableTrips = new ArrayList<>();
         double score = 0;
@@ -345,6 +492,7 @@ public class VertiportOptimizerGreedyForwardsUpdate {
         }
         return score;
     }
+
 
 
 }

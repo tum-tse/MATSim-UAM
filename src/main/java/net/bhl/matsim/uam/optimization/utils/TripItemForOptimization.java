@@ -21,9 +21,12 @@ public class TripItemForOptimization implements java.io.Serializable{
 	public double uamTravelTime;
 	public double VOT;
 
-
+	public double savedGeneralizedCost;
+	public List<Double> tempSavedGeneralizedCosts=new ArrayList<>();
+	public HashMap<List<Integer>,Double> tempSavedGeneralizedCostsMap=new HashMap<>();
 	public int currentMode; // 0: car, 1: pt
 	/*
+
 	public boolean carAvailable;
 	public double accessDistance;
 	public double egressDistance;
