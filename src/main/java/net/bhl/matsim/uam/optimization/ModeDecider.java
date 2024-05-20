@@ -2,8 +2,8 @@ package net.bhl.matsim.uam.optimization;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
-import java.util.concurrent.ThreadLocalRandom;
 public class ModeDecider {
+
     public ModeDecider(double UAM_Utlility, double carUtility, double ptUtility, Random random) {
         this.UAM_Utlility = UAM_Utlility;
         this.carUtility = carUtility;
@@ -19,6 +19,7 @@ public class ModeDecider {
 
 
     // return the number of samples of each mode in a Integer array
+
     public Double [] sample(int samplesize) {
         Double [] probabilities = calculateModeProbability(UAM_Utlility, carUtility, ptUtility).toArray(new Double[3]);
         double [] samples = new double[probabilities.length];
@@ -41,6 +42,7 @@ public class ModeDecider {
         return new Double[]{ (samples[0] / samplesize), samples[1] / samplesize, samples[2] / samplesize};
 
     }
+
 
     public static List<Double> calculateModeProbability(double UAM_Utlility, double carUtility, double ptUtility){
 

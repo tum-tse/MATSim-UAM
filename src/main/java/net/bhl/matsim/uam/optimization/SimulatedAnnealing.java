@@ -1,5 +1,6 @@
 package net.bhl.matsim.uam.optimization;
 
+import net.bhl.matsim.uam.optimization.utils.ScenarioSpecific;
 import net.bhl.matsim.uam.optimization.utils.TripItemForOptimization;
 import org.apache.log4j.Logger;
 import org.matsim.api.core.v01.Coord;
@@ -10,6 +11,11 @@ import java.io.ObjectInputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+
 import org.matsim.utils.MemoryObserver;
 
 
@@ -17,30 +23,35 @@ public class SimulatedAnnealing {
     // This class provides the simulated annealing algorithm to solve the vertiport siting problem.
 
     public static final Logger log = Logger.getLogger(SimulatedAnnealing.class);
-    public static final int NUM_OF_CANDIDATE_VERTIPORTS=200;
-    public static final int NUM_OF_SELECTED_VERTIPORTS=74;
+
     public static final double INITIAL_TEMPERATURE=5000;
     public static final double FINAL_TEMPERATURE=0.1;
     public static final double ANNEALING_RATE=0.99;
     public static final double MAX_ITERATION=6000;
-    public static final double MAX_NOT_CHANGE_COUNT=1000;
+    public static final double MAX_NOT_CHANGE_COUNT=2000;
     public static String serializedTripItemFile;
     public static String vertiportCandidateFile;
-    public static final double flightSpeed= 350/3.6; // m/s
-    public static final double UAM_PROCESS_TIME= 10*60; // s
-    public static final double takeOffLandingTime= 60; // s
-    public static final double CAR_EMISSION_FACTOR=0.42; // kg/km
-    public static final double PT_EMISSION_FACTOR=0.1; // kg/km
-    public static final double UAM_EMISSION_FACTOR=0.1; // kg/km
-    public static final double CARBON_EQUIVALENCE_FACTOR=2.48; // Euro/kgCO2
-    public static final boolean CONSIDER_CARBON= false; // Euro/kgCO2
-    private static final int SIMULATION_HOURS=36;
+    public static double flightSpeed; // m/s
+    public static double UAM_PROCESS_TIME; // s
+    public static double takeOffLandingTime; // s
+    public static int NUM_OF_SELECTED_VERTIPORTS;
     private static final int MEMORY_CHECK_INTERVAL=600;
-    private static final double UAM_FIX_COST=6.1;
-    private static final double UAM_KM_COST=0.6;
+    private static double UAM_FIX_COST;
+    private static double UAM_KM_COST;
+    private static double CAR_COST;
+    private static double UAM_UTILITY_COST_PARAMETER;
+    private static double UAM_UTILITY_FLIGHT_TIME_PARAMETER;
+    private static double UAM_UTILITY_WAIT_TIME_PARAMETER;
+    private static boolean considerReturnTrip;
     private static  int sampleSize;
-    private static final int [] RANDOM_SEEDS={100,800,1000,2000,3000,4000,5000,6000,7000,8000};
+    private static long[] RANDOM_SEEDS;
     private static int num_of_run;
+    public static double CAR_EMISSION_FACTOR; // kg/km
+    public static double PT_EMISSION_FACTOR; // kg/km
+    public static double UAM_EMISSION_FACTOR; // kg/km
+    public static double CARBON_EQUIVALENCE_FACTOR; // Euro/kgCO2
+    public static boolean CONSIDER_CARBON; // Euro/kgCO2
+    private static int SIMULATION_HOURS;
     // Number of parallel tasks
 
     public static void main(String[] args) throws IOException, InterruptedException {
@@ -51,7 +62,28 @@ public class SimulatedAnnealing {
             vertiportCandidateFile = args[1];
             sampleSize = Integer.parseInt(args[2]);
             num_of_run = Integer.parseInt(args[3]);
+            RANDOM_SEEDS = new long[num_of_run];
+            for (int i = 0; i < num_of_run; i++) {
+                RANDOM_SEEDS[i] = Long.parseLong(args[4 + i]);
+            }
         }
+        // Build the scenario of Munich
+        ScenarioSpecific scenarioSpecific = new ScenarioSpecific("Munich_A");
+        scenarioSpecific.buildScenario();
+        NUM_OF_SELECTED_VERTIPORTS = ScenarioSpecific.num_of_selected_vertiports;
+        UAM_FIX_COST = ScenarioSpecific.uam_fix_cost;
+        UAM_KM_COST = ScenarioSpecific.uam_km_cost;
+        CAR_COST = ScenarioSpecific.car_km_cost;
+        flightSpeed = ScenarioSpecific.flight_speed;
+        UAM_PROCESS_TIME = ScenarioSpecific.uam_process_time;
+        takeOffLandingTime = ScenarioSpecific.uam_take_off_landing_time;
+        UAM_UTILITY_COST_PARAMETER = ScenarioSpecific.uam_utility_cost_parameter;
+        UAM_UTILITY_FLIGHT_TIME_PARAMETER = ScenarioSpecific.uam_utility_flight_time_parameter;
+        UAM_UTILITY_WAIT_TIME_PARAMETER = ScenarioSpecific.uam_utility_waiting_time_parameter;
+        considerReturnTrip = ScenarioSpecific.consider_return_trip;
+        CAR_EMISSION_FACTOR = ScenarioSpecific.car_emission_factor;
+
+
         // Get the object TripItemForOptimization from the serialized file
 
         log.info("Loading the vertiport candidates...");
@@ -68,7 +100,7 @@ public class SimulatedAnnealing {
             log.info("Run: " + index_of_run+1);
             Random random = new Random(RANDOM_SEEDS[index_of_run]);
             List<Integer> currentSolutionID = generateRandomSolution(random, vertiportsCandidates, NUM_OF_SELECTED_VERTIPORTS);
-            double currentEnergey = calculateFitness(currentSolutionID, vertiportsCandidates, deserializedTripItemForOptimizations,random);
+            double currentEnergey = calculateFitness(currentSolutionID,  vertiportsCandidates,deserializedTripItemForOptimizations,random);
             List<Integer> bestSolutionID = new ArrayList<>(currentSolutionID);
             double bestEnergy = currentEnergey;
             double currentTemperature = INITIAL_TEMPERATURE;
@@ -99,7 +131,6 @@ public class SimulatedAnnealing {
                 double newEnergy = calculateFitness(newSolutionID, vertiportsCandidates, deserializedTripItemForOptimizations,random);
                 double deltaEnergy = newEnergy - currentEnergey;
 
-
                 if (deltaEnergy > 0 || Math.exp(deltaEnergy / currentTemperature) > random.nextDouble()) {
                     currentSolutionID = new ArrayList<>(newSolutionID);
                     currentEnergey = newEnergy;
@@ -126,7 +157,9 @@ public class SimulatedAnnealing {
 
 
                 // update the temperature
-                currentTemperature = currentTemperature * ANNEALING_RATE;
+                if (currentTemperature > FINAL_TEMPERATURE) {
+                    currentTemperature = currentTemperature * ANNEALING_RATE;
+                }
                 if (CONSIDER_CARBON) {
                     log.info("Iteration: " + iteration + " Current Temperature: " + currentTemperature + " Current Energy: " + currentEnergey + " Best Energy: " + bestEnergy + " Saturated Vertiport Count: " + saturatedVertiportCount + " Max Saturation Rate: " + maxSaturationRate);
                 } else {
@@ -145,12 +178,7 @@ public class SimulatedAnnealing {
         }
     }
 
-    private static void runSimulation(int index_of_run, List<Vertiport> vertiportsCandidates, List<TripItemForOptimization> deserializedTripItemForOptimizations) {
-        // Extracted simulation code from your original main method
-        // Use index_of_run and the lists passed as parameters
-        // Log results within this method
 
-    }
 
     public static List<Integer> generateRandomSolution(Random random,List<Vertiport> VertiportCandidates, int numOfSelectedVertiports) {
 
@@ -164,151 +192,136 @@ public class SimulatedAnnealing {
       return selectedVertiportsID;
     }
 
-    public static double calculateFitness(List<Integer> chosenVertiportID, List<Vertiport> vertiportsCandidates,List<TripItemForOptimization> deserializedTripItemForOptimizations, Random random) {
-        // 实现适应度函数的具体逻辑
-
-        double sumVertiportConstructionCost=0.0;
-        double savedGeneralizedCost=0.0;
-// decode the chosenVertiportID to the vertiport object
-        List<Vertiport> chosenVertiport = new ArrayList<>();
-        for (Integer vertiportID:chosenVertiportID){
-            chosenVertiport.add(vertiportsCandidates.get(vertiportID));
-        }
+    public static double calculateFitness(List<Integer> chosenVertiportID, List<Vertiport> vertiportsCandidates, List<TripItemForOptimization> deserializedTripItemForOptimizations, Random random) {
         List<TripItemForOptimization> uamAvailableTrips = new ArrayList<>();
-//        // calculate the sum of vertiport construction cost
-//        for (Integer vertiportID:chosenVertiportID){
-//            sumVertiportConstructionCost=sumVertiportConstructionCost+vertiportCandidates.get(vertiportID).constructionCost;
-//        }
+        int processors = Runtime.getRuntime().availableProcessors();
+
+        ExecutorService executor = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
+        List<Future<Double>> futures = new ArrayList<>();
 
         for (TripItemForOptimization tripItemForOptimization : deserializedTripItemForOptimizations)
         {
             tripItemForOptimization.isUAMAvailable = false;
-            tripItemForOptimization.uamUtility=-9999;
+            tripItemForOptimization.uamUtility=Double.NEGATIVE_INFINITY;
             List<Vertiport> originNeighbourVertiports = findAvailableNeighbourVertiports(chosenVertiportID, tripItemForOptimization.originNeighborVertiportCandidates);
             List<Vertiport> destinationNeighbourVertiports = findAvailableNeighbourVertiports(chosenVertiportID, tripItemForOptimization.destinationNeighborVertiportCandidates);
-            if (originNeighbourVertiports.size() > 0 && destinationNeighbourVertiports.size() > 0) {
-                if(originNeighbourVertiports.size()>1 || destinationNeighbourVertiports.size()>1){
-                    tripItemForOptimization.isUAMAvailable = true;
-                    tripItemForOptimization.originNeighborVertiports = new ArrayList<>();
-                    tripItemForOptimization.destinationNeighborVertiports = new ArrayList<>();
-                    tripItemForOptimization.originNeighborVertiports.addAll(originNeighbourVertiports);
-                    tripItemForOptimization.destinationNeighborVertiports.addAll(destinationNeighbourVertiports);
-                    uamAvailableTrips.add(tripItemForOptimization);
-                }
-                else if (originNeighbourVertiports.get(0).ID != destinationNeighbourVertiports.get(0).ID) {
-                    tripItemForOptimization.isUAMAvailable = true;
-                    tripItemForOptimization.originNeighborVertiports = new ArrayList<>();
-                    tripItemForOptimization.destinationNeighborVertiports = new ArrayList<>();
-                    tripItemForOptimization.originNeighborVertiports.addAll(originNeighbourVertiports);
-                    tripItemForOptimization.destinationNeighborVertiports.addAll(destinationNeighbourVertiports);
-                    uamAvailableTrips.add(tripItemForOptimization);
-                }
- }
+            if (!originNeighbourVertiports.isEmpty() && !destinationNeighbourVertiports.isEmpty()) {
+                tripItemForOptimization.isUAMAvailable = true;
+                tripItemForOptimization.originNeighborVertiports = originNeighbourVertiports;
+                tripItemForOptimization.destinationNeighborVertiports = destinationNeighbourVertiports;
+                uamAvailableTrips.add(tripItemForOptimization);}
         }
 
-        for (TripItemForOptimization tripItemForOptimization : uamAvailableTrips) {
-            for (Vertiport vertiport : tripItemForOptimization.originNeighborVertiports) {
-                tripItemForOptimization.originNeighborVertiportsTimeAndDistance.put(vertiport, tripItemForOptimization.originNeighborVertiportCandidatesTimeAndDistance.get(vertiport));
-            }
-            for (Vertiport vertiport : tripItemForOptimization.destinationNeighborVertiports) {
-                tripItemForOptimization.destinationNeighborVertiportsTimeAndDistance.put(vertiport, tripItemForOptimization.destinationNeighborVertiportCandidatesTimeAndDistance.get(vertiport));
-            }
-            double objectiveFunctionBefore;
-            double objectiveFunctionAfter;
-            double depatureTime= tripItemForOptimization.departureTime;
-            // Initialize the Vertiport Allocation
-            // Find the vertiport pair for a trip with the lowest uam generalized cost, the access and ergress vertiport could not be the same
-            double lowestUAMGeneralizedCost = Double.MAX_VALUE;
-            Vertiport originVertiport = null;
-            Vertiport destinationVertiport = null;
-            for (Vertiport origin : tripItemForOptimization.originNeighborVertiports) {
-                for (Vertiport destination :  tripItemForOptimization.destinationNeighborVertiports) {
-                    if (origin.ID != destination.ID) {
-                        double accessTime = tripItemForOptimization.originNeighborVertiportsTimeAndDistance.get(origin).get("travelTime");
-                        double egressTime = tripItemForOptimization.destinationNeighborVertiportsTimeAndDistance.get(destination).get("travelTime");
-                        double accessDistance = tripItemForOptimization.originNeighborVertiportsTimeAndDistance.get(origin).get("distance");
-                        double egressDistance = tripItemForOptimization.destinationNeighborVertiportsTimeAndDistance.get(destination).get("distance");
-                        double accessCost =0;
-                        double egressCost =0;
-                        double accessEmisson =0;
-                        double egressEmisson =0;
-                        double flightDistance= calculateEuciDistance(origin.coord,destination.coord);
-                        double flightTime=flightDistance/flightSpeed+takeOffLandingTime;
-                        double flightCost=UAM_FIX_COST+ flightDistance/1000*UAM_KM_COST;
-                        double flightEmission=flightDistance/1000*UAM_EMISSION_FACTOR;
-                        double uamTravelTime=accessTime+egressTime+flightTime+UAM_PROCESS_TIME;
 
-                        if (tripItemForOptimization.accessMode.equals("car") ){
-                            accessCost=accessDistance/1000*0.42;
-                            accessEmisson=accessDistance/1000*CAR_EMISSION_FACTOR;
-                        }
-                        if (tripItemForOptimization.egressMode.equals("car") ){
-                            egressCost=egressDistance/1000*0.42;
-                            egressEmisson=egressDistance/1000*CAR_EMISSION_FACTOR;
-                        }
-                        double UAMCost=accessCost+egressCost+flightCost;
-                        double UAMGeneralizedCost=UAMCost+uamTravelTime* tripItemForOptimization.VOT;
-                        if (CONSIDER_CARBON){
-                            UAMGeneralizedCost=UAMGeneralizedCost+CARBON_EQUIVALENCE_FACTOR*(accessEmisson+egressEmisson+flightEmission);
-                        }
-                        if (UAMGeneralizedCost < lowestUAMGeneralizedCost) {
-                            tripItemForOptimization.uamTravelTime=uamTravelTime;
-                            tripItemForOptimization.UAMCost=UAMCost;
-                            tripItemForOptimization.UAMUtilityVar=-2.48*UAMCost/100-4.28*flightTime/6000-6.79*(uamTravelTime-flightTime)/6000;
-                            tripItemForOptimization.uamUtility= tripItemForOptimization.UAMUtilityFix+ tripItemForOptimization.UAMUtilityVar;
-                            tripItemForOptimization.UAMGeneralizedCost=UAMGeneralizedCost;
-                            tripItemForOptimization.accessVertiport = origin;
-                            tripItemForOptimization.egressVertiport = destination;
-                            tripItemForOptimization.accessTime=accessTime;
-                            tripItemForOptimization.egressTime=egressTime;
-                            tripItemForOptimization.flightTime=flightTime;
-                            lowestUAMGeneralizedCost = UAMGeneralizedCost;
-                        }
+        int batchSize = uamAvailableTrips.size() / processors;
+        for (int i=0; i<uamAvailableTrips.size(); i+=batchSize) {
+            int end = Math.min(i + batchSize, uamAvailableTrips.size());
+            List<TripItemForOptimization> batch = uamAvailableTrips.subList(i, end);
+            Callable<Double> task = () -> {
+                double savedGeneralizedCostBatch = 0.0;
+                for (TripItemForOptimization tripItemForOptimization : batch) {
+                    savedGeneralizedCostBatch += calculateTripSavedCost(tripItemForOptimization, vertiportsCandidates, random);
+                }
+                return savedGeneralizedCostBatch;
+
+            };
+            futures.add(executor.submit(task));
+        }
+        double savedGeneralizedCost = 0.0;
+        for (Future<Double> future : futures) {
+            try {
+                savedGeneralizedCost += future.get();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+        executor.shutdown();
+        return savedGeneralizedCost;
+
+}
+
+    public static double calculateTripSavedCost(TripItemForOptimization tripItemForOptimization, List<Vertiport> vertiportsCandidates, Random random) {
+        for (Vertiport vertiport : tripItemForOptimization.originNeighborVertiports) {
+            tripItemForOptimization.originNeighborVertiportsTimeAndDistance.put(vertiport, tripItemForOptimization.originNeighborVertiportCandidatesTimeAndDistance.get(vertiport));
+        }
+        for (Vertiport vertiport : tripItemForOptimization.destinationNeighborVertiports) {
+            tripItemForOptimization.destinationNeighborVertiportsTimeAndDistance.put(vertiport, tripItemForOptimization.destinationNeighborVertiportCandidatesTimeAndDistance.get(vertiport));
+        }
+        double objectiveFunctionBefore;
+        double objectiveFunctionAfter;
+        // Initialize the Vertiport Allocation
+        // Find the vertiport pair for a trip with the lowest uam generalized cost, the access and ergress vertiport could not be the same
+        double lowestUAMGeneralizedCost = Double.MAX_VALUE;
+        for (Vertiport origin : tripItemForOptimization.originNeighborVertiports) {
+            for (Vertiport destination :  tripItemForOptimization.destinationNeighborVertiports) {
+                if (origin.ID != destination.ID) {
+                    double accessTime = tripItemForOptimization.originNeighborVertiportsTimeAndDistance.get(origin).get("travelTime");
+                    double egressTime = tripItemForOptimization.destinationNeighborVertiportsTimeAndDistance.get(destination).get("travelTime");
+                    double accessDistance = tripItemForOptimization.originNeighborVertiportsTimeAndDistance.get(origin).get("distance");
+                    double egressDistance = tripItemForOptimization.destinationNeighborVertiportsTimeAndDistance.get(destination).get("distance");
+                    double accessCost =0;
+                    double egressCost =0;
+                    double accessEmisson =0;
+                    double egressEmisson =0;
+                    double flightDistance= calculateEuciDistance(origin.coord,destination.coord);
+                    double flightTime=flightDistance/flightSpeed+takeOffLandingTime;
+                    double flightEmission=flightDistance/1000*UAM_EMISSION_FACTOR;
+                    double flightCost=UAM_FIX_COST+ calculateEuciDistance(origin.coord,destination.coord)/1000*UAM_KM_COST;
+                    double uamTravelTime=accessTime+egressTime+flightTime+UAM_PROCESS_TIME;
+                    if (tripItemForOptimization.accessMode.equals("car") ){
+                        accessCost=accessDistance/1000*CAR_COST;
+                    }
+                    if (tripItemForOptimization.egressMode.equals("car") ){
+                        egressCost=egressDistance/1000*CAR_COST;
+                    }
+                    double UAMCost=accessCost+egressCost+flightCost;
+                    double UAMGeneralizedCost=UAMCost+uamTravelTime* tripItemForOptimization.VOT;
+                    if (CONSIDER_CARBON){
+                        UAMGeneralizedCost=UAMGeneralizedCost+CARBON_EQUIVALENCE_FACTOR*(accessEmisson+egressEmisson+flightEmission);
+                    }
+                    if (UAMGeneralizedCost < lowestUAMGeneralizedCost) {
+                        tripItemForOptimization.uamTravelTime=uamTravelTime;
+                        tripItemForOptimization.UAMCost=UAMCost;
+                        tripItemForOptimization.UAMUtilityVar=UAM_UTILITY_COST_PARAMETER*UAMCost/100+UAM_UTILITY_FLIGHT_TIME_PARAMETER*flightTime/6000+UAM_UTILITY_WAIT_TIME_PARAMETER*(uamTravelTime-flightTime)/6000;
+                        tripItemForOptimization.uamUtility= tripItemForOptimization.UAMUtilityFix+ tripItemForOptimization.UAMUtilityVar;
+                        tripItemForOptimization.UAMGeneralizedCost=UAMGeneralizedCost;
+                        tripItemForOptimization.accessVertiport = origin;
+                        tripItemForOptimization.egressVertiport = destination;
+                        lowestUAMGeneralizedCost = UAMGeneralizedCost;
                     }
                 }
             }
-
-
-            // update the saturation rate of the access and egress vertiport
-            if (CONSIDER_CARBON) {
-                int arriveVertiportHour = (int) Math.floor((tripItemForOptimization.departureTime + tripItemForOptimization.accessTime) / 3600);
-                int leaveVertiportHour = (int) Math.floor((tripItemForOptimization.departureTime + tripItemForOptimization.accessTime + UAM_PROCESS_TIME + tripItemForOptimization.flightTime) / 3600);
-                vertiportsCandidates.get(tripItemForOptimization.accessVertiport.ID).saturationRates.put(arriveVertiportHour, vertiportsCandidates.get(tripItemForOptimization.accessVertiport.ID).saturationRates.get(arriveVertiportHour) + tripItemForOptimization.uamProbability / tripItemForOptimization.accessVertiport.capacity);
-                vertiportsCandidates.get(tripItemForOptimization.egressVertiport.ID).saturationRates.put(leaveVertiportHour, vertiportsCandidates.get(tripItemForOptimization.egressVertiport.ID).saturationRates.get(leaveVertiportHour) + tripItemForOptimization.uamProbability / tripItemForOptimization.egressVertiport.capacity);
-            }
-            // calculate the probability of each mode and do the mode choice
-            ModeDecider modeDecider=new ModeDecider(tripItemForOptimization.uamUtility,tripItemForOptimization.carUtility,tripItemForOptimization.ptUtility,random);
-            Double [] modeSamples=modeDecider.sample(sampleSize);
-            if (!CONSIDER_CARBON)
-            {objectiveFunctionBefore= tripItemForOptimization.currentGeneralizedCost;
+        }
+        // determine the probability of mode choice of each trip
+        if (CONSIDER_CARBON) {
+            int arriveVertiportHour = (int) Math.floor((tripItemForOptimization.departureTime + tripItemForOptimization.accessTime) / 3600);
+            int leaveVertiportHour = (int) Math.floor((tripItemForOptimization.departureTime + tripItemForOptimization.accessTime + UAM_PROCESS_TIME + tripItemForOptimization.flightTime) / 3600);
+            vertiportsCandidates.get(tripItemForOptimization.accessVertiport.ID).saturationRates.put(arriveVertiportHour, vertiportsCandidates.get(tripItemForOptimization.accessVertiport.ID).saturationRates.get(arriveVertiportHour) + tripItemForOptimization.uamProbability / tripItemForOptimization.accessVertiport.capacity);
+            vertiportsCandidates.get(tripItemForOptimization.egressVertiport.ID).saturationRates.put(leaveVertiportHour, vertiportsCandidates.get(tripItemForOptimization.egressVertiport.ID).saturationRates.get(leaveVertiportHour) + tripItemForOptimization.uamProbability / tripItemForOptimization.egressVertiport.capacity);
+        }
+        // Create a double list to store the probability of each mode
+        ModeDecider modeDecider=new ModeDecider(tripItemForOptimization.uamUtility,tripItemForOptimization.carUtility,tripItemForOptimization.ptUtility,random);
+        Double [] modeSamples=modeDecider.sample(sampleSize);
+        if (!CONSIDER_CARBON)
+        {objectiveFunctionBefore= tripItemForOptimization.currentGeneralizedCost;
             objectiveFunctionAfter= modeSamples[1]* tripItemForOptimization.carGeneralizedCost+modeSamples[2]* tripItemForOptimization.ptGeneralizedCost+modeSamples[0]* tripItemForOptimization.UAMGeneralizedCost;
-            }
-            else {
-                objectiveFunctionBefore= tripItemForOptimization.currentGeneralizedCost+tripItemForOptimization.currentEmission*CARBON_EQUIVALENCE_FACTOR;;
-                objectiveFunctionAfter= modeSamples[1]*(tripItemForOptimization.carGeneralizedCost+ tripItemForOptimization.carEmission*CARBON_EQUIVALENCE_FACTOR)+modeSamples[2]*(tripItemForOptimization.ptGeneralizedCost+ tripItemForOptimization.ptEmission*CARBON_EQUIVALENCE_FACTOR)+modeSamples[0]* tripItemForOptimization.UAMGeneralizedCost;
-            }
-
-
-            double savedGeneralizedCostOneTrip=objectiveFunctionBefore-objectiveFunctionAfter;
-
-            if (savedGeneralizedCostOneTrip<0){
-                savedGeneralizedCostOneTrip=0;
-            }
-            if (tripItemForOptimization.tripPurpose.startsWith("H")){
-                savedGeneralizedCostOneTrip=savedGeneralizedCostOneTrip*2;
-            }
-            savedGeneralizedCost=savedGeneralizedCost+savedGeneralizedCostOneTrip;
-
-
-
-
+        }
+        else {
+            objectiveFunctionBefore= tripItemForOptimization.currentGeneralizedCost+tripItemForOptimization.currentEmission*CARBON_EQUIVALENCE_FACTOR;
+            objectiveFunctionAfter= modeSamples[1]*(tripItemForOptimization.carGeneralizedCost+ tripItemForOptimization.carEmission*CARBON_EQUIVALENCE_FACTOR)+modeSamples[2]*(tripItemForOptimization.ptGeneralizedCost+ tripItemForOptimization.ptEmission*CARBON_EQUIVALENCE_FACTOR)+modeSamples[0]* tripItemForOptimization.UAMGeneralizedCost;
+        }
+        double savedGeneralizedCostOneTrip=objectiveFunctionBefore-objectiveFunctionAfter;
+        if (savedGeneralizedCostOneTrip<0){
+            savedGeneralizedCostOneTrip=0;
+        }
+        if (tripItemForOptimization.tripPurpose.startsWith("H") && considerReturnTrip){
+            savedGeneralizedCostOneTrip=savedGeneralizedCostOneTrip*2;
         }
 
+        // Include your logic here that was previously inside the loop over all trips
+        return savedGeneralizedCostOneTrip; // calculate and return the saved cost for this trip
+    }
 
-       return savedGeneralizedCost;
-
-
-}
 public static List<Integer> generateNewSolution (Random random, List<Integer> currentSolutionID, List<Vertiport> vertiportsCandidates){
         List<Integer> newSolutionID=new ArrayList<>(currentSolutionID);
         List<Integer> notChosenVertiportID = new ArrayList<>();
@@ -399,6 +412,7 @@ public static List<Integer> generateNewSolution (Random random, List<Integer> cu
         }
     return newSolutionID;
 }
+
     public static double calculateEuciDistance(Coord coord1, Coord coord2) {
         double euciDistance = Math.sqrt(Math.pow(coord1.getX() - coord2.getX(), 2) + Math.pow(coord1.getY() - coord2.getY(), 2));
         return euciDistance;
