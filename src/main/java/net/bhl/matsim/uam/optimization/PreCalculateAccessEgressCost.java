@@ -163,65 +163,6 @@ public class PreCalculateAccessEgressCost {
         } catch (IOException e) {
             e.printStackTrace();
         }
-        // Save the access and egress time and distance for each vertiport candidate of each trip and store in a file
 
-//    public static Path estimatePath(Link from, Link to, double departureTime, Network carNetwork,
-//                                     LeastCostPathCalculator pathCalculator) {
-//        if (carNetwork.getLinks().get(from.getId()) == null)
-//            from = NetworkUtils.getNearestLinkExactly(carNetwork, from.getCoord());
-//
-//        if (carNetwork.getLinks().get(to.getId()) == null)
-//            to = NetworkUtils.getNearestLinkExactly(carNetwork, to.getCoord());
-//
-//        return pathCalculator.calcLeastCostPath(from.getFromNode(), to.getToNode(), departureTime, null, null);
-//    }
-//
-//    static class CarTravelTimeCalculator {
-//
-//        private TripItemForOptimization trip;
-//        private ThreadCounter threadCounter;
-//        private Network networkCar;
-//        private LeastCostPathCalculator plcpccar;
-//
-//        CarTravelTimeCalculator(ThreadCounter threadCounter, Network network, TripItemForOptimization trip) {
-//            this.threadCounter = threadCounter;
-//            this.networkCar = network;
-//            this.trip = trip;
-//        }
-//
-//        public Map<String, Double> calculateTravelInfo() {
-//            Map<String, Double> travelInfo = new HashMap<>();
-//
-//            try {
-//                plcpccar = carRouters.take();
-//            } catch (InterruptedException e) {
-//                e.printStackTrace();
-//            }
-//
-//            Link from = NetworkUtils.getNearestLink(networkCar, trip.origin);
-//            Link to = NetworkUtils.getNearestLink(networkCar, trip.destination);
-//
-//            try {
-//                Path path = estimatePath(from, to, trip.departureTime, networkCar, plcpccar);
-//                double distance = 0;
-//                for (Link link : path.links) {
-//                    distance += link.getLength();
-//                }
-//
-//                travelInfo.put("distance", distance);
-//                travelInfo.put("travelTime", path.travelTime);
-//            } catch (NullPointerException e) {
-//                // Do nothing; failed trip will show as null in results.
-//            }
-//
-//            try {
-//                carRouters.put(plcpccar);
-//            } catch (InterruptedException e) {
-//                e.printStackTrace();
-//            }
-//
-//            return travelInfo;
-//        }
-//    }
     }
 }

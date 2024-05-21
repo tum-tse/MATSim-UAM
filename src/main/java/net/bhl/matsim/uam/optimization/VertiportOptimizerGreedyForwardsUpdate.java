@@ -242,9 +242,11 @@ public class VertiportOptimizerGreedyForwardsUpdate {
                             break;
                         }
                     }
+                    List<Integer> newSelectedVertiportsID = new ArrayList<>();
+                    newSelectedVertiportsID.add(newVertiportID);
                     for (TripItemForOptimization tripItemForOptimization : deserializedTripItemForOptimizations) {
-                        if (tripItemForOptimization.tempSavedGeneralizedCostsMap.containsKey(currentSelectedVertiportsID)) {
-                        tripItemForOptimization.savedGeneralizedCost = tripItemForOptimization.tempSavedGeneralizedCostsMap.get(currentSelectedVertiportsID);}
+                        if (tripItemForOptimization.tempSavedGeneralizedCostsMap.containsKey(newSelectedVertiportsID)) {
+                        tripItemForOptimization.savedGeneralizedCost = tripItemForOptimization.tempSavedGeneralizedCostsMap.get(newSelectedVertiportsID);}
                         tripItemForOptimization.tempSavedGeneralizedCostsMap.clear();
                     }
                     log.info("The " + currentSelectedVertiportsID.size() + "th vertiport is "+ newVertiportID);
@@ -345,7 +347,7 @@ public class VertiportOptimizerGreedyForwardsUpdate {
         return totalSavedGeneralizedCost;
     }
 
-    public static void calculateTripSavedCost(TripItemForOptimization tripItemForOptimization, List<Integer> selectionDifference,Random random) {
+    public static synchronized void calculateTripSavedCost(TripItemForOptimization tripItemForOptimization, List<Integer> selectionDifference,Random random) {
         for (Vertiport vertiport : tripItemForOptimization.originNeighborVertiports) {
             tripItemForOptimization.originNeighborVertiportsTimeAndDistance.put(vertiport, tripItemForOptimization.originNeighborVertiportCandidatesTimeAndDistance.get(vertiport));
         }

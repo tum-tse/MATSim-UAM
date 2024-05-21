@@ -6,6 +6,7 @@ import org.matsim.api.core.v01.Coord;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
 
 
 public class TripItemForOptimization implements java.io.Serializable{
@@ -23,7 +24,7 @@ public class TripItemForOptimization implements java.io.Serializable{
 
 	public double savedGeneralizedCost;
 	public List<Double> tempSavedGeneralizedCosts=new ArrayList<>();
-	public HashMap<List<Integer>,Double> tempSavedGeneralizedCostsMap=new HashMap<>();
+	public ConcurrentHashMap<List<Integer>,Double> tempSavedGeneralizedCostsMap=new ConcurrentHashMap<>();
 	public int currentMode; // 0: car, 1: pt
 	/*
 

@@ -4,7 +4,6 @@ import net.bhl.matsim.uam.optimization.utils.ScenarioSpecific;
 import net.bhl.matsim.uam.optimization.utils.TripItemForOptimization;
 import org.apache.log4j.Logger;
 import org.matsim.api.core.v01.Coord;
-import org.matsim.utils.MemoryObserver;
 
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -12,11 +11,18 @@ import java.io.ObjectInputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
-public class SimulatedAnnealing {
+import org.matsim.utils.MemoryObserver;
+
+
+public class SimulatedAnnealingMultiProcessor {
     // This class provides the simulated annealing algorithm to solve the vertiport siting problem.
 
-    public static final Logger log = Logger.getLogger(SimulatedAnnealing.class);
+    public static final Logger log = Logger.getLogger(SimulatedAnnealingMultiProcessor.class);
 
     public static final double INITIAL_TEMPERATURE=5000;
     public static final double FINAL_TEMPERATURE=0.1;
@@ -210,8 +216,10 @@ public class SimulatedAnnealing {
 
     public static double calculateFitness(List<Integer> chosenVertiportID, List<Vertiport> vertiportsCandidates, List<Integer> selectionDifference, List<TripItemForOptimization> deserializedTripItemForOptimizations, Random random) {
         List<TripItemForOptimization> uamAvailableTrips = new ArrayList<>();
+        int processors = Runtime.getRuntime().availableProcessors();
         List<TripItemForOptimization> differenceTrips = new ArrayList<>();
         double totalSavedGeneralizedCost = 0;
+        ExecutorService executor = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
         for (TripItemForOptimization tripItemForOptimization : deserializedTripItemForOptimizations) {
             tripItemForOptimization.tempSavedGeneralizedCosts.clear();
             boolean added = false;
@@ -249,9 +257,28 @@ public class SimulatedAnnealing {
         }
 
 
-
-        for (TripItemForOptimization tripItemForOptimization : uamAvailableTrips) {
-            calculateTripSavedCost(tripItemForOptimization, vertiportsCandidates, random);
+        int batchSize = uamAvailableTrips.size() / processors;
+        for (int i = 0; i < uamAvailableTrips.size(); i += batchSize) {
+            int end = Math.min(i + batchSize, uamAvailableTrips.size());
+            List<TripItemForOptimization> batch = uamAvailableTrips.subList(i, end);
+            List<Future<?>> futures = new ArrayList<>();
+            for (TripItemForOptimization tripItemForOptimization : batch) {
+                Callable<Void> callable = new Callable<Void>() {
+                    @Override
+                    public Void call() {
+                        calculateTripSavedCost(tripItemForOptimization, vertiportsCandidates, random);
+                        return null;
+                    }
+                };
+                futures.add(executor.submit(callable));
+            }
+            for (Future<?> future : futures) {
+                try {
+                    future.get();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
         }
         for (TripItemForOptimization tripItemForOptimization : deserializedTripItemForOptimizations) {
             if (differenceTrips.contains(tripItemForOptimization)) {
