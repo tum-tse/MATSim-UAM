@@ -107,7 +107,8 @@ public class PreCalculateAccessEgressCost {
                     new LeastCostRaptorRouteSelector(),
                     new DefaultRaptorStopFinder(null, new DefaultRaptorIntermodalAccessEgress(), router)));
         }
-
+        ThreadCounter threadCounter = new ThreadCounter();
+        ExecutorService es = Executors.newFixedThreadPool(processes);
         // Read the trip file and store in a list
         TripItemReaderForOptimization tripItemReaderForOptimization = new TripItemReaderForOptimization();
         List<TripItemForOptimization> tripItemForOptimizations = tripItemReaderForOptimization.getTripItemsForOptimization(tripFile);
@@ -115,10 +116,10 @@ public class PreCalculateAccessEgressCost {
         for (int i = 0; i < tripItemForOptimizations.size(); i++) {
             TripItemForOptimization currentTrip = tripItemForOptimizations.get(i);
             // Find the neighbouring vertiports for the origin and destination
-            VertiportCollector vertiportCollector = new VertiportCollector(currentTrip, networkCar, vertiportsCandidates);
+            VertiportCollector vertiportCollector = new VertiportCollector(currentTrip,networkCar,network,vertiportsCandidates,threadCounter,carRouters, ptRouters,"Munich_A");
             vertiportCollector.neighbourVertiportCandidateIdentifier();
             // provide information after each 100 trips
-            if (i % 100 == 0) {
+            if (i % 1000 == 0) {
                 log.info("Neighbour Vertiport Candidate Indentification: Trip " + i + " is processed.");
             }
             if (currentTrip.originNeighborVertiportCandidates.size() > 0 && currentTrip.destinationNeighborVertiportCandidates.size() > 0) {
@@ -132,8 +133,7 @@ public class PreCalculateAccessEgressCost {
         // Show information in logfile
         log.info("The number of trips that can be served by UAM is: " + uamEnabledTrips.size());
         log.info("Calculating travel times...");
-        ThreadCounter threadCounter = new ThreadCounter();
-        ExecutorService es = Executors.newFixedThreadPool(processes);
+
 
         for (int i = 0; i < uamEnabledTrips.size(); i++) {
             TripItemForOptimization currentTrip = uamEnabledTrips.get(i);
@@ -149,7 +149,7 @@ public class PreCalculateAccessEgressCost {
             }
             while (threadCounter.getProcesses() >= processes - 1)
                 Thread.sleep(200);
-            VertiportCollector vertiportCollector = new VertiportCollector(currentTrip,networkCar,network,vertiportsCandidates,threadCounter,carRouters, ptRouters);
+            VertiportCollector vertiportCollector = new VertiportCollector(currentTrip,networkCar,network,vertiportsCandidates,threadCounter,carRouters, ptRouters,"Munich_A");
             es.execute(vertiportCollector);
         }
         es.shutdown();
@@ -163,65 +163,6 @@ public class PreCalculateAccessEgressCost {
         } catch (IOException e) {
             e.printStackTrace();
         }
-        // Save the access and egress time and distance for each vertiport candidate of each trip and store in a file
 
-//    public static Path estimatePath(Link from, Link to, double departureTime, Network carNetwork,
-//                                     LeastCostPathCalculator pathCalculator) {
-//        if (carNetwork.getLinks().get(from.getId()) == null)
-//            from = NetworkUtils.getNearestLinkExactly(carNetwork, from.getCoord());
-//
-//        if (carNetwork.getLinks().get(to.getId()) == null)
-//            to = NetworkUtils.getNearestLinkExactly(carNetwork, to.getCoord());
-//
-//        return pathCalculator.calcLeastCostPath(from.getFromNode(), to.getToNode(), departureTime, null, null);
-//    }
-//
-//    static class CarTravelTimeCalculator {
-//
-//        private TripItemForOptimization trip;
-//        private ThreadCounter threadCounter;
-//        private Network networkCar;
-//        private LeastCostPathCalculator plcpccar;
-//
-//        CarTravelTimeCalculator(ThreadCounter threadCounter, Network network, TripItemForOptimization trip) {
-//            this.threadCounter = threadCounter;
-//            this.networkCar = network;
-//            this.trip = trip;
-//        }
-//
-//        public Map<String, Double> calculateTravelInfo() {
-//            Map<String, Double> travelInfo = new HashMap<>();
-//
-//            try {
-//                plcpccar = carRouters.take();
-//            } catch (InterruptedException e) {
-//                e.printStackTrace();
-//            }
-//
-//            Link from = NetworkUtils.getNearestLink(networkCar, trip.origin);
-//            Link to = NetworkUtils.getNearestLink(networkCar, trip.destination);
-//
-//            try {
-//                Path path = estimatePath(from, to, trip.departureTime, networkCar, plcpccar);
-//                double distance = 0;
-//                for (Link link : path.links) {
-//                    distance += link.getLength();
-//                }
-//
-//                travelInfo.put("distance", distance);
-//                travelInfo.put("travelTime", path.travelTime);
-//            } catch (NullPointerException e) {
-//                // Do nothing; failed trip will show as null in results.
-//            }
-//
-//            try {
-//                carRouters.put(plcpccar);
-//            } catch (InterruptedException e) {
-//                e.printStackTrace();
-//            }
-//
-//            return travelInfo;
-//        }
-//    }
     }
 }

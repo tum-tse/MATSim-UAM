@@ -8,6 +8,7 @@ import org.matsim.core.router.util.LeastCostPathCalculator;
 import net.bhl.matsim.uam.optimization.traveltimes.RunCalculateCarTravelTimes;
 import net.bhl.matsim.uam.optimization.traveltimes.RunCalculatePTTravelTimes;
 import org.matsim.pt.router.TransitRouter;
+import net.bhl.matsim.uam.optimization.utils.ScenarioSpecific;
 
 import java.util.*;
 import java.util.concurrent.ArrayBlockingQueue;
@@ -15,8 +16,12 @@ import java.util.concurrent.ArrayBlockingQueue;
 public class VertiportCollector implements Runnable {
     /*This class aims to collect all the neighboring vertiports for a given trip to its origin and destination. */
     private static final int processes = Runtime.getRuntime().availableProcessors();
-    private static final boolean considerPT=false;
-    public VertiportCollector(TripItemForOptimization trip, Network networkCar ,Network networkPt, List<Vertiport> vertiportsCandidates, ThreadCounter threadCounter, ArrayBlockingQueue<LeastCostPathCalculator> carRouters, ArrayBlockingQueue<TransitRouter> ptRouters) {
+    private static boolean considerPT;
+    private static String scenarioName;
+    private static double CAR_COST;
+    private static double searchRadius;
+    private static double PT_COST;
+    public VertiportCollector(TripItemForOptimization trip, Network networkCar ,Network networkPt, List<Vertiport> vertiportsCandidates, ThreadCounter threadCounter, ArrayBlockingQueue<LeastCostPathCalculator> carRouters, ArrayBlockingQueue<TransitRouter> ptRouters,String scenarioName) {
         this.vertiportsCandidates = vertiportsCandidates;
         this.trip = trip;
         this.carNetwork = networkCar;
@@ -24,7 +29,16 @@ public class VertiportCollector implements Runnable {
         this.threadCounter=threadCounter;
         this.carRouters=carRouters;
         this.ptRouters=ptRouters;
-    }
+        this.scenarioName=scenarioName;
+        ScenarioSpecific scenarioSpecific = new ScenarioSpecific(scenarioName);
+        scenarioSpecific.buildScenario();
+        this.CAR_COST = scenarioSpecific.car_km_cost;
+        this.considerPT = scenarioSpecific.consider_pt;
+        this.searchRadius = scenarioSpecific.search_radius;
+        this.PT_COST = scenarioSpecific.pt_cost;
+
+        }
+
     public VertiportCollector(TripItemForOptimization trip, Network networkCar , List<Vertiport> vertiportsCandidates) {
         this.vertiportsCandidates = vertiportsCandidates;
         this.trip = trip;
@@ -62,9 +76,9 @@ public class VertiportCollector implements Runnable {
           Vertiport currentVertiport=vertiportsIterator.next();
         Double accessEuclideanDistance=calculateEuciDistance(this.trip.origin,currentVertiport.coord);
         Double egressEuclideanDistance=calculateEuciDistance(this.trip.destination,currentVertiport.coord);
-        if (accessEuclideanDistance<5000){
+        if (accessEuclideanDistance<searchRadius){
           this.trip.originNeighborVertiportCandidates.add(currentVertiport);}
-        if (egressEuclideanDistance<5000){
+        if (egressEuclideanDistance<searchRadius){
           this.trip.destinationNeighborVertiportCandidates.add(currentVertiport);
         }
       }
@@ -85,7 +99,7 @@ public class VertiportCollector implements Runnable {
               carTravelTimeCalculatorAccess.run();
               double carAccessTravelTime = tripItemForOptimizationAccess.travelTime;
               double carAccessTravelDistance = tripItemForOptimizationAccess.distance;
-              double carAccessTravelGeneralizedCost = 0.428 * carAccessTravelDistance / 1000 + this.trip.VOT * carAccessTravelTime;
+              double carAccessTravelGeneralizedCost = CAR_COST * carAccessTravelDistance / 1000 + this.trip.VOT * carAccessTravelTime;
 
               double walkAccessTravelDistance = calculateEuciDistance(tripItemForOptimizationAccess.origin, tripItemForOptimizationAccess.destination) * 1.2;
               double walkAccessTravelTime = walkAccessTravelDistance / 1.1;
@@ -102,11 +116,11 @@ public class VertiportCollector implements Runnable {
                   if (tripItemForOptimizationAccess.travelTime != 0) {
                       ptAccessTravelTime = tripItemForOptimizationAccess.travelTime;
                       ptAccessTravelDistance = tripItemForOptimizationAccess.distance;
-                      ptAccessTravelGeneralizedCost = 0.81 + this.trip.VOT * ptAccessTravelTime;
+                      ptAccessTravelGeneralizedCost = PT_COST + this.trip.VOT * ptAccessTravelTime;
                   } else {
-                      ptAccessTravelTime = 9999;
-                      ptAccessTravelDistance = 9999;
-                      ptAccessTravelGeneralizedCost = 9999;
+                      ptAccessTravelTime = Integer.MAX_VALUE;
+                      ptAccessTravelDistance = Integer.MAX_VALUE;
+                      ptAccessTravelGeneralizedCost = Integer.MAX_VALUE;
                   }
 
                   // find the mode with the lowest generalized cost
@@ -160,7 +174,7 @@ public class VertiportCollector implements Runnable {
               carTravelTimeCalculatorEgress.run();
               double carEgressTravelTime = tripItemForOptimizationEgress.travelTime;
               double carEgressTravelDistance = tripItemForOptimizationEgress.distance;
-              double carEgressTravelGeneralizedCost = 0.428 * carEgressTravelDistance / 1000 + this.trip.VOT * carEgressTravelTime;
+              double carEgressTravelGeneralizedCost = CAR_COST * carEgressTravelDistance / 1000 + this.trip.VOT * carEgressTravelTime;
               double walkEgressTravelDistance = calculateEuciDistance(tripItemForOptimizationEgress.origin, tripItemForOptimizationEgress.destination) * 1.2;
               double walkEgressTravelTime = walkEgressTravelDistance / 1.1;
               double walkEgressTravelGeneralizedCost = this.trip.VOT * walkEgressTravelTime;
@@ -174,11 +188,11 @@ public class VertiportCollector implements Runnable {
                   if (tripItemForOptimizationEgress.travelTime != 0) {
                       ptEgressTravelTime = tripItemForOptimizationEgress.travelTime;
                       ptEgressTravelDistance = tripItemForOptimizationEgress.distance;
-                      ptEgressTravelGeneralizedCost = 0.81 + this.trip.VOT * ptEgressTravelTime;
+                      ptEgressTravelGeneralizedCost = PT_COST + this.trip.VOT * ptEgressTravelTime;
                   } else {
-                      ptEgressTravelTime = 9999;
-                      ptEgressTravelDistance = 9999;
-                      ptEgressTravelGeneralizedCost = 9999;
+                      ptEgressTravelTime = Integer.MAX_VALUE;
+                      ptEgressTravelDistance = Integer.MAX_VALUE;
+                      ptEgressTravelGeneralizedCost = Integer.MAX_VALUE;
                   }
                   // find the mode with the lowest generalized cost
                   if (carEgressTravelGeneralizedCost < ptEgressTravelGeneralizedCost && carEgressTravelGeneralizedCost < walkEgressTravelGeneralizedCost) {
