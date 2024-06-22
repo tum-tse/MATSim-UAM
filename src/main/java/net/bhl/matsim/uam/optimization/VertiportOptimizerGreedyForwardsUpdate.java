@@ -35,7 +35,7 @@ public class VertiportOptimizerGreedyForwardsUpdate {
     private static double UAM_UTILITY_FLIGHT_TIME_PARAMETER;
     private static double UAM_UTILITY_WAIT_TIME_PARAMETER;
     private static boolean considerReturnTrip;
-
+    public static String scenarioName;
     public static double calculateEuciDistance(Coord coord1, Coord coord2) {
         double euciDistance = Math.sqrt(Math.pow(coord1.getX() - coord2.getX(), 2) + Math.pow(coord1.getY() - coord2.getY(), 2));
         return euciDistance;
@@ -48,14 +48,15 @@ public class VertiportOptimizerGreedyForwardsUpdate {
             vertiportCandidateFile = args[1];
             sampleSize = Integer.parseInt(args[2]);
             num_of_run = Integer.parseInt(args[3]);
+            scenarioName = args[4];
             // Provide the random seeds via the next arguments
             RANDOM_SEEDS = new long[num_of_run];
             for (int i = 0; i < num_of_run; i++) {
-                RANDOM_SEEDS[i] = Long.parseLong(args[4 + i]);
+                RANDOM_SEEDS[i] = Long.parseLong(args[5 + i]);
             }
 
         }
-        ScenarioSpecific scenarioSpecific = new ScenarioSpecific("Munich_A");
+        ScenarioSpecific scenarioSpecific = new ScenarioSpecific(scenarioName);
         scenarioSpecific.buildScenario();
         NUM_OF_SELECTED_VERTIPORTS = scenarioSpecific.num_of_selected_vertiports;
         UAM_FIX_COST = scenarioSpecific.uam_fix_cost;
@@ -81,6 +82,8 @@ public class VertiportOptimizerGreedyForwardsUpdate {
 
         for (int run_index = 0; run_index < num_of_run; run_index++) {
             log.info("The " + run_index + "th run starts.");
+            // start record the time
+            long startTime = System.currentTimeMillis();
             double maxScore = Double.NEGATIVE_INFINITY;
             Random random = new Random(RANDOM_SEEDS[run_index]);
             HashMap<List<Integer>, Double> vertiportPairsScore = new HashMap<>();
@@ -256,6 +259,8 @@ public class VertiportOptimizerGreedyForwardsUpdate {
 
             log.info("The selected vertiports are: " + currentSelectedVertiportsID);
             log.info("The score of the selected vertiports is: " + maxScore);
+            long endTime = System.currentTimeMillis();
+            log.info("The " + run_index + "th run finishes. The time used is: " + (endTime - startTime) / 1000 + "s.");
         }
     }
 
@@ -381,9 +386,11 @@ public class VertiportOptimizerGreedyForwardsUpdate {
                     double UAMCost=accessCost+egressCost+flightCost;
                     double UAMGeneralizedCost=UAMCost+uamTravelTime* tripItemForOptimization.VOT;
                     if (UAMGeneralizedCost < lowestUAMGeneralizedCost) {
+
                         tripItemForOptimization.uamTravelTime=uamTravelTime;
                         tripItemForOptimization.UAMCost=UAMCost;
-                        tripItemForOptimization.UAMUtilityVar=UAM_UTILITY_COST_PARAMETER*UAMCost/100+UAM_UTILITY_FLIGHT_TIME_PARAMETER*flightTime/6000+UAM_UTILITY_WAIT_TIME_PARAMETER*(uamTravelTime-flightTime)/6000;
+                        //tripItemForOptimization.UAMUtilityVar=UAM_UTILITY_COST_PARAMETER*UAMCost/100+UAM_UTILITY_FLIGHT_TIME_PARAMETER*flightTime/6000+UAM_UTILITY_WAIT_TIME_PARAMETER*(uamTravelTime-flightTime)/6000;
+                        tripItemForOptimization.UAMUtilityVar= UAM_UTILITY_FLIGHT_TIME_PARAMETER*UAMGeneralizedCost;
                         tripItemForOptimization.uamUtility= tripItemForOptimization.UAMUtilityFix+ tripItemForOptimization.UAMUtilityVar;
                         tripItemForOptimization.UAMGeneralizedCost=UAMGeneralizedCost;
                         tripItemForOptimization.accessVertiport = origin;
@@ -396,7 +403,7 @@ public class VertiportOptimizerGreedyForwardsUpdate {
         // determine the probability of mode choice of each trip
 
         // Create a double list to store the probability of each mode
-        ModeDecider modeDecider=new ModeDecider(tripItemForOptimization.uamUtility,tripItemForOptimization.carUtility,tripItemForOptimization.ptUtility,random);
+        ModeDecider modeDecider=new ModeDecider(tripItemForOptimization.uamUtility*3,tripItemForOptimization.carUtility*3,tripItemForOptimization.ptUtility*3,random);
         Double [] modeSamples=modeDecider.sample(sampleSize);
 
         objectiveFunctionBefore= tripItemForOptimization.currentGeneralizedCost;

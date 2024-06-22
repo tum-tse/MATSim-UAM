@@ -46,6 +46,7 @@ public class SimulatedAnnealing {
     public static double CARBON_EQUIVALENCE_FACTOR; // Euro/kgCO2
     public static boolean CONSIDER_CARBON; // Euro/kgCO2
     private static int SIMULATION_HOURS;
+    public static String scenarioName;
     // Number of parallel tasks
 
     public static void main(String[] args) throws IOException, InterruptedException {
@@ -56,13 +57,14 @@ public class SimulatedAnnealing {
             vertiportCandidateFile = args[1];
             sampleSize = Integer.parseInt(args[2]);
             num_of_run = Integer.parseInt(args[3]);
+            scenarioName = args[4];
             RANDOM_SEEDS = new long[num_of_run];
             for (int i = 0; i < num_of_run; i++) {
-                RANDOM_SEEDS[i] = Long.parseLong(args[4 + i]);
+                RANDOM_SEEDS[i] = Long.parseLong(args[5 + i]);
             }
         }
         // Build the scenario of Munich
-        ScenarioSpecific scenarioSpecific = new ScenarioSpecific("Munich_A");
+        ScenarioSpecific scenarioSpecific = new ScenarioSpecific(scenarioName);
         scenarioSpecific.buildScenario();
         NUM_OF_SELECTED_VERTIPORTS = scenarioSpecific.num_of_selected_vertiports;
         UAM_FIX_COST = scenarioSpecific.uam_fix_cost;
@@ -101,11 +103,13 @@ public class SimulatedAnnealing {
             }
 
             log.info("Run: " + index_of_run+1);
+            // record the start time
+            long startTime = System.currentTimeMillis();
             Random random = new Random(RANDOM_SEEDS[index_of_run]);
             List<Integer> currentSolutionID = generateRandomSolution(random, vertiportsCandidates, NUM_OF_SELECTED_VERTIPORTS);
             double currentEnergey = calculateFitness(currentSolutionID,  vertiportsCandidates,currentSolutionID, deserializedTripItemForOptimizations,random);
             for (TripItemForOptimization tripItemForOptimization : deserializedTripItemForOptimizations) {
-                if (tripItemForOptimization.tempSavedGeneralizedCosts.size() > 0) {
+                if (!tripItemForOptimization.tempSavedGeneralizedCosts.isEmpty()) {
                     tripItemForOptimization.savedGeneralizedCost = tripItemForOptimization.tempSavedGeneralizedCosts.get(0);
                 }
             }
@@ -147,7 +151,7 @@ public class SimulatedAnnealing {
                     currentEnergey = newEnergy;
                     // update the savedGeneralizedCost for each trip
                     for (TripItemForOptimization tripItemForOptimization : deserializedTripItemForOptimizations) {
-                        if (tripItemForOptimization.tempSavedGeneralizedCosts.size() > 0) {
+                        if (!tripItemForOptimization.tempSavedGeneralizedCosts.isEmpty()) {
                             tripItemForOptimization.savedGeneralizedCost = tripItemForOptimization.tempSavedGeneralizedCosts.get(0);
                         }
                     }
@@ -190,7 +194,9 @@ public class SimulatedAnnealing {
             }
 
             log.info("Best Solution: " + bestSolutionID + " Best Energy: " + bestEnergy);
-
+            // record the end time
+            long endTime = System.currentTimeMillis();
+            log.info("Run: " + index_of_run+1 + " Time: " + (endTime - startTime) / 1000 + "s");
         }
     }
 
@@ -306,9 +312,11 @@ public class SimulatedAnnealing {
                     if (UAMGeneralizedCost < lowestUAMGeneralizedCost) {
                         tripItemForOptimization.uamTravelTime=uamTravelTime;
                         tripItemForOptimization.UAMCost=UAMCost;
-                        tripItemForOptimization.UAMUtilityVar=UAM_UTILITY_COST_PARAMETER*UAMCost/100+UAM_UTILITY_FLIGHT_TIME_PARAMETER*flightTime/6000+UAM_UTILITY_WAIT_TIME_PARAMETER*(uamTravelTime-flightTime)/6000;
-                        tripItemForOptimization.uamUtility= tripItemForOptimization.UAMUtilityFix+ tripItemForOptimization.UAMUtilityVar;
                         tripItemForOptimization.UAMGeneralizedCost=UAMGeneralizedCost;
+                        //tripItemForOptimization.UAMUtilityVar=UAM_UTILITY_COST_PARAMETER*UAMCost/100+UAM_UTILITY_FLIGHT_TIME_PARAMETER*flightTime/6000+UAM_UTILITY_WAIT_TIME_PARAMETER*(uamTravelTime-flightTime)/6000;
+                        tripItemForOptimization.UAMUtilityVar= UAM_UTILITY_FLIGHT_TIME_PARAMETER*UAMGeneralizedCost;
+                        tripItemForOptimization.uamUtility= tripItemForOptimization.UAMUtilityFix+ tripItemForOptimization.UAMUtilityVar;
+
                         tripItemForOptimization.accessVertiport = origin;
                         tripItemForOptimization.egressVertiport = destination;
                         lowestUAMGeneralizedCost = UAMGeneralizedCost;
@@ -324,7 +332,7 @@ public class SimulatedAnnealing {
             vertiportsCandidates.get(tripItemForOptimization.egressVertiport.ID).saturationRates.put(leaveVertiportHour, vertiportsCandidates.get(tripItemForOptimization.egressVertiport.ID).saturationRates.get(leaveVertiportHour) + tripItemForOptimization.uamProbability / tripItemForOptimization.egressVertiport.capacity);
         }
         // Create a double list to store the probability of each mode
-        ModeDecider modeDecider=new ModeDecider(tripItemForOptimization.uamUtility,tripItemForOptimization.carUtility,tripItemForOptimization.ptUtility,random);
+        ModeDecider modeDecider=new ModeDecider(tripItemForOptimization.uamUtility*3,tripItemForOptimization.carUtility*3,tripItemForOptimization.ptUtility*3,random);
         Double [] modeSamples=modeDecider.sample(sampleSize);
         if (!CONSIDER_CARBON)
         {objectiveFunctionBefore= tripItemForOptimization.currentGeneralizedCost;

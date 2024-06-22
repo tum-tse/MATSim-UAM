@@ -47,5 +47,68 @@ public class ScenarioSpecific {
             this.search_radius = 5000;
             this.pt_cost = 0.81;
         }
+        if (scenarioName.equals("Synthetic_10")) {
+            this.uam_fix_cost = 6.1;
+            this.uam_km_cost = 0.6;
+            this.num_of_selected_vertiports = 5;
+            this.flight_speed = 350 / 3.6;
+            this.uam_process_time = 10 * 60;
+            this.uam_take_off_landing_time = 60;
+            this.car_km_cost = 0.42;
+            this.uam_utility_cost_parameter = 0;
+            this.uam_utility_flight_time_parameter = -0.1;
+            this.uam_utility_waiting_time_parameter = -0.1;
+            this.consider_return_trip = false;
+            this.carbon_equivalent_cost = 0;
+            this.car_emission_factor = 0;
+            this.pt_emission_factor = 0;
+            this.uam_emission_factor = 0;
+            this.simulation_hours = 36;
+            this.consider_pt = false;
+            this.search_radius = 5000;
+            this.pt_cost = 2;
+        }
+        if (scenarioName.equals("Synthetic_25")) {
+            this.uam_fix_cost = 6.1;
+            this.uam_km_cost = 0.6;
+            this.num_of_selected_vertiports = 20;
+            this.flight_speed = 350 / 3.6;
+            this.uam_process_time = 10 * 60;
+            this.uam_take_off_landing_time = 60;
+            this.car_km_cost = 0.42;
+            this.uam_utility_cost_parameter = 0;
+            this.uam_utility_flight_time_parameter = -0.1;
+            this.uam_utility_waiting_time_parameter = -0.1;
+            this.consider_return_trip = false;
+            this.carbon_equivalent_cost = 0;
+            this.car_emission_factor = 0;
+            this.pt_emission_factor = 0;
+            this.uam_emission_factor = 0;
+            this.simulation_hours = 36;
+            this.consider_pt = false;
+            this.search_radius = 5000;
+            this.pt_cost = 2;
+        }
+        if (scenarioName.equals("Synthetic_50")) {
+            this.uam_fix_cost = 6.1;
+            this.uam_km_cost = 0.6;
+            this.num_of_selected_vertiports = 80;
+            this.flight_speed = 350 / 3.6;
+            this.uam_process_time = 10 * 60;
+            this.uam_take_off_landing_time = 60;
+            this.car_km_cost = 0.42;
+            this.uam_utility_cost_parameter = 0;
+            this.uam_utility_flight_time_parameter = -0.1;
+            this.uam_utility_waiting_time_parameter = -0.1;
+            this.consider_return_trip = false;
+            this.carbon_equivalent_cost = 0;
+            this.car_emission_factor = 0;
+            this.pt_emission_factor = 0;
+            this.uam_emission_factor = 0;
+            this.simulation_hours = 36;
+            this.consider_pt = false;
+            this.search_radius = 5000;
+            this.pt_cost = 2;
+        }
 }
         }
