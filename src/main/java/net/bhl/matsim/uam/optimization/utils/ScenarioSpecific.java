@@ -16,6 +16,7 @@ public class ScenarioSpecific {
     public double uam_utility_cost_parameter;
     public double uam_utility_flight_time_parameter;
     public double uam_utility_waiting_time_parameter;
+    public double uam_utility_generalized_cost_parameter;
     public boolean consider_return_trip;
     public double car_emission_factor;
     public double uam_emission_factor;
@@ -25,6 +26,9 @@ public class ScenarioSpecific {
     public boolean consider_pt;
     public double search_radius;
     public double pt_cost;
+    public double beta_savedCost; // the parameter of saved generalised cost in objective function
+    public double beta_constructionCost; // the parameter of construction cost in objective function
+    public double beta_savedEmission; // the parameter of saved emission in objective function
     public void buildScenario(){
         if (scenarioName.equals("Munich_A")) {
             this.uam_fix_cost = 6.1;
@@ -46,6 +50,9 @@ public class ScenarioSpecific {
             this.consider_pt = false;
             this.search_radius = 5000;
             this.pt_cost = 0.81;
+            this.beta_savedCost = 1;
+            this.beta_constructionCost = 1;
+            this.beta_savedEmission = 1;
         }
         if (scenarioName.equals("Synthetic_10")) {
             this.uam_fix_cost = 6.1;
@@ -55,9 +62,7 @@ public class ScenarioSpecific {
             this.uam_process_time = 10 * 60;
             this.uam_take_off_landing_time = 60;
             this.car_km_cost = 0.42;
-            this.uam_utility_cost_parameter = 0;
-            this.uam_utility_flight_time_parameter = -0.1;
-            this.uam_utility_waiting_time_parameter = -0.1;
+            this.uam_utility_generalized_cost_parameter = -0.1;
             this.consider_return_trip = false;
             this.carbon_equivalent_cost = 0;
             this.car_emission_factor = 0;
@@ -76,9 +81,7 @@ public class ScenarioSpecific {
             this.uam_process_time = 10 * 60;
             this.uam_take_off_landing_time = 60;
             this.car_km_cost = 0.42;
-            this.uam_utility_cost_parameter = 0;
-            this.uam_utility_flight_time_parameter = -0.1;
-            this.uam_utility_waiting_time_parameter = -0.1;
+            this.uam_utility_generalized_cost_parameter = -0.1;
             this.consider_return_trip = false;
             this.carbon_equivalent_cost = 0;
             this.car_emission_factor = 0;
@@ -97,9 +100,7 @@ public class ScenarioSpecific {
             this.uam_process_time = 10 * 60;
             this.uam_take_off_landing_time = 60;
             this.car_km_cost = 0.42;
-            this.uam_utility_cost_parameter = 0;
-            this.uam_utility_flight_time_parameter = -0.1;
-            this.uam_utility_waiting_time_parameter = -0.1;
+            this.uam_utility_generalized_cost_parameter = -0.1;
             this.consider_return_trip = false;
             this.carbon_equivalent_cost = 0;
             this.car_emission_factor = 0;
@@ -110,5 +111,21 @@ public class ScenarioSpecific {
             this.search_radius = 5000;
             this.pt_cost = 2;
         }
+}
+
+public double calculateUAMUtilityVAR(double flightTime, double waitingTime, double cost,double generalizedCost) {
+        if (scenarioName.equals("Munich_A")) {
+            return (uam_utility_cost_parameter * cost + uam_utility_flight_time_parameter * flightTime/60 + uam_utility_waiting_time_parameter * waitingTime/60)/100;
+        }
+        if (scenarioName.equals("Synthetic_10")) {
+            return generalizedCost*uam_utility_generalized_cost_parameter;
+        }
+        if (scenarioName.equals("Synthetic_25")) {
+            return generalizedCost*uam_utility_generalized_cost_parameter;
+        }
+        if (scenarioName.equals("Synthetic_50")) {
+            return generalizedCost*uam_utility_generalized_cost_parameter;
+        }
+           return 0; // should not reach here
 }
         }

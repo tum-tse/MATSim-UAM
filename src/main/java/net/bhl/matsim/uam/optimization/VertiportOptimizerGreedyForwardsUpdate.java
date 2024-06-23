@@ -417,7 +417,7 @@ public class VertiportOptimizerGreedyForwardsUpdate {
             savedGeneralizedCostOneTrip=savedGeneralizedCostOneTrip*2;
         }
 
-        // Include your logic here that was previously inside the loop over all trips
+
         tripItemForOptimization.tempSavedGeneralizedCostsMap.put(selectionDifference, savedGeneralizedCostOneTrip);
     }
     public static double calculateSelectionScore( List<Integer> chosenVertiportID, List<TripItemForOptimization> deserializedTripItemForOptimizations,Random random) {
