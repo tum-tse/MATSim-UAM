@@ -1,14 +1,14 @@
 package net.bhl.matsim.uam.optimization;
 
 import net.bhl.matsim.uam.analysis.traveltimes.utils.ThreadCounter;
+import net.bhl.matsim.uam.optimization.traveltimes.RunCalculateCarTravelTimes;
+import net.bhl.matsim.uam.optimization.traveltimes.RunCalculatePTTravelTimes;
+import net.bhl.matsim.uam.optimization.utils.ScenarioSpecific;
 import net.bhl.matsim.uam.optimization.utils.TripItemForOptimization;
 import org.matsim.api.core.v01.Coord;
 import org.matsim.api.core.v01.network.Network;
 import org.matsim.core.router.util.LeastCostPathCalculator;
-import net.bhl.matsim.uam.optimization.traveltimes.RunCalculateCarTravelTimes;
-import net.bhl.matsim.uam.optimization.traveltimes.RunCalculatePTTravelTimes;
 import org.matsim.pt.router.TransitRouter;
-import net.bhl.matsim.uam.optimization.utils.ScenarioSpecific;
 
 import java.util.*;
 import java.util.concurrent.ArrayBlockingQueue;

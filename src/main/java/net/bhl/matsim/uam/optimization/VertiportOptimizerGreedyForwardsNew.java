@@ -10,14 +10,14 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.util.*;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import java.util.concurrent.Callable;
 import java.util.concurrent.atomic.AtomicInteger;
 
-public class VertiportOptimizerGreedyForwardsUpdate {
-    public static Logger log = Logger.getLogger(VertiportOptimizerGreedyForwardsUpdate.class);
+public class VertiportOptimizerGreedyForwardsNew {
+    public static Logger log = Logger.getLogger(VertiportOptimizerGreedyForwardsNew.class);
     private static String vertiportCandidateFile;
     private static String fileName;
     private static  int sampleSize;
@@ -181,84 +181,33 @@ public class VertiportOptimizerGreedyForwardsUpdate {
                     log.info("The first two vertiport pair is: " + maxA + " and " + maxB);
                 }
                 else {
-                    int processors2 = Runtime.getRuntime().availableProcessors();
-                    int batchSize2 = remainVetiportsCandidatesID.size() / processors2;
-                    ExecutorService executor2 = Executors.newFixedThreadPool(processors2);
-                    HashMap<List<Integer>,Double> allPossibleVertiportPairsAndScores = new HashMap<>();
-                    for (Integer integer : remainVetiportsCandidatesID) {
-                        List<Integer> vertiportPair = new ArrayList<>();
-                        vertiportPair.add(integer);
-                        vertiportPair.addAll(currentSelectedVertiportsID);
-                        allPossibleVertiportPairsAndScores.put(vertiportPair, 0.0);
-                    }
-                    List<Future<HashMap<List<Integer>, Double>>> futures2 = new ArrayList<>();
-                    for (int i = 0; i < processors; i++) {
-                        int start = i * batchSize2;
-                        int end = (i == processors - 1) ? allPossibleVertiportPairsAndScores.size() : (i + 1) * batchSize2;
-                        HashMap<List<Integer>, Double> subMap = new HashMap<>();
-                        int index = 0;
-                        for (Map.Entry<List<Integer>, Double> entry : allPossibleVertiportPairsAndScores.entrySet()) {
-                            if (index >= start && index < end) {
-                                subMap.put(entry.getKey(), entry.getValue());
-                            }
-                            index++;
-                        }
-                        Callable<HashMap<List<Integer>, Double>> task = () -> {
-                            for (Map.Entry<List<Integer>, Double> entry : subMap.entrySet()) {
-                                List<Integer> vertiportPair = entry.getKey();
-                                List<Integer> selectionDifference = new ArrayList<>();
-                                selectionDifference.add(vertiportPair.get(0))  ;
-                                double score = calculateSelectionScore(vertiportPair, selectionDifference, deserializedTripItemForOptimizations, random);
-                                entry.setValue(score);
-                            }
-                            return subMap;
-                        };
-                        futures2.add(executor2.submit(task));
-                    }
-                    // Collect the results in the futures to the allPossibleVertiportPairsAndScores
-                    for (Future<HashMap<List<Integer>, Double>> future : futures2) {
-                        try {
-                            HashMap<List<Integer>, Double> subMap = future.get();
-                            allPossibleVertiportPairsAndScores.putAll(subMap);
-                        } catch (Exception e) {
-                            e.printStackTrace();
-                        }
-                    }
-                    executor2.shutdown();
-                    // Find the vertiport pair with the highest score
-                    Integer [] max=null;
+                    // select the next vertiport
+                    Integer maxVertiportID = null;
                     maxScore = Double.NEGATIVE_INFINITY;
-                    for (Map.Entry<List<Integer>, Double> entry : allPossibleVertiportPairsAndScores.entrySet()) {
-                        if (entry.getValue() > maxScore) {
-                            maxScore = entry.getValue();
-                            max = new Integer[entry.getKey().size()];
-                            entry.getKey().toArray(max);
+
+                    for (Integer vertiportID : remainVetiportsCandidatesID) {
+                        double score = 0;
+                        for (Integer selectedVertiportID : currentSelectedVertiportsID) {
+                            List<Integer> vertiportsPair = new ArrayList<>();
+                            vertiportsPair.add(selectedVertiportID);
+                            vertiportsPair.add(vertiportID);
+                            score = score + getPairScore(vertiportsPair, vertiportPairsScore);
+                        }
+                        if (score > maxScore) {
+                            maxScore = score;
+                            maxVertiportID = vertiportID;
                         }
                     }
-                    int newVertiportID = 0;
-                    // find the new selected vertiport, which is in the max array but not in the currentSelectedVertiportsID
-                    for (int i = 0; i < Objects.requireNonNull(max).length; i++) {
-                        if (!currentSelectedVertiportsID.contains(max[i])) {
-                            newVertiportID = max[i];
-                            currentSelectedVertiportsID.add(max[i]);
-                            remainVetiportsCandidatesID.remove(max[i]);
-                            break;
-                        }
-                    }
-                    List<Integer> newSelectedVertiportsID = new ArrayList<>();
-                    newSelectedVertiportsID.add(newVertiportID);
-                    for (TripItemForOptimization tripItemForOptimization : deserializedTripItemForOptimizations) {
-                        if (tripItemForOptimization.tempSavedGeneralizedCostsMap.containsKey(newSelectedVertiportsID)) {
-                        tripItemForOptimization.savedGeneralizedCost = tripItemForOptimization.tempSavedGeneralizedCostsMap.get(newSelectedVertiportsID);}
-                        tripItemForOptimization.tempSavedGeneralizedCostsMap.clear();
-                    }
-                    log.info("The " + currentSelectedVertiportsID.size() + "th vertiport is "+ newVertiportID);
+                    currentSelectedVertiportsID.add(maxVertiportID);
+                    remainVetiportsCandidatesID.remove(maxVertiportID);
+                    log.info("The " + currentSelectedVertiportsID.size() + "th vertiport is: " + maxVertiportID);
+
                 }
 
             }
 
             log.info("The selected vertiports are: " + currentSelectedVertiportsID);
-            log.info("The score of the selected vertiports is: " + maxScore);
+            log.info("The score of the selected vertiports is: " + calculateSelectionScore(currentSelectedVertiportsID, deserializedTripItemForOptimizations, random));
             long endTime = System.currentTimeMillis();
             log.info("The " + run_index + "th run finishes. The time used is: " + (endTime - startTime) / 1000 + "s.");
         }
@@ -267,7 +216,12 @@ public class VertiportOptimizerGreedyForwardsUpdate {
 
 
 
+    public static double getPairScore(List<Integer> vertiportsPair, HashMap<List<Integer>, Double> vertiportPairsScore) {
+        // sort the vertiport pair
+        Collections.sort(vertiportsPair);
+        return vertiportPairsScore.get(vertiportsPair);
 
+    }
     public static List<TripItemForOptimization> deserializeTripItems(String fileName) {
         List<TripItemForOptimization> tripItemForOptimizations = new ArrayList<>();
 
@@ -417,7 +371,7 @@ public class VertiportOptimizerGreedyForwardsUpdate {
             savedGeneralizedCostOneTrip=savedGeneralizedCostOneTrip*2;
         }
 
-
+        // Include your logic here that was previously inside the loop over all trips
         tripItemForOptimization.tempSavedGeneralizedCostsMap.put(selectionDifference, savedGeneralizedCostOneTrip);
     }
     public static double calculateSelectionScore( List<Integer> chosenVertiportID, List<TripItemForOptimization> deserializedTripItemForOptimizations,Random random) {

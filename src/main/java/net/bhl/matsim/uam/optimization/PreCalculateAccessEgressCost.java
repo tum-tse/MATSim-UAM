@@ -122,7 +122,7 @@ public class PreCalculateAccessEgressCost {
             if (i % 1000 == 0) {
                 log.info("Neighbour Vertiport Candidate Indentification: Trip " + i + " is processed.");
             }
-            if (currentTrip.originNeighborVertiportCandidates.size() > 0 && currentTrip.destinationNeighborVertiportCandidates.size() > 0) {
+            if (!currentTrip.originNeighborVertiportCandidates.isEmpty() && !currentTrip.destinationNeighborVertiportCandidates.isEmpty()) {
                 if (currentTrip.originNeighborVertiportCandidates.size() > 1 || currentTrip.destinationNeighborVertiportCandidates.size() > 1) {
                     uamEnabledTrips.add(currentTrip);
                 } else if (!(currentTrip.originNeighborVertiportCandidates.get(0).equals(currentTrip.destinationNeighborVertiportCandidates.get(0)))) {
@@ -143,13 +143,13 @@ public class PreCalculateAccessEgressCost {
             // Find the neighbouring vertiports for the origin and destination
 
             // provide information after each 1000 trips
-            if (uamEnabledTrips.size()<100 || (i+1) % 100 == 0) {
+            if (uamEnabledTrips.size()<100 || (i+1) % 1000 == 0) {
                 log.info("Calculation completion: " + (i+1) + "/" + uamEnabledTrips.size() + " ("
                         + String.format("%.0f", (double) (i+1) / uamEnabledTrips.size() * 100) + "%).");
             }
             while (threadCounter.getProcesses() >= processes - 1)
                 Thread.sleep(200);
-            VertiportCollector vertiportCollector = new VertiportCollector(currentTrip,networkCar,network,vertiportsCandidates,threadCounter,carRouters, ptRouters,"Munich_A");
+            VertiportCollector vertiportCollector = new VertiportCollector(currentTrip,networkCar,network,vertiportsCandidates,threadCounter,carRouters, ptRouters,"Synthetic_A");
             es.execute(vertiportCollector);
         }
         es.shutdown();
