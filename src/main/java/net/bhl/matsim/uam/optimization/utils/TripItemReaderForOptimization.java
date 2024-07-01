@@ -11,11 +11,26 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class TripItemReaderForOptimization {
-	public static final double CAR_EMISSION_FACTOR = 0.4;
-	public static final double PT_EMISSION_FACTOR = 0.1;
-	public static final double CARBON_EQUIVALENCE= 0.1;
+	public static double CAR_EMISSION_FACTOR ;
+	public static double PT_EMISSION_FACTOR ;
+	public static double CARBON_EQUIVALENCE;
 
-	public static List<TripItemForOptimization> getTripItems (String tripsInput) throws IOException{
+	public TripItemReaderForOptimization(ScenarioSpecific scenarioSpecific) {
+		this.scenarioSpecific = scenarioSpecific;
+		CAR_EMISSION_FACTOR = scenarioSpecific.car_emission_factor;
+		PT_EMISSION_FACTOR = scenarioSpecific.pt_emission_factor;
+		CARBON_EQUIVALENCE = scenarioSpecific.carbon_equivalent_cost;
+	}
+
+	public TripItemReaderForOptimization() {
+		CARBON_EQUIVALENCE = 0;
+		CAR_EMISSION_FACTOR = 0;
+		PT_EMISSION_FACTOR = 0;
+	}
+
+	public static ScenarioSpecific scenarioSpecific;
+
+	public List<TripItemForOptimization> getTripItems (String tripsInput) throws IOException{
 		List<TripItemForOptimization> trips = new ArrayList<>();
 		List<String[]> rows = CSVReaders.readCSV(tripsInput);
 		for (String[] row : rows.subList(1, rows.size())) {
@@ -64,6 +79,7 @@ public class TripItemReaderForOptimization {
 			trip.ptEmission=CAR_EMISSION_FACTOR*trip.ptTripLength/1000;
 		    Double [] probabilities = ModeDecider.calculateModeProbability(-9999, trip.carUtility, trip.ptUtility).toArray(new Double[3]);
 			trip.currentGeneralizedCost=trip.carGeneralizedCost*probabilities[1]+trip.ptGeneralizedCost*probabilities[2];
+			trip.currentEmission=trip.carEmission*probabilities[1]+trip.ptEmission*probabilities[2];
 			trips.add(trip);
 		}
 

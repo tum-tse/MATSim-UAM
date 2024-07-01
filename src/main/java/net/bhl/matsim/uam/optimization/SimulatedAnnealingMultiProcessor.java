@@ -17,7 +17,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
 import org.matsim.utils.MemoryObserver;
-
+@Deprecated
 
 public class SimulatedAnnealingMultiProcessor {
     // This class provides the simulated annealing algorithm to solve the vertiport siting problem.

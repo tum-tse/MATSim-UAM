@@ -97,7 +97,8 @@ public class RunCalculateCarTravelTimes {
 		}
 
 		// READ TRIPS INPUT
-		List<TripItemForOptimization> trips = TripItemReaderForOptimization.getTripItems(tripsInput);
+		TripItemReaderForOptimization tripItemReaderForOptimization= new TripItemReaderForOptimization();
+		List<TripItemForOptimization> trips = tripItemReaderForOptimization.getTripItems(tripsInput);
 
 		// Calculate travel times
 		log.info("Calculating travel times...");
