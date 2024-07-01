@@ -43,15 +43,15 @@ public class ScenarioSpecific {
             this.uam_utility_waiting_time_parameter = -6.79;
             this.consider_return_trip = true;
             this.carbon_equivalent_cost = 2.48;
-            this.car_emission_factor = 0.42;
+            this.car_emission_factor = 0.4;
             this.pt_emission_factor = 0.1;
             this.uam_emission_factor = 0.1;
             this.simulation_hours = 36;
             this.consider_pt = false;
             this.search_radius = 5000;
-            this.pt_cost = 0.81;
+            this.pt_cost = 0.51;
             this.beta_savedCost = 1;
-            this.beta_constructionCost = 1;
+            this.beta_constructionCost = -1;
             this.beta_savedEmission = 1;
         }
         if (scenarioName.equals("Synthetic_10")) {

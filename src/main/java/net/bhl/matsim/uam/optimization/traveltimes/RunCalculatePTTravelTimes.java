@@ -90,9 +90,9 @@ public class RunCalculatePTTravelTimes {
 					new LeastCostRaptorRouteSelector(),
 					new DefaultRaptorStopFinder(null, new DefaultRaptorIntermodalAccessEgress(), router)));
 		}
-
+        TripItemReaderForOptimization tripItemReaderForOptimization= new TripItemReaderForOptimization();
 		// READ TRIPS INPUT
-		List<TripItemForOptimization> trips = TripItemReaderForOptimization.getTripItems(tripsInput);
+		List<TripItemForOptimization> trips = tripItemReaderForOptimization.getTripItems(tripsInput);
 
 		// Calculate travel times
 		log.info("Calculating travel times...");
