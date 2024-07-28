@@ -1,8 +1,6 @@
 package net.bhl.matsim.uam.optimization;
 
-import net.bhl.matsim.uam.optimization.utils.ScenarioSpecific;
-import net.bhl.matsim.uam.optimization.utils.TripItemForOptimization;
-import net.bhl.matsim.uam.optimization.utils.TripItemReaderForOptimization;
+import net.bhl.matsim.uam.optimization.utils.*;
 import org.apache.log4j.Logger;
 import org.matsim.api.core.v01.Coord;
 import org.matsim.core.config.Config;
@@ -11,7 +9,6 @@ import org.matsim.utils.MemoryObserver;
 import smile.clustering.DBSCAN;
 import smile.clustering.KMeans;
 import java.io.FileInputStream;
-import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.util.*;
 import java.util.concurrent.*;
@@ -22,11 +19,6 @@ public class SimulatedAnnealingForPartD {
 
     public static final Logger log = Logger.getLogger(SimulatedAnnealingForPartD.class);
 
-    public static final double INITIAL_TEMPERATURE=5000;
-    public static final double FINAL_TEMPERATURE=0.1;
-    public static final double ANNEALING_RATE=0.99;
-    public static final double MAX_ITERATION=10000;
-    public static final double MAX_NOT_CHANGE_COUNT=2000;
     public static String tripItemFile;
     public static String vertiportCandidateFile;
     public static double flightSpeed; // m/s
@@ -45,15 +37,10 @@ public class SimulatedAnnealingForPartD {
     public static double UAM_EMISSION_FACTOR; // kg/km
     public static double CARBON_EQUIVALENCE_FACTOR; // Euro/kgCO2
     private static int SIMULATION_HOURS;
-    public static String scenarioName;
-    // Number of parallel tasks
     public static String configPath;
-    public static final int EPSILON = 5000;
-    public static final int MIN_PTS = 5;
-    public static final int NUM_OF_CLUSTERS = 200;
-    public static final int NUM_OF_CLUSTER_ITERATIONS = 1000;
-    public static final double TOLERANCE = 1e-4;
-    public static final double NEIGHBOR_DISTANCE = 5000.0;
+    public static double NEIGHBOR_DISTANCE;
+
+    public static String scenarioConfigurations;
     public static void main(String[] args) throws Exception {
         MemoryObserver.start(MEMORY_CHECK_INTERVAL);
         // Provide the file via program arguments
@@ -61,14 +48,16 @@ public class SimulatedAnnealingForPartD {
             tripItemFile = args[0];
             configPath=args[1];
             vertiportCandidateFile = args[2];
-            sampleSize = Integer.parseInt(args[3]);
-            scenarioName = args[4];
-            RANDOM_SEED = Long.parseLong(args[5]);
+            scenarioConfigurations = args[3];
         }
         // Build the scenario of Munich
-        ScenarioSpecific scenarioSpecific = new ScenarioSpecific(scenarioName);
+        log.info("Building the scenario...");
+        ScenarioSpecific scenarioSpecific = new ScenarioSpecific(scenarioConfigurations);
         scenarioSpecific.buildScenario();
-
+        ClusteringConfiguration clusteringConfiguration = new ClusteringConfiguration(scenarioConfigurations);
+        clusteringConfiguration.buildScenario();
+        OptimizationConfiguration optimizationConfiguration = new OptimizationConfiguration(scenarioConfigurations);
+        optimizationConfiguration.buildScenario();
         // load the config
         Config config = ConfigUtils.loadConfig(configPath);
 
@@ -84,7 +73,10 @@ public class SimulatedAnnealingForPartD {
         CAR_EMISSION_FACTOR = scenarioSpecific.car_emission_factor;
         PT_EMISSION_FACTOR = scenarioSpecific.pt_emission_factor;
         SIMULATION_HOURS = scenarioSpecific.simulation_hours;
-
+        CARBON_EQUIVALENCE_FACTOR = scenarioSpecific.carbon_equivalent_cost;
+        RANDOM_SEED =  scenarioSpecific.random_seed;
+        sampleSize = scenarioSpecific.sampleSize;
+        NEIGHBOR_DISTANCE = scenarioSpecific.neighbouring_distance;
 
         log.info("Loading the vertiport candidates...");
         VertiportReader vertiportReader = new VertiportReader();
@@ -94,7 +86,7 @@ public class SimulatedAnnealingForPartD {
         // Cluster the vertiport candidates with DBSCAN clustering algorithm
         log.info("Start clustering the vertiport candidates...");
         //int[] clusterAssigment = clusterDataDBSCAN(vertiportsCandidates, EPSILON, MIN_PTS);
-        int[] clusterAssigment = clusterDataKMeans(vertiportsCandidates, NUM_OF_CLUSTERS, NUM_OF_CLUSTER_ITERATIONS, TOLERANCE);
+        int[] clusterAssigment = clusterDataKMeans(vertiportsCandidates, clusteringConfiguration.num_of_clusters, clusteringConfiguration.num_of_cluster_iterations, clusteringConfiguration.tolerance);
         List<Vertiport> clusteredVertiports = summarizeClusters(vertiportsCandidates, clusterAssigment);
         Map<Integer, List<Vertiport>> clusterResults = saveClusterResults(vertiportsCandidates, clusterAssigment);
         findVertiportsNeighbours(clusteredVertiports, NEIGHBOR_DISTANCE);
@@ -141,7 +133,7 @@ public class SimulatedAnnealingForPartD {
 
             List<Integer> bestSolutionID = new ArrayList<>(currentSolutionID);
             double bestEnergy = currentEnergey;
-            double currentTemperature = INITIAL_TEMPERATURE;
+            double currentTemperature = optimizationConfiguration.initial_temperature;
             int notChangeCount = 0;
 
             int saturatedVertiportCount = 0;
@@ -157,7 +149,7 @@ public class SimulatedAnnealingForPartD {
                     }
                 }
                 log.info("Initial Solution: " + currentSolutionID + " Initial Energy: " + currentEnergey + " Saturated Vertiport Count: " + saturatedVertiportCount + " Max Saturation Rate: " + maxSaturationRate);
-            for (int iteration = 0; iteration < MAX_ITERATION; iteration++) {
+            for (int iteration = 0; iteration < optimizationConfiguration.max_iteration; iteration++) {
 
                 // set the tempConcurrentSaturationRates and tempMaxSaturationRate for each vertiport as 0
                 for (Vertiport vertiport : clusteredVertiports) {
@@ -167,8 +159,6 @@ public class SimulatedAnnealingForPartD {
                     vertiport.tempMaxSaturationRate = 0;
                 }
 
-                if (iteration ==28)
-                    System.out.println("debug");
                 List<List<Integer>> newSolutionList = generateNewSolution(random, currentSolutionID, clusteredVertiports);
                 List<Integer> newSolutionID = newSolutionList.get(0);
 
@@ -211,15 +201,15 @@ public class SimulatedAnnealingForPartD {
                 }
 
                 // update the temperature
-                if (currentTemperature > FINAL_TEMPERATURE) {
-                    currentTemperature = currentTemperature * ANNEALING_RATE;
+                if (currentTemperature > optimizationConfiguration.final_temperature) {
+                    currentTemperature = currentTemperature * optimizationConfiguration.annealing_rate;
                 }
                 // log the information for every 100 iterations
                 if (iteration % 1 == 0) {
                     log.info("Iteration: " + iteration + " Current Temperature: " + currentTemperature + " Current Energy: " + currentEnergey + " Best Energy: " + bestEnergy + " Saturated Vertiport Count: " + saturatedVertiportCount + " Max Saturation Rate: " + maxSaturationRate);
                 }
                 // if the best solution is not updated for more than 1000 iterations, break
-                if (notChangeCount > MAX_NOT_CHANGE_COUNT) {
+                if (notChangeCount > optimizationConfiguration.max_not_change_count) {
                     break;
                 }
 
@@ -254,8 +244,7 @@ public class SimulatedAnnealingForPartD {
         log.info("Final Score of the Selected Vertiports: " + finalScore);
     }
 
-
-    public static List<Vertiport> findMinimumCostVertiports(List<Vertiport> vertiports, int requiredCapacity) {
+        public static List<Vertiport> findMinimumCostVertiports(List<Vertiport> vertiports, int requiredCapacity) {
         // dynamic programming array, dp[i] stores the minimum cost to achieve at least i capacity
         int[] dp = new int[requiredCapacity + 1];
         for (int i = 1; i <= requiredCapacity; i++) {
@@ -391,7 +380,7 @@ public class SimulatedAnnealingForPartD {
                         tripItemForOptimization.uamTravelTime=uamTravelTime;
                         tripItemForOptimization.UAMCost=UAMCost;
                         tripItemForOptimization.UAMGeneralizedCost=UAMGeneralizedCost;
-                        tripItemForOptimization.UAMUtilityVar= scenarioSpecific.calculateUAMUtilityVAR(flightTime,uamTravelTime-flightTime,UAMCost,UAMGeneralizedCost);
+                        tripItemForOptimization.UAMUtilityVar= scenarioSpecific.calculateUAMUtilityVAR(flightTime,uamTravelTime-flightTime,UAMCost);
                         tripItemForOptimization.uamUtility= tripItemForOptimization.UAMUtilityFix+ tripItemForOptimization.UAMUtilityVar;
 
                         tripItemForOptimization.accessVertiport = origin;

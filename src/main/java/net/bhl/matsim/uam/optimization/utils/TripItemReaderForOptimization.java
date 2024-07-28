@@ -1,7 +1,6 @@
 package net.bhl.matsim.uam.optimization.utils;
 
 import net.bhl.matsim.uam.optimization.ModeDecider;
-import net.bhl.matsim.uam.optimization.utils.TripItemForOptimization;
 import org.matsim.api.core.v01.Coord;
 import org.matsim.contrib.util.CSVReaders;
 import org.matsim.core.utils.misc.Time;

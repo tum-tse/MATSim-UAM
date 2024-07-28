@@ -12,6 +12,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import net.bhl.matsim.uam.optimization.utils.TripItemForOptimization;
+import net.bhl.matsim.uam.optimization.utils.TripItemReaderForOptimization;
 import org.apache.log4j.Logger;
 import org.matsim.api.core.v01.Scenario;
 import org.matsim.api.core.v01.TransportMode;
@@ -24,7 +25,6 @@ import org.matsim.core.network.NetworkUtils;
 import org.matsim.core.router.LinkWrapperFacility;
 import org.matsim.core.router.RoutingModule;
 import org.matsim.core.router.TeleportationRoutingModule;
-import org.matsim.core.router.util.LeastCostPathCalculator;
 import org.matsim.core.scenario.ScenarioUtils;
 import org.matsim.pt.router.TransitRouter;
 
@@ -39,7 +39,6 @@ import ch.sbb.matsim.routing.pt.raptor.RaptorUtils;
 import ch.sbb.matsim.routing.pt.raptor.SwissRailRaptor;
 import ch.sbb.matsim.routing.pt.raptor.SwissRailRaptorData;
 import net.bhl.matsim.uam.analysis.traveltimes.utils.ThreadCounter;
-import net.bhl.matsim.uam.optimization.utils.TripItemReaderForOptimization;
 import net.bhl.matsim.uam.config.UAMConfigGroup;
 
 /**

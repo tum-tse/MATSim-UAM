@@ -37,6 +37,7 @@ public class TripItemForOptimization implements java.io.Serializable{
 	public HashMap<Vertiport, HashMap<String,Double>> accessTimeAndDistanceToAllVertiportCandidates;
 	public HashMap<Vertiport, HashMap<String,Double>> egressTimeAndDistanceToAllVertiportCandidates;
 	*/
+
 	public String tripPurpose;
 
     public double carEmission;
@@ -85,4 +86,5 @@ public class TripItemForOptimization implements java.io.Serializable{
 	public HashMap<Vertiport,HashMap<String,Double>> destinationNeighborVertiportsTimeAndDistance=new HashMap<>();
 	public Vertiport accessVertiport;
 	public Vertiport egressVertiport;
+
 }

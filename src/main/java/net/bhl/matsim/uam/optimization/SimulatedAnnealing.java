@@ -18,11 +18,11 @@ public class SimulatedAnnealing {
 
     public static final Logger log = Logger.getLogger(SimulatedAnnealing.class);
 
-    public static final double INITIAL_TEMPERATURE=5000;
-    public static final double FINAL_TEMPERATURE=0.1;
-    public static final double ANNEALING_RATE=0.99;
-    public static final double MAX_ITERATION=10000;
-    public static final double MAX_NOT_CHANGE_COUNT=2000;
+    public static double INITIAL_TEMPERATURE;
+    public static double FINAL_TEMPERATURE;
+    public static double ANNEALING_RATE;
+    public static double MAX_ITERATION;
+    public static double MAX_NOT_CHANGE_COUNT;
     public static String serializedTripItemFile;
     public static String vertiportCandidateFile;
     public static double flightSpeed; // m/s
@@ -320,7 +320,7 @@ public class SimulatedAnnealing {
                         tripItemForOptimization.uamTravelTime=uamTravelTime;
                         tripItemForOptimization.UAMCost=UAMCost;
                         tripItemForOptimization.UAMGeneralizedCost=UAMGeneralizedCost;
-                        tripItemForOptimization.UAMUtilityVar= scenarioSpecific.calculateUAMUtilityVAR(flightTime,uamTravelTime-flightTime,UAMCost,UAMGeneralizedCost);
+                        tripItemForOptimization.UAMUtilityVar= scenarioSpecific.calculateUAMUtilityVAR(flightTime,uamTravelTime-flightTime,UAMCost);
                         tripItemForOptimization.uamUtility= tripItemForOptimization.UAMUtilityFix+ tripItemForOptimization.UAMUtilityVar;
 
                         tripItemForOptimization.accessVertiport = origin;
@@ -393,7 +393,7 @@ public static List<List<Integer>> generateNewSolution (Random random, List<Integ
                 notChosenVertiportID.add(vertiport.ID);
             }
         }
-        if (SaturationVertiportsID.size()>0) {
+        if (!SaturationVertiportsID.isEmpty()) {
             Integer vertiportWithHighestSaturationRateID = SaturationVertiportsID.get(0);
             for (Integer vertiportID : SaturationVertiportsID) {
                 if (vertiportsCandidates.get(vertiportID).maxSaturationRate > vertiportsCandidates.get(vertiportWithHighestSaturationRateID).maxSaturationRate) {
@@ -408,9 +408,9 @@ public static List<List<Integer>> generateNewSolution (Random random, List<Integ
                 neighborsID.add(vertiport.ID);
             }
             // if the neighbors are all in the current solution, remove the vertiportWithHighestSaturationRate from the SaturationVertiports, repeat the process
-            while (currentSolutionID.containsAll(neighborsID) || neighborsID.size() == 0) {
+            while (currentSolutionID.containsAll(neighborsID) || neighborsID.isEmpty()) {
                 SaturationVertiportsID.remove(vertiportWithHighestSaturationRateID);
-                if (SaturationVertiportsID.size() > 0) {
+                if (!SaturationVertiportsID.isEmpty()) {
                     vertiportWithHighestSaturationRateID = SaturationVertiportsID.get(0);
                     for (Integer vertiportID : SaturationVertiportsID) {
                         if (vertiportsCandidates.get(vertiportID).maxSaturationRate > vertiportsCandidates.get(vertiportWithHighestSaturationRateID).maxSaturationRate) {
