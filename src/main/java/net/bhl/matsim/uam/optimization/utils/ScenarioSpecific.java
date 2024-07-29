@@ -37,6 +37,11 @@ public static String scenarioConfigurationFile;
     public double scale_factor_utility;
     public double neighbouring_distance;
     public int sampleSize;
+    public double car_utility_mean;
+    public double car_utility_sigma;
+    public double pt_utility_mean;
+    public double pt_utility_sigma;
+
     public void buildScenario() {
         try {
             File inputFile = new File(scenarioConfigurationFile);
@@ -74,6 +79,10 @@ public static String scenarioConfigurationFile;
             this.neighbouring_distance = Double.parseDouble(getTagValue("neighbouring_distance", scenarioSpecific));
             this.random_seed = Long.parseLong(getTagValue("random_seed", scenarioSpecific));
             this.sampleSize = Integer.parseInt(getTagValue("sample_size", scenarioSpecific));
+            this.car_utility_mean = Double.parseDouble(getTagValue("car_utility_mean", scenarioSpecific));
+            this.car_utility_sigma = Double.parseDouble(getTagValue("car_utility_sigma", scenarioSpecific));
+            this.pt_utility_mean = Double.parseDouble(getTagValue("pt_utility_mean", scenarioSpecific));
+            this.pt_utility_sigma = Double.parseDouble(getTagValue("pt_utility_sigma", scenarioSpecific));
         } catch (Exception e) {
             e.printStackTrace();
         }

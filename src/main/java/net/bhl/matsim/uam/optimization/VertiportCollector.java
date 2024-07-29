@@ -17,7 +17,7 @@ public class VertiportCollector implements Runnable {
     /*This class aims to collect all the neighboring vertiports for a given trip to its origin and destination. */
     private static final int processes = Runtime.getRuntime().availableProcessors();
     private static boolean considerPT;
-    private static String scenarioName;
+
     private static double CAR_COST;
     private static double searchRadius;
     private static double PT_COST;
@@ -29,7 +29,6 @@ public class VertiportCollector implements Runnable {
         this.threadCounter=threadCounter;
         this.carRouters=carRouters;
         this.ptRouters=ptRouters;
-        this.scenarioName=scenarioName;
         scenarioSpecific.buildScenario();
         this.CAR_COST = scenarioSpecific.car_km_cost;
         this.considerPT = scenarioSpecific.consider_pt;

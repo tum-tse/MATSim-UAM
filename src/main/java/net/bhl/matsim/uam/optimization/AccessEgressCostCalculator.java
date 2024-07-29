@@ -128,7 +128,7 @@ public class AccessEgressCostCalculator {
             // Find the neighbouring vertiports for the origin and destination
 
             // provide information after each 1000 trips
-            if (uamEnabledTrips.size()<100 || (i+1) % 1000 == 0) {
+            if (uamEnabledTrips.size()<100 || (i+1) % 10000 == 0) {
                 log.info("Calculation completion: " + (i+1) + "/" + uamEnabledTrips.size() + " ("
                         + String.format("%.0f", (double) (i+1) / uamEnabledTrips.size() * 100) + "%).");
             }
