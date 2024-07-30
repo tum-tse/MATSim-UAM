@@ -5,6 +5,7 @@ import org.matsim.contrib.util.CSVReaders;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 
 public class VertiportReader {
@@ -22,6 +23,7 @@ public class VertiportReader {
         }
         return vertiports;
     }
+
 
     public List<Vertiport> getVertiportsWithNeighbors(String vertiportCandidateInput) throws IOException {
         List<Vertiport> vertiports = new ArrayList<>();
@@ -50,6 +52,8 @@ public class VertiportReader {
         }
         return vertiports;
     }
+
+
     public double calculateEuciDistance(Coord coord1, Coord coord2) {
         double euciDistance = Math.sqrt(Math.pow(coord1.getX() - coord2.getX(), 2) + Math.pow(coord1.getY() - coord2.getY(), 2));
         return euciDistance;

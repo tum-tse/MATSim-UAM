@@ -15,8 +15,8 @@ public class ModeDecider {
         this.random = random;
     }
 
-    public double UAM_Utlility;
-    public double carUtility;
+    public static double UAM_Utlility;
+    public static double carUtility;
 
     public ModeDecider(double UAM_Utlility, double carUtility, double ptUtility, Random random) {
         this.UAM_Utlility = UAM_Utlility;
@@ -25,12 +25,12 @@ public class ModeDecider {
         this.random = random;
     }
 
-    public double ptUtility;
+    public static double ptUtility;
     public double car_utility_mean;
     public double car_utility_sigma;
     public double pt_utility_mean;
     public double pt_utility_sigma;
-    public Random random;
+    public static Random random;
 
 
 
@@ -59,7 +59,7 @@ public class ModeDecider {
 
     }
 
-    public Double [] sampleWithErrorTerm(int samplesize) {
+    public  Double [] sampleWithErrorTerm(int samplesize) {
         Double [] probabilities = calculateModeProbability(UAM_Utlility, carUtility+random.nextGaussian()*car_utility_sigma+car_utility_mean, ptUtility+pt_utility_sigma*random.nextGaussian()+pt_utility_mean).toArray(new Double[3]);
         double [] samples = new double[probabilities.length];
         for(int i=0; i< samples.length; i++) {
@@ -81,7 +81,7 @@ public class ModeDecider {
         return new Double[]{ (samples[0] / samplesize), samples[1] / samplesize, samples[2] / samplesize};
 
     }
-    public static List<Double> calculateModeProbability(double UAM_Utlility, double carUtility, double ptUtility){
+    public  List<Double> calculateModeProbability(double UAM_Utlility, double carUtility, double ptUtility){
 
         double sumUtilityExponential = Math.exp(carUtility) + Math.exp(ptUtility) + Math.exp(UAM_Utlility);
         double UAMProbability=Math.exp(UAM_Utlility)/ sumUtilityExponential;

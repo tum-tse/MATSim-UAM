@@ -20,6 +20,7 @@ public class OptimizationConfiguration {
     public double annealing_rate;
     public int max_iteration;
     public int max_not_change_count;
+    public String iteration_record_file;
 
     public void buildScenario() {
         // Read clusteringParameters
@@ -35,7 +36,7 @@ public class OptimizationConfiguration {
             this.annealing_rate = Double.parseDouble(getTagValue("annealing_rate", element));
             this.max_iteration = Integer.parseInt(getTagValue("max_iteration", element));
             this.max_not_change_count = Integer.parseInt(getTagValue("max_not_change_count", element));
-
+            this.iteration_record_file = getTagValue("iteration_record_file", element);
     }
         catch (Exception e) {
             e.printStackTrace();

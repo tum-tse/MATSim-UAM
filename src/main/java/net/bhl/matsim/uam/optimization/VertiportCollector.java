@@ -21,6 +21,7 @@ public class VertiportCollector implements Runnable {
     private static double CAR_COST;
     private static double searchRadius;
     private static double PT_COST;
+    private static HashMap<Integer,Vertiport> vertiportsCandidatesMap;
     public VertiportCollector(TripItemForOptimization trip, Network networkCar ,Network networkPt, List<Vertiport> vertiportsCandidates, ThreadCounter threadCounter, ArrayBlockingQueue<LeastCostPathCalculator> carRouters, ArrayBlockingQueue<TransitRouter> ptRouters,ScenarioSpecific scenarioSpecific) {
         this.vertiportsCandidates = vertiportsCandidates;
         this.trip = trip;
@@ -34,7 +35,6 @@ public class VertiportCollector implements Runnable {
         this.considerPT = scenarioSpecific.consider_pt;
         this.searchRadius = scenarioSpecific.search_radius;
         this.PT_COST = scenarioSpecific.pt_cost;
-
         }
 
     public VertiportCollector(TripItemForOptimization trip, Network networkCar , List<Vertiport> vertiportsCandidates) {

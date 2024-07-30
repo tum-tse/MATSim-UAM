@@ -25,6 +25,12 @@ public class TripItemForOptimization implements java.io.Serializable{
 	public double savedGeneralizedCost;
 	public List<Double> tempSavedGeneralizedCosts=new ArrayList<>();
 	public ConcurrentHashMap<List<Integer>,Double> tempSavedGeneralizedCostsMap=new ConcurrentHashMap<>();
+	public double savedEmission;
+	public List<Double> tempSavedEmission=new ArrayList<>();
+	public ConcurrentHashMap<List<Integer>,Double> tempSavedEmissionMap=new ConcurrentHashMap<>();
+	public double savedTravelTime;
+	public List<Double> tempSavedTravelTime=new ArrayList<>();
+	public ConcurrentHashMap<List<Integer>,Double> tempSavedTravelTimeMap=new ConcurrentHashMap<>();
 	public int currentMode; // 0: car, 1: pt
 	/*
 
@@ -42,12 +48,14 @@ public class TripItemForOptimization implements java.io.Serializable{
 
     public double carEmission;
 	public double ptEmission;
+	public double uamEmission;
 	public double UAMCost;
 	public double UAMGeneralizedCost;
 	public double carGeneralizedCost;
 	public double ptGeneralizedCost;
 	public double currentGeneralizedCost;
 	public double currentEmission;
+	public double currentTravelTime;
 	public double carTravelTime;
 	public double ptTravelTime;
 	public double carTravelCost;
@@ -67,8 +75,7 @@ public class TripItemForOptimization implements java.io.Serializable{
 	public double processTime;
 	public String accessMode;
 	public String egressMode;
-	public String originStation;
-	public String destinationStation;
+
 	public String mode;
 	public double carUtility;
 	public double ptUtility;
@@ -86,5 +93,8 @@ public class TripItemForOptimization implements java.io.Serializable{
 	public HashMap<Vertiport,HashMap<String,Double>> destinationNeighborVertiportsTimeAndDistance=new HashMap<>();
 	public Vertiport accessVertiport;
 	public Vertiport egressVertiport;
+	public double HH_income;
+	public int age;
+
 
 }

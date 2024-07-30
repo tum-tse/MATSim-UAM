@@ -13,10 +13,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
-public class SimulatedAnnealing {
+public class SimulatedAnnealingForPartA {
     // This class provides the simulated annealing algorithm to solve the vertiport siting problem.
 
-    public static final Logger log = Logger.getLogger(SimulatedAnnealing.class);
+    public static final Logger log = Logger.getLogger(SimulatedAnnealingForPartA.class);
 
     public static double INITIAL_TEMPERATURE;
     public static double FINAL_TEMPERATURE;

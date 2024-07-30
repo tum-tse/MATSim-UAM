@@ -36,7 +36,6 @@ public class AccessEgressCostCalculator {
         this.config = config;
         this.scenarioSpecific = scenarioSpecific;
     }
-
     // This class is used to calculate the access and egress time and distance for each vertiport candidate of each trip
     // Input in args: trip file, config file, vertiport candidate file, output file
     // Format of trip file csv: tripID, personID, originX, originY, destinationX, destinationY, departureTime (in seconds), pTravelTime, pTripLength, pInvehicleTime, pWaitingTime, carTravelTime, carTripLength, tripPurpose, carTravelCost, pTravelCost, carUtility, pUtility, UAMUtilityFix (only related to the traveller itself, including income, age,...), carGeneralizedCost, pGeneralizedCost, Income (€/year) # All times are in seconds, all distances are in meters, all costs are in €
@@ -45,6 +44,7 @@ public class AccessEgressCostCalculator {
     // Warning: if you make any changes to the TripItemForOptimization class or Vertiport class, you need to run this class again to update the serialized file, even if you just add some space or empty lines.
     private List<TripItemForOptimization> tripItemForOptimizations;
     private List<Vertiport> vertiportsCandidates;
+    private HashMap<Integer,Vertiport> vertiportCandidatesMap;
     private Config config;
     private ScenarioSpecific scenarioSpecific;
     private static final int processes = Runtime.getRuntime().availableProcessors();
@@ -143,5 +143,6 @@ public class AccessEgressCostCalculator {
             Thread.sleep(200);
 
     }
+
 }
 

@@ -18,6 +18,7 @@ public class ClusteringConfiguration {
     public int num_of_cluster_iterations;
     public double tolerance;
     public double neighbor_distance;
+    public int num_cluster_in_existing_vertiports;
 
     public void buildScenario() {
         // Read clusteringParameters
@@ -34,6 +35,7 @@ public class ClusteringConfiguration {
         this.num_of_cluster_iterations = Integer.parseInt(getTagValue("num_of_cluster_iterations", element));
         this.tolerance = Double.parseDouble(getTagValue("tolerance", element));
         this.neighbor_distance = Double.parseDouble(getTagValue("neighbor_distance", element));
+        this.num_cluster_in_existing_vertiports = Integer.parseInt(getTagValue("num_of_clusters_existing", element));
     }
         catch (Exception e) {
             e.printStackTrace();

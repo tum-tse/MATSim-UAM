@@ -10,8 +10,11 @@ public class ScenarioSpecific {
     public ScenarioSpecific(String scenarioConfigurationFile) {
         this.scenarioConfigurationFile = scenarioConfigurationFile;
     }
-public static String scenarioConfigurationFile;
+    public  String scenarioConfigurationFile;
+    public  boolean incrementaSiting;
+    public  String existingVertiportFile;
     public long random_seed;
+    public int num_of_clusters_in_existing_vertiports;
     public int num_of_selected_vertiports;
     public double flight_speed;
     public double uam_process_time;
@@ -41,6 +44,9 @@ public static String scenarioConfigurationFile;
     public double car_utility_sigma;
     public double pt_utility_mean;
     public double pt_utility_sigma;
+    public String outputVertiportFile;
+    public String outputIndicatorFile;
+
 
     public void buildScenario() {
         try {
@@ -83,6 +89,10 @@ public static String scenarioConfigurationFile;
             this.car_utility_sigma = Double.parseDouble(getTagValue("car_utility_sigma", scenarioSpecific));
             this.pt_utility_mean = Double.parseDouble(getTagValue("pt_utility_mean", scenarioSpecific));
             this.pt_utility_sigma = Double.parseDouble(getTagValue("pt_utility_sigma", scenarioSpecific));
+            this.existingVertiportFile = getTagValue("existing_vertiports_file", scenarioSpecific);
+            this.incrementaSiting = Boolean.parseBoolean(getTagValue("incremental_siting", scenarioSpecific));
+            this.outputIndicatorFile = getTagValue("output_indicators_file", scenarioSpecific);
+            this.outputVertiportFile = getTagValue("output_vertiports_file", scenarioSpecific);
         } catch (Exception e) {
             e.printStackTrace();
         }
