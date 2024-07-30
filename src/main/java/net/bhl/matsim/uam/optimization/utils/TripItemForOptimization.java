@@ -95,6 +95,12 @@ public class TripItemForOptimization implements java.io.Serializable{
 	public Vertiport egressVertiport;
 	public double HH_income;
 	public int age;
+	public double carProbabilityBefore;
+	public double ptProbabilityBefore;
+	public double tempCarProbability;
+	public double tempPTProbability;
+	public double tempUAMProbability;
+	public boolean tempIsUAMAvailable;
 
 
 }

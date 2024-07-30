@@ -45,7 +45,10 @@ public class ScenarioSpecific {
     public double pt_utility_mean;
     public double pt_utility_sigma;
     public String outputVertiportFile;
-    public String outputIndicatorFile;
+    public String outputTripBasedIndicatorFile;
+    public String outputVertiportBasedIndicatorFile;
+
+
 
 
     public void buildScenario() {
@@ -91,8 +94,9 @@ public class ScenarioSpecific {
             this.pt_utility_sigma = Double.parseDouble(getTagValue("pt_utility_sigma", scenarioSpecific));
             this.existingVertiportFile = getTagValue("existing_vertiports_file", scenarioSpecific);
             this.incrementaSiting = Boolean.parseBoolean(getTagValue("incremental_siting", scenarioSpecific));
-            this.outputIndicatorFile = getTagValue("output_indicators_file", scenarioSpecific);
+            this.outputTripBasedIndicatorFile = getTagValue("output_trip_indicators_file", scenarioSpecific);
             this.outputVertiportFile = getTagValue("output_vertiports_file", scenarioSpecific);
+            this.outputVertiportBasedIndicatorFile = getTagValue("output_vertiport_indicators_file", scenarioSpecific);
         } catch (Exception e) {
             e.printStackTrace();
         }

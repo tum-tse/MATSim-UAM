@@ -9,6 +9,7 @@ import org.matsim.core.config.ConfigUtils;
 import org.matsim.utils.MemoryObserver;
 import smile.clustering.DBSCAN;
 import smile.clustering.KMeans;
+
 import java.io.FileInputStream;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -110,17 +111,17 @@ public class SimulatedAnnealingForPartD {
         for (Vertiport vertiport : vertiportsCandidates) {
             vertiportsCandidatesMap.put(vertiport.ID, vertiport);
         }
-        List<Vertiport> alreadySelectedVertiports = new ArrayList<>();
-        HashMap<Integer,Vertiport> alreadySelectedVertiportsMap = new HashMap<>();
+        List<Vertiport> existingVertiports = new ArrayList<>();
+        HashMap<Integer,Vertiport> existingVertiportsMap = new HashMap<>();
 
         log.info("Finished loading the vertiport candidates.");
 
         // In incremental siting scenarios, the already selected vertiports are loaded
         if (incrementalSiting) {
-        log.info("Loading the already selected vertiports...");
-        alreadySelectedVertiports = vertiportReader.getVertiportsWithNeighbors(existingVertiportFile);
-        for (Vertiport vertiport : alreadySelectedVertiports) {
-                alreadySelectedVertiportsMap.put(vertiport.ID, vertiport);
+        log.info("Loading the existing vertiports...");
+        existingVertiports = vertiportReader.getVertiportsWithNeighbors(existingVertiportFile);
+        for (Vertiport vertiport : existingVertiports) {
+                existingVertiportsMap.put(vertiport.ID, vertiport);
             }
         log.info("Finished loading the already selected vertiports."); }
 
@@ -134,12 +135,39 @@ public class SimulatedAnnealingForPartD {
             clusteredVertiportsMap.put(vertiport.ID, vertiport);
         }
         Map<Integer, List<Vertiport>> clusterResults = saveClusterResults(vertiportsCandidates, clusterAssigment);
-        List<Vertiport> clusteredAlreadySelectedVertiports = new ArrayList<>();
+        // Write out the clustering results
+        CSVWriter clusteringWriterForCandidates = new CSVWriter(new FileWriter(clusteringConfiguration.clustering_output_file_candidates),CSVWriter.DEFAULT_SEPARATOR, CSVWriter.NO_QUOTE_CHARACTER, CSVWriter.DEFAULT_ESCAPE_CHARACTER, CSVWriter.DEFAULT_LINE_END);
+        String[] clusteringHeader = {"VertiportID", "CoordX","CoordY","ClusterID"};
+        clusteringWriterForCandidates.writeNext(clusteringHeader);
+        for (Vertiport vertiport : vertiportsCandidates) {
+           for (Map.Entry<Integer, List<Vertiport>> entry : clusterResults.entrySet()) {
+               if (entry.getValue().contains(vertiport)) {
+                   String[] data = {String.valueOf(vertiport.ID), String.valueOf(vertiport.coord.getX()), String.valueOf(vertiport.coord.getY()), String.valueOf(entry.getKey())};
+                   clusteringWriterForCandidates.writeNext(data);
+               }
+           }
+        }
+        clusteringWriterForCandidates.close();
+        List<Vertiport> clusteredExistingAndCandidates = new ArrayList<>();
         List<Vertiport> allClusteredVertiports = new ArrayList<>(clusteredVertiports);
+        Map<Integer, List<Vertiport>> clusterResultsExisting = new HashMap<>();
         if (incrementalSiting) {
-            int[] clusterAssigmentAlreadySelectedVertiports = clusterDataKMeans(alreadySelectedVertiports, clusteringConfiguration.num_cluster_in_existing_vertiports, clusteringConfiguration.num_of_cluster_iterations, clusteringConfiguration.tolerance);
-            clusteredAlreadySelectedVertiports = summarizeClustersForAlreadySelectedVertiports(alreadySelectedVertiports, clusterAssigmentAlreadySelectedVertiports);
-            allClusteredVertiports.addAll(clusteredAlreadySelectedVertiports);
+            int[] clusterAssigmentExisting = clusterDataKMeans(existingVertiports, clusteringConfiguration.num_cluster_in_existing_vertiports, clusteringConfiguration.num_of_cluster_iterations, clusteringConfiguration.tolerance);
+            clusteredExistingAndCandidates = summarizeClustersForAlreadySelectedVertiports(existingVertiports, clusterAssigmentExisting);
+            allClusteredVertiports.addAll(clusteredExistingAndCandidates);
+            clusterResultsExisting = saveClusterResultsForExistingVertiports(existingVertiports, clusterAssigmentExisting);
+            // Write out the clustering results for existing vertiports
+            CSVWriter clusteringWriterForExisting = new CSVWriter(new FileWriter(clusteringConfiguration.clustering_output_file_existing),CSVWriter.DEFAULT_SEPARATOR, CSVWriter.NO_QUOTE_CHARACTER, CSVWriter.DEFAULT_ESCAPE_CHARACTER, CSVWriter.DEFAULT_LINE_END);
+            clusteringWriterForExisting.writeNext(clusteringHeader);
+            for (Vertiport vertiport : existingVertiports) {
+                for (Map.Entry<Integer, List<Vertiport>> entry : clusterResultsExisting.entrySet()) {
+                    if (entry.getValue().contains(vertiport)) {
+                        String[] data = {String.valueOf(vertiport.ID), String.valueOf(vertiport.coord.getX()), String.valueOf(vertiport.coord.getY()), String.valueOf(entry.getKey())};
+                        clusteringWriterForExisting.writeNext(data);
+                    }
+                }
+            }
+            clusteringWriterForExisting.close();
         }
         findVertiportsNeighbours(allClusteredVertiports, NEIGHBOR_DISTANCE);
         log.info("Finished clustering the vertiport candidates.");
@@ -214,11 +242,11 @@ public class SimulatedAnnealingForPartD {
                     vertiport.tempMaxSaturationRate = 0;
                 }
 
-                List<List<Integer>> newSolutionList = new ArrayList<>();
+                List<List<Integer>> newSolutionList;
                 if (incrementalSiting) {
-                    newSolutionList = generateNewSolution(random, currentSolutionID, clusteredVertiports, clusteredAlreadySelectedVertiports);
+                    newSolutionList = generateNewSolution(random, currentSolutionID, clusteredVertiports, clusteredExistingAndCandidates);
                 } else {
-                    newSolutionList = generateNewSolution(random, currentSolutionID, clusteredVertiports);
+                    newSolutionList = generateNewSolution(random, currentSolutionID, clusteredVertiportsMap);
                 }
                 List<Integer> newSolutionID = newSolutionList.get(0);
 
@@ -236,13 +264,17 @@ public class SimulatedAnnealingForPartD {
                     currentEnergey = newEnergy;
                     saturatedVertiportCount = 0;
                     maxSaturationRate = 0;
-                    // update the savedGeneralizedCost for each trip
+                    // copy the temp values to the real values
                     for (TripItemForOptimization tripItemForOptimization : tripItems) {
                         if (!tripItemForOptimization.tempSavedGeneralizedCosts.isEmpty()) {
                             tripItemForOptimization.savedGeneralizedCost = tripItemForOptimization.tempSavedGeneralizedCosts.get(0);
                             tripItemForOptimization.savedEmission = tripItemForOptimization.tempSavedEmission.get(0);
                             tripItemForOptimization.savedTravelTime = tripItemForOptimization.tempSavedTravelTime.get(0);
                         }
+                        tripItemForOptimization.carProbability = tripItemForOptimization.tempCarProbability;
+                        tripItemForOptimization.ptProbability = tripItemForOptimization.tempPTProbability;
+                        tripItemForOptimization.uamProbability = tripItemForOptimization.tempUAMProbability;
+                        tripItemForOptimization.isUAMAvailable = tripItemForOptimization.tempIsUAMAvailable;
                     }
                     // copy the tempConcurrentSaturationRates to concurrentSaturationRates and tempMaxSaturationRate to maxSaturationRate
                     for (Vertiport vertiport : clusteredVertiports) {
@@ -271,7 +303,7 @@ public class SimulatedAnnealingForPartD {
                     currentTemperature = currentTemperature * optimizationConfiguration.annealing_rate;
                 }
                 // log the information for every 100 iterations
-                if (iteration % 1 == 0) {
+                if (iteration % 100 == 0) {
                     log.info("Iteration: " + iteration + " Current Temperature: " + currentTemperature + " Current Energy: " + currentEnergey + " Best Energy: " + bestEnergy + " Saturated Vertiport Count: " + saturatedVertiportCount + " Max Saturation Rate: " + maxSaturationRate);
                 }
                 iterationRecord.put(iteration, Arrays.asList(currentTemperature,bestEnergy,(double)saturatedVertiportCount, maxSaturationRate));
@@ -287,7 +319,7 @@ public class SimulatedAnnealingForPartD {
             long endTime = System.currentTimeMillis();
             log.info( " Time: " + (endTime - startTime) / 1000 + "s");
             // Write the iteration record to a csv file
-            CSVWriter iterationWriter = new CSVWriter(new FileWriter(optimizationConfiguration.iteration_record_file));
+            CSVWriter iterationWriter = new CSVWriter(new FileWriter(optimizationConfiguration.iteration_record_file),CSVWriter.DEFAULT_SEPARATOR, CSVWriter.NO_QUOTE_CHARACTER, CSVWriter.DEFAULT_ESCAPE_CHARACTER, CSVWriter.DEFAULT_LINE_END);
             String[] iterationHeader = {"Iteration", "Temperature", "Best Energy", "Saturated Vertiport Count", "Max Saturation Rate"};
             iterationWriter.writeNext(iterationHeader);
             for (Map.Entry<Integer, List<Double>> entry : iterationRecord.entrySet()) {
@@ -304,35 +336,86 @@ public class SimulatedAnnealingForPartD {
         }
         List<Vertiport> finalSelectedVertiports = new ArrayList<>();
         double totalConstructionCost = 0;
+        HashMap<Integer,List<Integer>> requiredAndAchievedCapacityMapForCandidates = new HashMap<>();
         for (Vertiport selectedClusteredVertiport : selectedClusteredVertiports) {
-             HashMap<List<Vertiport>,Double> subSelectedVertiportsAndCost = findMinimumCostVertiports(clusterResults.get(selectedClusteredVertiport.ID), (int) (selectedClusteredVertiport.capacity*selectedClusteredVertiport.maxSaturationRate)+1);
+                HashMap<List<Vertiport>,HashMap<Integer,Double>> subSelectedVertiportsAndCost = findMinimumCostVertiports(clusterResults.get(selectedClusteredVertiport.ID), (int) (selectedClusteredVertiport.capacity*selectedClusteredVertiport.maxSaturationRate)+1);
                 finalSelectedVertiports.addAll(subSelectedVertiportsAndCost.entrySet().iterator().next().getKey());
-                totalConstructionCost += subSelectedVertiportsAndCost.entrySet().iterator().next().getValue();
+                totalConstructionCost += subSelectedVertiportsAndCost.entrySet().iterator().next().getValue().values().iterator().next();
+                List<Integer> requiredAndAchievedCapacity = new ArrayList<>();
+                requiredAndAchievedCapacity.add((int) (selectedClusteredVertiport.capacity*selectedClusteredVertiport.maxSaturationRate)+1);
+                requiredAndAchievedCapacity.add(subSelectedVertiportsAndCost.entrySet().iterator().next().getValue().entrySet().iterator().next().getKey());
+                requiredAndAchievedCapacityMapForCandidates.put(selectedClusteredVertiport.ID, requiredAndAchievedCapacity);
         }
+        HashMap<Integer,List<Integer>> requiredAndAchievedCapacityMapForExisting = new HashMap<>();
+        if(incrementalSiting){
+            for (Vertiport selectedClusteredVertiport : existingVertiports) {
+                int requiredCapacity = (int) (selectedClusteredVertiport.capacity * selectedClusteredVertiport.maxSaturationRate)+1;
+                int achievedCapacity = selectedClusteredVertiport.capacity;
+                requiredAndAchievedCapacityMapForExisting.put(selectedClusteredVertiport.ID, new ArrayList<>(Arrays.asList(requiredCapacity, achievedCapacity)));
+            }
+        }
+
+        // Write out the required and achieved capacity for each vertiport cluster
+        CSVWriter requiredAndAchievedWriter = new CSVWriter(new FileWriter(scenarioSpecific.outputVertiportBasedIndicatorFile),CSVWriter.DEFAULT_SEPARATOR, CSVWriter.NO_QUOTE_CHARACTER, CSVWriter.DEFAULT_ESCAPE_CHARACTER, CSVWriter.DEFAULT_LINE_END);
+        String[] requiredAndAchievedHeader = {"ClusterID", "RequiredCapacity", "AchievedCapacity"};
+        requiredAndAchievedWriter.writeNext(requiredAndAchievedHeader);
+        for (Map.Entry<Integer, List<Integer>> entry : requiredAndAchievedCapacityMapForCandidates.entrySet()) {
+            String[] data = {String.valueOf(entry.getKey()), String.valueOf(entry.getValue().get(0)), String.valueOf(entry.getValue().get(1))};
+            requiredAndAchievedWriter.writeNext(data);
+        }
+        if (incrementalSiting) {
+            for (Map.Entry<Integer, List<Integer>> entry : requiredAndAchievedCapacityMapForExisting.entrySet()) {
+                String[] data = {String.valueOf(entry.getKey()), String.valueOf(entry.getValue().get(0)), String.valueOf(entry.getValue().get(1))};
+                requiredAndAchievedWriter.writeNext(data);
+            }
+        }
+        requiredAndAchievedWriter.close();
+
         List<Integer> finalSelectedVertiportsID = finalSelectedVertiports.stream().map(vertiport -> vertiport.ID).collect(Collectors.toList());
         log.info("Finished the second phase: select the optimal vertiports from each cluster.");
         log.info("Final Selected Vertiports: " + finalSelectedVertiportsID);
         double finalScore = bestEnergy + beta_constructionCost * totalConstructionCost;
         log.info("Final Score of the Selected Vertiports: " + finalScore);
         // save the selected vertiports as a csv file
-        CSVWriter vertiportWriter = new CSVWriter(new FileWriter(scenarioSpecific.outputVertiportFile));
-        String[] vertiportHeader = {"ID", "coordX", "coordY", "capacity","constructionCost"};
+        CSVWriter vertiportWriter = new CSVWriter(new FileWriter(scenarioSpecific.outputVertiportFile),CSVWriter.DEFAULT_SEPARATOR, CSVWriter.NO_QUOTE_CHARACTER, CSVWriter.DEFAULT_ESCAPE_CHARACTER, CSVWriter.DEFAULT_LINE_END);
+        String[] vertiportHeader = {"ID", "coordX", "coordY", "capacity","constructionCost","ClusterID"};
         vertiportWriter.writeNext(vertiportHeader);
         for (Vertiport vertiport : finalSelectedVertiports) {
-            String[] data = {String.valueOf(vertiport.ID), String.valueOf(vertiport.coord.getX()), String.valueOf(vertiport.coord.getY()), String.valueOf(vertiport.capacity),String.valueOf(vertiport.constructionCost)};
-            vertiportWriter.writeNext(data);
+            // Find the corresponding cluster ID
+            for (Map.Entry<Integer, List<Vertiport>> entry : clusterResults.entrySet()) {
+                if (entry.getValue().contains(vertiport)) {
+                    String[] data = {String.valueOf(vertiport.ID), String.valueOf(vertiport.coord.getX()), String.valueOf(vertiport.coord.getY()), String.valueOf(vertiport.capacity), String.valueOf(vertiport.constructionCost), String.valueOf(entry.getKey())};
+                    vertiportWriter.writeNext(data);
+                }
+            }
+        }
+        // if incremental siting, save the already selected vertiports in the same file
+        if (incrementalSiting) {
+            vertiportWriter.writeNext(new String[]{}); // add an empty line
+            for (Vertiport vertiport : existingVertiports) {
+                for (Map.Entry<Integer, List<Vertiport>> entry : clusterResultsExisting.entrySet()) {
+                    if (entry.getValue().contains(vertiport)) {
+                        String[] data = {String.valueOf(vertiport.ID), String.valueOf(vertiport.coord.getX()), String.valueOf(vertiport.coord.getY()), String.valueOf(vertiport.capacity), String.valueOf(vertiport.constructionCost), String.valueOf(entry.getKey())};
+                        vertiportWriter.writeNext(data);
+                    }
+                }
+            }
         }
         vertiportWriter.close();
         log.info("Finished saving the selected vertiports as a csv file.");
+        log.info("Write the indicators for analysis...");
+        writeTripBasedAnalysisResult(scenarioSpecific.outputTripBasedIndicatorFile,tripItems);
     }
 
-    public static HashMap<List<Vertiport>, Double> findMinimumCostVertiports(List<Vertiport> vertiports, int requiredCapacity) {
+    public static HashMap<List<Vertiport>, HashMap<Integer,Double>> findMinimumCostVertiports(List<Vertiport> vertiports, int requiredCapacity) {
         int totalCapacity = vertiports.stream().mapToInt(v -> v.capacity).sum();
 
         // If the total capacity is less than the required capacity, return all vertiports
         if (requiredCapacity > totalCapacity) {
-            HashMap<List<Vertiport>, Double> result = new HashMap<>();
-            result.put(vertiports, vertiports.stream().mapToDouble(v -> v.constructionCost).sum());
+            HashMap<List<Vertiport>, HashMap<Integer,Double>> result = new HashMap<>();
+            HashMap<Integer,Double> capacityAndCost = new HashMap<>();
+            capacityAndCost.put(totalCapacity, vertiports.stream().mapToDouble(v -> v.constructionCost).sum());
+            result.put(vertiports, capacityAndCost);
             return result;
         }
 
@@ -374,8 +457,10 @@ public class SimulatedAnnealingForPartD {
             }
         }
 
-        HashMap<List<Vertiport>, Double> result = new HashMap<>();
-        result.put(selectedVertiports, dp[minCapacityAchieved]);
+        HashMap<List<Vertiport>, HashMap<Integer,Double>> result = new HashMap<>();
+        HashMap<Integer,Double> capacityAndCost = new HashMap<>();
+        capacityAndCost.put(minCapacityAchieved, dp[minCapacityAchieved]);
+        result.put(selectedVertiports, capacityAndCost);
 
         return result;
     }
@@ -409,7 +494,7 @@ public class SimulatedAnnealingForPartD {
 
                 if (!originNeighbourVertiports.isEmpty() && !destinationNeighbourVertiports.isEmpty()) {
                     if (originNeighbourVertiports.size() > 1 || destinationNeighbourVertiports.size() > 1 || originNeighbourVertiports.get(0).ID != destinationNeighbourVertiports.get(0).ID) {
-                        tripItemForOptimization.isUAMAvailable = true;
+                        tripItemForOptimization.tempIsUAMAvailable = true;
                         tripItemForOptimization.originNeighborVertiports = originNeighbourVertiports;
                         tripItemForOptimization.destinationNeighborVertiports = destinationNeighbourVertiports;
                         calculateTripSavedCost(tripItemForOptimization, vertiportsCandidatesMap, random, scenarioSpecific);
@@ -417,11 +502,14 @@ public class SimulatedAnnealingForPartD {
                     }
                 }
 
-                tripItemForOptimization.isUAMAvailable = false;
+                tripItemForOptimization.tempIsUAMAvailable = false;
                 tripItemForOptimization.UAMUtilityVar = Double.NEGATIVE_INFINITY;
                 tripItemForOptimization.tempSavedGeneralizedCosts.add(0.0);
                 tripItemForOptimization.tempSavedEmission.add(0.0);
                 tripItemForOptimization.tempSavedTravelTime.add(0.0);
+                tripItemForOptimization.tempCarProbability=tripItemForOptimization.carProbabilityBefore;
+                tripItemForOptimization.tempPTProbability=tripItemForOptimization.ptProbabilityBefore;
+                tripItemForOptimization.tempUAMProbability=0;
                 return 0.0;
             };
             futures.add(executor.submit(task));
@@ -446,8 +534,8 @@ public class SimulatedAnnealingForPartD {
             }
             double requiredCapacity=vertiport.tempMaxSaturationRate*vertiport.capacity;
             List<Vertiport> vertiportUnits = savedClusterResults.get(vertiportID);
-            HashMap<List<Vertiport>,Double> result=findMinimumCostVertiports(vertiportUnits, (int) requiredCapacity+1);
-            totalConstructionCost+=result.values().iterator().next();
+            HashMap<List<Vertiport>,HashMap<Integer,Double>> result=findMinimumCostVertiports(vertiportUnits, (int) requiredCapacity+1);
+            totalConstructionCost+=result.values().iterator().next().values().iterator().next();
             currentSelectedVertiportUnits.addAll(result.keySet().iterator().next());
         }
         double totalSGAndSEAndCC=totalSGAndSE+beta_constructionCost*totalConstructionCost;
@@ -524,15 +612,15 @@ public class SimulatedAnnealingForPartD {
             // Create a double list to store the probability of each mode
             ModeDecider modeDecider=new ModeDecider(tripItemForOptimization.uamUtility,tripItemForOptimization.carUtility,tripItemForOptimization.ptUtility,car_utility_mean,car_utility_sigma,pt_utility_mean,pt_utility_sigma,random);
             Double [] modeSamples=modeDecider.sampleWithErrorTerm(sampleSize);
-            tripItemForOptimization.uamProbability=modeSamples[0];
-            tripItemForOptimization.carProbability=modeSamples[1];
-            tripItemForOptimization.ptProbability=modeSamples[2];
+            tripItemForOptimization.tempUAMProbability=modeSamples[0];
+            tripItemForOptimization.tempCarProbability=modeSamples[1];
+            tripItemForOptimization.tempPTProbability=modeSamples[2];
 
 
             int arriveVertiportTimeWindow = (int) Math.floor((tripItemForOptimization.departureTime + tripItemForOptimization.accessTime) / 3600*4);
             int leaveVertiportTimeWindow = (int) Math.floor((tripItemForOptimization.departureTime + tripItemForOptimization.accessTime + UAM_PROCESS_TIME + tripItemForOptimization.flightTime) / 3600);
-            vertiportsCandidatesMap.get(tripItemForOptimization.accessVertiport.ID).tempConcurrentSaturationRates.put(arriveVertiportTimeWindow, vertiportsCandidatesMap.get(tripItemForOptimization.accessVertiport.ID).tempConcurrentSaturationRates.get(arriveVertiportTimeWindow) + tripItemForOptimization.uamProbability / tripItemForOptimization.accessVertiport.capacity);
-            vertiportsCandidatesMap.get(tripItemForOptimization.egressVertiport.ID).tempConcurrentSaturationRates.put(leaveVertiportTimeWindow, vertiportsCandidatesMap.get(tripItemForOptimization.egressVertiport.ID).tempConcurrentSaturationRates.get(leaveVertiportTimeWindow) + tripItemForOptimization.uamProbability / tripItemForOptimization.egressVertiport.capacity);
+            vertiportsCandidatesMap.get(tripItemForOptimization.accessVertiport.ID).tempConcurrentSaturationRates.put(arriveVertiportTimeWindow, vertiportsCandidatesMap.get(tripItemForOptimization.accessVertiport.ID).tempConcurrentSaturationRates.get(arriveVertiportTimeWindow) + tripItemForOptimization.tempUAMProbability / tripItemForOptimization.accessVertiport.capacity);
+            vertiportsCandidatesMap.get(tripItemForOptimization.egressVertiport.ID).tempConcurrentSaturationRates.put(leaveVertiportTimeWindow, vertiportsCandidatesMap.get(tripItemForOptimization.egressVertiport.ID).tempConcurrentSaturationRates.get(leaveVertiportTimeWindow) + tripItemForOptimization.tempUAMProbability / tripItemForOptimization.egressVertiport.capacity);
 
 
 
@@ -549,34 +637,55 @@ public class SimulatedAnnealingForPartD {
                 savedTravelTimeOneTrip=savedTravelTimeOneTrip*2;
             }
 
-            double savedGCAndEmissionOneTrip=beta_savedCost*savedGCOneTrip+beta_savedEmission*savedEmissionOneTrip*CARBON_EQUIVALENCE_FACTOR;
             tripItemForOptimization.tempSavedGeneralizedCosts.add(savedGCOneTrip);
             tripItemForOptimization.tempSavedEmission.add(savedEmissionOneTrip);
             tripItemForOptimization.tempSavedTravelTime.add(savedTravelTimeOneTrip);
     }
 
-    public static void writeAnalysisResult (String outputFileName, List<TripItemForOptimization> tripItems) throws IOException, IOException {
-        CSVWriter writer = new CSVWriter(new FileWriter(outputFileName));
-        String[] header = {"TripID", "HH_income", "Age", "TripPurpose", "UAM probability", "SavedGeneralizedCost","SavedEmission","SavedTravelTime","Access Vertiport ID","Access Travel Time","Access Distance","Access Mode", "Egress Vertiport ID","Egress Travel Time","Egress Distance","Egress Mode"};
+    public static void writeTripBasedAnalysisResult(String outputFileName, List<TripItemForOptimization> tripItems) throws IOException, IOException {
+// Build up a csv writer with no quote character
+        FileWriter fileWriter = new FileWriter(outputFileName);
+
+        // CSVWriter constructor with separator, quote character, and escape character
+        CSVWriter writer = new CSVWriter(fileWriter, CSVWriter.DEFAULT_SEPARATOR, CSVWriter.NO_QUOTE_CHARACTER, CSVWriter.DEFAULT_ESCAPE_CHARACTER, CSVWriter.DEFAULT_LINE_END);
+
+        String[] header = {"TripID", "HH_income", "Age", "TripPurpose", "UAM probability", "Car probability","PT probability", "car_distance","pt_distance", "SavedGeneralizedCost","SavedEmission","SavedTravelTime","Access Vertiport ID","Access Travel Time","Access Distance","Access Mode", "Egress Vertiport ID","Egress Travel Time","Egress Distance","Egress Mode","Flight Distance","Flight Time"};
         writer.writeNext(header);
         for (TripItemForOptimization tripItem : tripItems) {
-            String[] data = {tripItem.tripID, String.valueOf(tripItem.HH_income), };
+            if (tripItem.isUAMAvailable) {
+            double accessModeIndex = tripItem.originNeighborVertiportsTimeAndDistance.get(tripItem.accessVertiport).get("accessMode") ;
+            double egressModeIndex = tripItem.destinationNeighborVertiportsTimeAndDistance.get(tripItem.egressVertiport).get("egressMode") ;
+            String accessMode = accessModeIndex == 0 ? "Walk" : accessModeIndex == 1 ? "Car" : "PT";
+            String egressMode = egressModeIndex == 0 ? "Walk" : egressModeIndex == 1 ? "Car" : "PT";
+            double accessDistance = tripItem.originNeighborVertiportsTimeAndDistance.get(tripItem.accessVertiport).get("distance");
+            double egressDistance = tripItem.destinationNeighborVertiportsTimeAndDistance.get(tripItem.egressVertiport).get("distance");
+            double accessTime = tripItem.originNeighborVertiportsTimeAndDistance.get(tripItem.accessVertiport).get("travelTime");
+            double egressTime = tripItem.destinationNeighborVertiportsTimeAndDistance.get(tripItem.egressVertiport).get("travelTime");
+            double flightDistance= calculateEuciDistance(tripItem.accessVertiport.coord,tripItem.egressVertiport.coord);
+            double flightTime=flightDistance/flightSpeed+takeOffLandingTime;
+            int accessVertiportID = tripItem.accessVertiport.ID;
+            int egressVertiportID = tripItem.egressVertiport.ID;
+            String[] data = {tripItem.tripID, String.valueOf(tripItem.HH_income),String.valueOf(tripItem.age),String.valueOf(tripItem.tripPurpose),String.valueOf(tripItem.uamProbability), String.valueOf(tripItem.carProbability),String.valueOf(tripItem.ptProbability),String.valueOf(tripItem.carTripLength), String.valueOf(tripItem.ptTripLength),String.valueOf(tripItem.savedGeneralizedCost),String.valueOf(tripItem.savedEmission),String.valueOf(tripItem.savedTravelTime),String.valueOf(accessVertiportID),String.valueOf(accessTime),String.valueOf(accessDistance),accessMode,String.valueOf(egressVertiportID),String.valueOf(egressTime),String.valueOf(egressDistance),egressMode,String.valueOf(flightDistance),String.valueOf(flightTime)};
             writer.writeNext(data);
+        }
+        else{
+            String[] data = {tripItem.tripID, String.valueOf(tripItem.HH_income),String.valueOf(tripItem.age),String.valueOf(tripItem.tripPurpose),String.valueOf(0),String.valueOf(tripItem.carProbability),String.valueOf(tripItem.ptProbability),String.valueOf(tripItem.carTripLength), String.valueOf(tripItem.ptTripLength),"NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA"};
+            writer.writeNext(data);
+            }
         }
         writer.close();
     }
-    public static List<List<Integer>> generateNewSolution(Random random, List<Integer> currentSolutionID, List<Vertiport> vertiportsCandidates) {
+    public static List<List<Integer>> generateNewSolution(Random random, List<Integer> currentSolutionID, HashMap<Integer,Vertiport> vertiportsCandidatesMap) {
         List<Integer> newSolutionID = new ArrayList<>(currentSolutionID);
         List<Integer> differenceID = new ArrayList<>();
         List<Integer> notChosenVertiportID = new ArrayList<>();
         List<Integer> saturationVertiportsID = new ArrayList<>();
         List<Integer> notSaturationVertiportsID = new ArrayList<>();
         List<List<Integer>> result = new ArrayList<>();
-        List<Vertiport> newSolution = new ArrayList<>();
 
 
         for (Integer vertiportID : currentSolutionID) {
-            Vertiport vertiport = vertiportsCandidates.get(vertiportID);
+            Vertiport vertiport = vertiportsCandidatesMap.get(vertiportID);
             // calculate the max saturation rate of each vertiport
             if (vertiport.maxSaturationRate > 1) {
                 saturationVertiportsID.add(vertiport.ID);
@@ -585,15 +694,15 @@ public class SimulatedAnnealingForPartD {
             }
         }
 
-        for (Vertiport vertiport : vertiportsCandidates) {
+        for (Vertiport vertiport : vertiportsCandidatesMap.values()) {
             if (!currentSolutionID.contains(vertiport.ID)) {
                 notChosenVertiportID.add(vertiport.ID);
             }
         }
 
         while (!saturationVertiportsID.isEmpty()) {
-            Integer vertiportWithHighestSaturationRateID = selectHighestSaturationVertiport(saturationVertiportsID, vertiportsCandidates);
-            List<Integer> neighborsID = getNeighborsID(vertiportsCandidates.get(vertiportWithHighestSaturationRateID));
+            Integer vertiportWithHighestSaturationRateID = selectHighestSaturationVertiport(saturationVertiportsID, (List<Vertiport>) vertiportsCandidatesMap.values().stream());
+            List<Integer> neighborsID = getNeighborsID(vertiportsCandidatesMap.get(vertiportWithHighestSaturationRateID));
 
             if (!neighborsID.isEmpty() && !currentSolutionID.containsAll(neighborsID) ) { // Check if the neighbors are in the current solution or there is no neighbor
                 Integer newVertiportID = randomSelectExcluding(neighborsID, currentSolutionID, random);
@@ -634,7 +743,6 @@ public class SimulatedAnnealingForPartD {
         List<Integer> saturationVertiportsID = new ArrayList<>();
         List<Integer> notSaturationVertiportsID = new ArrayList<>();
         List<List<Integer>> result = new ArrayList<>();
-        List<Vertiport> newSolution = new ArrayList<>();
         List<Integer> currentSelectedVertiportID= new ArrayList<>();
         for (Vertiport vertiport : alreadySelectedVertiports) {
             alreadySelectedVertiportID.add(vertiport.ID);
@@ -718,8 +826,7 @@ public class SimulatedAnnealingForPartD {
     }
 
     public static double calculateEuciDistance(Coord coord1, Coord coord2) {
-        double euciDistance = Math.sqrt(Math.pow(coord1.getX() - coord2.getX(), 2) + Math.pow(coord1.getY() - coord2.getY(), 2));
-        return euciDistance;
+        return Math.sqrt(Math.pow(coord1.getX() - coord2.getX(), 2) + Math.pow(coord1.getY() - coord2.getY(), 2));
     }
     public static List<TripItemForOptimization> deserializeTripItems(String fileName) {
         List<TripItemForOptimization> tripItemForOptimizations = new ArrayList<>();
@@ -823,7 +930,7 @@ public class SimulatedAnnealingForPartD {
 
         // Group the vertiports by cluster
         for (int i = 0; i < assignments.length; i++) {
-            int clusterId = assignments[i]+1;
+            int clusterId = (assignments[i]+1)*(-1);
             Vertiport vertiport = vertiports.get(i);
             clusters.computeIfAbsent(clusterId, k -> new ArrayList<>()).add(vertiport);
         }
@@ -846,7 +953,7 @@ public class SimulatedAnnealingForPartD {
             double centroidY = sumY / clusterVerts.size();
 
             Vertiport summarizedVertiport = new Vertiport();
-            summarizedVertiport.ID = (clusterId)*(-1);
+            summarizedVertiport.ID = (clusterId);
             summarizedVertiport.capacity = totalCapacity;
             summarizedVertiport.constructionCost = averageCost;
             summarizedVertiport.coord = new Coord(centroidX, centroidY);
@@ -874,7 +981,15 @@ public class SimulatedAnnealingForPartD {
         }
         return clusters;
     }
-
+    public static Map<Integer, List<Vertiport>> saveClusterResultsForExistingVertiports(List<Vertiport> vertiports, int[] assignments) {
+        Map<Integer, List<Vertiport>> clusters = new HashMap<>();
+        for (int i = 0; i < assignments.length; i++) {
+            int clusterId = (assignments[i]+1)*(-1);
+            List<Vertiport> cluster = clusters.computeIfAbsent(clusterId, k -> new ArrayList<>());
+            cluster.add(vertiports.get(i));
+        }
+        return clusters;
+    }
     public static void findVertiportsNeighbours (List<Vertiport> vertiports, double NEIGHBOR_DISTANCE) {
         // clear the neighbours for all vertiports
         for (Vertiport vertiport : vertiports) {

@@ -92,6 +92,8 @@ public class TripItemReaderForOptimization {
 			trip.ptEmission=CAR_EMISSION_FACTOR*trip.ptTripLength/1000;
 			ModeDecider modeDecider = new ModeDecider(-9999, trip.carUtility, trip.ptUtility, car_utility_mean, car_utility_sigma, pt_utility_mean, pt_utility_sigma, new Random(randomSeed));
 		    Double [] probabilities = modeDecider.sample(sampleSize);
+			trip.carProbabilityBefore=probabilities[1];
+			trip.ptProbabilityBefore=probabilities[2];
 			trip.currentGeneralizedCost=trip.carGeneralizedCost*probabilities[1]+trip.ptGeneralizedCost*probabilities[2];
 			trip.currentEmission=trip.carEmission*probabilities[1]+trip.ptEmission*probabilities[2];
 			trip.currentTravelTime=trip.carTravelTime*probabilities[1]+trip.ptTravelTime*probabilities[2];

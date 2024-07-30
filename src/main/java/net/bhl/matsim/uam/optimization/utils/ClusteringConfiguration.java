@@ -19,7 +19,8 @@ public class ClusteringConfiguration {
     public double tolerance;
     public double neighbor_distance;
     public int num_cluster_in_existing_vertiports;
-
+    public String clustering_output_file_candidates;
+    public String clustering_output_file_existing;
     public void buildScenario() {
         // Read clusteringParameters
         try {
@@ -36,11 +37,14 @@ public class ClusteringConfiguration {
         this.tolerance = Double.parseDouble(getTagValue("tolerance", element));
         this.neighbor_distance = Double.parseDouble(getTagValue("neighbor_distance", element));
         this.num_cluster_in_existing_vertiports = Integer.parseInt(getTagValue("num_of_clusters_existing", element));
-    }
+        this.clustering_output_file_candidates = getTagValue("clustering_output_file_candidates", element);
+        this.clustering_output_file_existing = getTagValue("clustering_output_file_existing", element);
+        }
         catch (Exception e) {
             e.printStackTrace();
         }
     }
+
 
     private static String getTagValue(String tag, Element element) {
         NodeList nodeList = element.getElementsByTagName(tag).item(0).getChildNodes();
