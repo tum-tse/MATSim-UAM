@@ -81,13 +81,22 @@ public class TripItemReaderForOptimization {
 			trip.UAMUtilityFix = Double.parseDouble(row[j++]);
 			trip.carGeneralizedCost=Double.parseDouble(row[j++]);
 			trip.ptGeneralizedCost=Double.parseDouble(row[j++]);
-			trip.VOT=Double.parseDouble(row[j++])/2080/3600;
-			trip.HH_income=Double.parseDouble(row[j++]);
-			trip.age=Integer.parseInt(row[j++]);
+			trip.income=Double.parseDouble(row[j++]);
+			trip.VOT=trip.income/2080/3600;
 			if (row[j].contains("auto"))
 				trip.currentMode=0;
 			else
 				trip.currentMode=1;
+			trip.age=Integer.parseInt(row[j++]);
+			trip.carOwnership=Integer.parseInt(row[j++]);
+			trip.hh_id=row[j++];
+			trip.HH_income=Double.parseDouble(row[j++]);
+			trip.gender= Integer.parseInt(row[j++]);
+			trip.relationship= row[j++];
+			trip.occupation=Integer.parseInt(row[j++]);
+			trip.driverLicense= Boolean.parseBoolean(row[j++]);
+			trip.education=Integer.parseInt(row[j++]);
+			trip.autos=Integer.parseInt(row[j]);
 			trip.carEmission=CAR_EMISSION_FACTOR*trip.carTripLength/1000;
 			trip.ptEmission=CAR_EMISSION_FACTOR*trip.ptTripLength/1000;
 			ModeDecider modeDecider = new ModeDecider(-9999, trip.carUtility, trip.ptUtility, car_utility_mean, car_utility_sigma, pt_utility_mean, pt_utility_sigma, new Random(randomSeed));
@@ -97,6 +106,7 @@ public class TripItemReaderForOptimization {
 			trip.currentGeneralizedCost=trip.carGeneralizedCost*probabilities[1]+trip.ptGeneralizedCost*probabilities[2];
 			trip.currentEmission=trip.carEmission*probabilities[1]+trip.ptEmission*probabilities[2];
 			trip.currentTravelTime=trip.carTravelTime*probabilities[1]+trip.ptTravelTime*probabilities[2];
+
 			trips.add(trip);
 		}
 

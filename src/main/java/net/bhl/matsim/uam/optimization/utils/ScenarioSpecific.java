@@ -47,8 +47,7 @@ public class ScenarioSpecific {
     public String outputVertiportFile;
     public String outputTripBasedIndicatorFile;
     public String outputVertiportBasedIndicatorFile;
-
-
+    public double wait_area_demand_factor;
 
 
     public void buildScenario() {
@@ -97,6 +96,7 @@ public class ScenarioSpecific {
             this.outputTripBasedIndicatorFile = getTagValue("output_trip_indicators_file", scenarioSpecific);
             this.outputVertiportFile = getTagValue("output_vertiports_file", scenarioSpecific);
             this.outputVertiportBasedIndicatorFile = getTagValue("output_vertiport_indicators_file", scenarioSpecific);
+            this.wait_area_demand_factor = Double.parseDouble(getTagValue("wait_area_demand_factor", scenarioSpecific));
         } catch (Exception e) {
             e.printStackTrace();
         }

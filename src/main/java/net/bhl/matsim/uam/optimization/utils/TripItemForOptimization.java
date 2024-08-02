@@ -70,12 +70,16 @@ public class TripItemForOptimization implements java.io.Serializable{
 
 	public double distance;
 	public double accessTime;
+	public double tempAccessTime;
 	public double flightTime;
+	public double tempFlightTime;
 	public double egressTime;
+	public double tempEgressTime;
 	public double processTime;
 	public String accessMode;
+	public String tempAccessMode;
 	public String egressMode;
-
+	public String tempEgressMode;
 	public String mode;
 	public double carUtility;
 	public double ptUtility;
@@ -93,6 +97,8 @@ public class TripItemForOptimization implements java.io.Serializable{
 	public HashMap<Vertiport,HashMap<String,Double>> destinationNeighborVertiportsTimeAndDistance=new HashMap<>();
 	public Vertiport accessVertiport;
 	public Vertiport egressVertiport;
+	public Vertiport tempAccessVertiport;
+	public Vertiport tempEgressVertiport;
 	public double HH_income;
 	public int age;
 	public double carProbabilityBefore;
@@ -101,6 +107,20 @@ public class TripItemForOptimization implements java.io.Serializable{
 	public double tempPTProbability;
 	public double tempUAMProbability;
 	public boolean tempIsUAMAvailable;
-
+	public double tempUamTravelTime;
+	public double tempUAMCost;
+	public double tempUamEmission;
+	public double tempUAMGeneralizedCost;
+	public double tempUAMUtilityVar;
+	public double tempUamUtility;
+    public int carOwnership;
+	public String hh_id;
+	public int gender;
+	public String relationship;
+	public int occupation;
+	public int education;
+	public boolean driverLicense;
+	public double income;
+	public int autos;
 
 }

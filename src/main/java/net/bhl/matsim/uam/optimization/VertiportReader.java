@@ -5,7 +5,6 @@ import org.matsim.contrib.util.CSVReaders;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 
 public class VertiportReader {
@@ -18,7 +17,7 @@ public class VertiportReader {
             Vertiport vertiport = new Vertiport();
             vertiport.ID = Integer.parseInt(row[j++]);
             vertiport.coord = new Coord(Double.parseDouble(row[j++]), Double.parseDouble(row[j++]));
-            vertiport.capacity = Integer.parseInt(row[j]);
+            vertiport.totalCapacity = Integer.parseInt(row[j]);
             vertiports.add(vertiport);
         }
         return vertiports;
@@ -33,7 +32,7 @@ public class VertiportReader {
             Vertiport vertiport = new Vertiport();
             vertiport.ID = Integer.parseInt(row[j++]);
             vertiport.coord = new Coord(Double.parseDouble(row[j++]), Double.parseDouble(row[j++]));
-            vertiport.capacity = Integer.parseInt(row[j++]);
+            vertiport.totalCapacity = Integer.parseInt(row[j++]);
             vertiport.constructionCost = Double.parseDouble(row[j]);
             for (int i = 0; i < 24; i++) {
                 vertiport.saturationRates.put(i, 0.0);
