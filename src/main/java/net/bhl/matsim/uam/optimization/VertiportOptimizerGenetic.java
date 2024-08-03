@@ -1,9 +1,9 @@
 package net.bhl.matsim.uam.optimization;
 
 import com.opencsv.CSVWriter;
-import net.bhl.matsim.uam.optimization.utils.TripItemForOptimization;
 import net.bhl.matsim.uam.heuristic.Chromosome;
 import net.bhl.matsim.uam.heuristic.Population;
+import net.bhl.matsim.uam.optimization.utils.TripItemForOptimization;
 import org.apache.log4j.Logger;
 import org.matsim.api.core.v01.Coord;
 
