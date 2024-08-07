@@ -422,7 +422,7 @@ public class SimulatedAnnealingForPartD {
         double totalConstructionCost = 0;
         HashMap<Integer,List<Integer>> requiredAndAchievedCapacityMapForCandidates = new HashMap<>();
         for (Vertiport selectedClusteredVertiport : selectedClusteredVertiports) {
-                HashMap<List<Vertiport>,HashMap<Integer,Double>> subSelectedVertiportsAndCost = findMinimumCostVertiports(clusterResults.get(selectedClusteredVertiport.ID), (int) (selectedClusteredVertiport.totalCapacity *selectedClusteredVertiport.maxSaturationRate)+1);
+                HashMap<List<Vertiport>,HashMap<Integer,Double>> subSelectedVertiportsAndCost = findMinimumCostVertiportUnits(clusterResults.get(selectedClusteredVertiport.ID), (int) (selectedClusteredVertiport.totalCapacity *selectedClusteredVertiport.maxSaturationRate)+1);
                 finalSelectedVertiportsUnits.addAll(subSelectedVertiportsAndCost.entrySet().iterator().next().getKey());
                 totalConstructionCost += subSelectedVertiportsAndCost.entrySet().iterator().next().getValue().values().iterator().next();
                 List<Integer> requiredAndAchievedCapacity = new ArrayList<>();
@@ -491,7 +491,8 @@ public class SimulatedAnnealingForPartD {
         writeTripBasedAnalysisResult(scenarioSpecific.outputTripBasedIndicatorFile,tripItems);
     }
 
-    public static HashMap<List<Vertiport>, HashMap<Integer,Double>> findMinimumCostVertiports(List<Vertiport> vertiportsUnits, int requiredCapacity) {
+    public static HashMap<List<Vertiport>, HashMap<Integer,Double>> findMinimumCostVertiportUnits(List<Vertiport> vertiportsUnits, int requiredCapacity) {
+        log.info("Start finding the minimum cost vertiport units...");
         int totalCapacity = vertiportsUnits.stream().mapToInt(v -> v.totalCapacity).sum();
 
         // If the total capacity is less than the required capacity, return all vertiports
@@ -545,7 +546,7 @@ public class SimulatedAnnealingForPartD {
         HashMap<Integer,Double> capacityAndCost = new HashMap<>();
         capacityAndCost.put(minCapacityAchieved, dp[minCapacityAchieved]);
         result.put(selectedVertiportsUnits, capacityAndCost);
-
+        log.info("Finished finding the minimum cost vertiport units.");
         return result;
     }
 
@@ -648,7 +649,7 @@ public class SimulatedAnnealingForPartD {
             double requiredCapacity=vertiport.tempWaitingAreaCapacity+ maxDemandInTimeWindow;
             if(vertiportID>0) {
             List<Vertiport> vertiportUnits = savedClusterResults.get(vertiportID);
-            HashMap<List<Vertiport>,HashMap<Integer,Double>> result=findMinimumCostVertiports(vertiportUnits, (int) requiredCapacity+1);
+            HashMap<List<Vertiport>,HashMap<Integer,Double>> result= findMinimumCostVertiportUnits(vertiportUnits, (int) requiredCapacity+1);
             totalConstructionCost+=result.values().iterator().next().values().iterator().next();
             currentSelectedVertiportUnits.addAll(result.keySet().iterator().next());}
         }
