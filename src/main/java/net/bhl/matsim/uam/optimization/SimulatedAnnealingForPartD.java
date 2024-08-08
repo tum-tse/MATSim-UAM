@@ -422,7 +422,7 @@ public class SimulatedAnnealingForPartD {
         double totalConstructionCost = 0;
         HashMap<Integer,List<Integer>> requiredAndAchievedCapacityMapForCandidates = new HashMap<>();
         for (Vertiport selectedClusteredVertiport : selectedClusteredVertiports) {
-                HashMap<List<Vertiport>,HashMap<Integer,Double>> subSelectedVertiportsAndCost = findMinimumCostVertiportUnits(clusterResults.get(selectedClusteredVertiport.ID), (int) (selectedClusteredVertiport.totalCapacity *selectedClusteredVertiport.maxSaturationRate)+1);
+                HashMap<List<Vertiport>,HashMap<Integer,Double>> subSelectedVertiportsAndCost = findMinimumCostVertiportUnitsGRD(clusterResults.get(selectedClusteredVertiport.ID), (int) (selectedClusteredVertiport.totalCapacity *selectedClusteredVertiport.maxSaturationRate)+1);
                 finalSelectedVertiportsUnits.addAll(subSelectedVertiportsAndCost.entrySet().iterator().next().getKey());
                 totalConstructionCost += subSelectedVertiportsAndCost.entrySet().iterator().next().getValue().values().iterator().next();
                 List<Integer> requiredAndAchievedCapacity = new ArrayList<>();
@@ -491,7 +491,7 @@ public class SimulatedAnnealingForPartD {
         writeTripBasedAnalysisResult(scenarioSpecific.outputTripBasedIndicatorFile,tripItems);
     }
 
-    public static HashMap<List<Vertiport>, HashMap<Integer,Double>> findMinimumCostVertiportUnits(List<Vertiport> vertiportsUnits, int requiredCapacity) {
+    public static HashMap<List<Vertiport>, HashMap<Integer,Double>> findMinimumCostVertiportUnitsDP(List<Vertiport> vertiportsUnits, int requiredCapacity) {
         log.info("Start finding the minimum cost vertiport units...");
         int totalCapacity = vertiportsUnits.stream().mapToInt(v -> v.totalCapacity).sum();
 
@@ -549,7 +549,41 @@ public class SimulatedAnnealingForPartD {
         log.info("Finished finding the minimum cost vertiport units.");
         return result;
     }
+    public static HashMap<List<Vertiport>, HashMap<Integer, Double>> findMinimumCostVertiportUnitsGRD(List<Vertiport> vertiportsUnits, int requiredCapacity) {
+        int totalCapacity = vertiportsUnits.stream().mapToInt(v -> v.totalCapacity).sum();
 
+        // if the total capacity is less than the required capacity, return all vertiports
+        if (requiredCapacity > totalCapacity) {
+            HashMap<List<Vertiport>, HashMap<Integer, Double>> result = new HashMap<>();
+            HashMap<Integer, Double> capacityAndCost = new HashMap<>();
+            double totalCost = vertiportsUnits.stream().mapToDouble(v -> v.constructionCost).sum();
+            capacityAndCost.put(totalCapacity, totalCost);
+            result.put(new ArrayList<>(vertiportsUnits), capacityAndCost);
+            return result;
+        }
+
+        // sort the vertiports by the construction cost per capacity
+        Collections.sort(vertiportsUnits, Comparator.comparingDouble(v -> v.constructionCost / v.totalCapacity));
+
+        List<Vertiport> selectedVertiports = new ArrayList<>();
+        double totalCost = 0;
+        int currentCapacity = 0;
+
+        for (Vertiport v : vertiportsUnits) {
+            if (currentCapacity >= requiredCapacity) {
+                break;
+            }
+            selectedVertiports.add(v);
+            totalCost += v.constructionCost;
+            currentCapacity += v.totalCapacity;
+        }
+
+        HashMap<List<Vertiport>, HashMap<Integer, Double>> result = new HashMap<>();
+        HashMap<Integer, Double> capacityAndCost = new HashMap<>();
+        capacityAndCost.put(currentCapacity, totalCost);
+        result.put(selectedVertiports, capacityAndCost);
+        return result;
+    }
     public static List<Integer> generateRandomSolution(Random random,HashMap<Integer, Vertiport> clusteredVertiportCandidatesMap, int numOfSelectedVertiports) {
 
       List<Integer> selectedVertiportsID = new ArrayList<>();
@@ -649,7 +683,7 @@ public class SimulatedAnnealingForPartD {
             double requiredCapacity=vertiport.tempWaitingAreaCapacity+ maxDemandInTimeWindow;
             if(vertiportID>0) {
             List<Vertiport> vertiportUnits = savedClusterResults.get(vertiportID);
-            HashMap<List<Vertiport>,HashMap<Integer,Double>> result= findMinimumCostVertiportUnits(vertiportUnits, (int) requiredCapacity+1);
+            HashMap<List<Vertiport>,HashMap<Integer,Double>> result= findMinimumCostVertiportUnitsGRD(vertiportUnits, (int) requiredCapacity+1);
             totalConstructionCost+=result.values().iterator().next().values().iterator().next();
             currentSelectedVertiportUnits.addAll(result.keySet().iterator().next());}
         }
