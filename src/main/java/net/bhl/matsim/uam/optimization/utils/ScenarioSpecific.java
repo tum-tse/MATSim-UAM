@@ -13,8 +13,9 @@ public class ScenarioSpecific {
     public  String scenarioConfigurationFile;
     public  boolean incrementaSiting;
     public  String existingVertiportFile;
-    public long random_seed;
-    public int num_of_clusters_in_existing_vertiports;
+    public long random_seed_PS; // random seed for population sampling
+    public double population_sampling_factor;
+    public long random_seed_RT; // random seed for remaining tasks
     public int num_of_selected_vertiports;
     public double flight_speed;
     public double uam_process_time;
@@ -39,7 +40,7 @@ public class ScenarioSpecific {
     public double beta_savedEmission; // the parameter of saved emission in objective function
     public double scale_factor_utility;
     public double neighbouring_distance;
-    public int sampleSize;
+    public int MonteCarlosampleSize;
     public double car_utility_mean;
     public double car_utility_sigma;
     public double pt_utility_mean;
@@ -85,8 +86,10 @@ public class ScenarioSpecific {
             this.beta_savedEmission = Double.parseDouble(getTagValue("beta_savedEmission", scenarioSpecific));
             this.scale_factor_utility = Double.parseDouble(getTagValue("scale_factor_utility", scenarioSpecific));
             this.neighbouring_distance = Double.parseDouble(getTagValue("neighbouring_distance", scenarioSpecific));
-            this.random_seed = Long.parseLong(getTagValue("random_seed", scenarioSpecific));
-            this.sampleSize = Integer.parseInt(getTagValue("sample_size", scenarioSpecific));
+            this.random_seed_RT = Long.parseLong(getTagValue("random_seed_RT", scenarioSpecific));
+            this.random_seed_PS = Long.parseLong(getTagValue("random_seed_PS", scenarioSpecific));
+            this.population_sampling_factor = Double.parseDouble(getTagValue("population_sampling_factor", scenarioSpecific));
+            this.MonteCarlosampleSize = Integer.parseInt(getTagValue("Monte_carlo_sample_size", scenarioSpecific));
             this.car_utility_mean = Double.parseDouble(getTagValue("car_utility_mean", scenarioSpecific));
             this.car_utility_sigma = Double.parseDouble(getTagValue("car_utility_sigma", scenarioSpecific));
             this.pt_utility_mean = Double.parseDouble(getTagValue("pt_utility_mean", scenarioSpecific));

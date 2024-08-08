@@ -29,8 +29,8 @@ public class TripItemReaderForOptimization {
 		car_utility_sigma = scenarioSpecific.car_utility_sigma;
 		pt_utility_mean = scenarioSpecific.pt_utility_mean;
 		pt_utility_sigma = scenarioSpecific.pt_utility_sigma;
-		randomSeed = scenarioSpecific.random_seed;
-		sampleSize = scenarioSpecific.sampleSize;
+		randomSeed = scenarioSpecific.random_seed_RT;
+		sampleSize = scenarioSpecific.MonteCarlosampleSize;
 	}
 
 	public TripItemReaderForOptimization() {
