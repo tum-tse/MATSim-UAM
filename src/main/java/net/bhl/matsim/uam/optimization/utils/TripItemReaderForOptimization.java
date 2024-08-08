@@ -29,8 +29,8 @@ public class TripItemReaderForOptimization {
 		car_utility_sigma = scenarioSpecific.car_utility_sigma;
 		pt_utility_mean = scenarioSpecific.pt_utility_mean;
 		pt_utility_sigma = scenarioSpecific.pt_utility_sigma;
-		randomSeed = scenarioSpecific.random_seed;
-		sampleSize = scenarioSpecific.sampleSize;
+		randomSeed = scenarioSpecific.random_seed_RT;
+		sampleSize = scenarioSpecific.MonteCarlosampleSize;
 	}
 
 	public TripItemReaderForOptimization() {
@@ -83,7 +83,9 @@ public class TripItemReaderForOptimization {
 			trip.ptGeneralizedCost=Double.parseDouble(row[j++]);
 			trip.income=Double.parseDouble(row[j++]);
 			trip.VOT=trip.income/2080/3600;
-			if (row[j].contains("auto"))
+			trip.VOT_Less_Than_50km=Double.parseDouble(row[j++]);
+			trip.VOT_More_Than_50km=Double.parseDouble(row[j++]);
+			if (row[j++].contains("auto"))
 				trip.currentMode=0;
 			else
 				trip.currentMode=1;

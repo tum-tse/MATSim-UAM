@@ -21,6 +21,8 @@ public class TripItemForOptimization implements java.io.Serializable{
 	public double UAMUtilityVar;
 	public double uamTravelTime;
 	public double VOT;
+	public double VOT_Less_Than_50km;
+	public double VOT_More_Than_50km;
 
 	public double savedGeneralizedCost;
 	public List<Double> tempSavedGeneralizedCosts=new ArrayList<>();

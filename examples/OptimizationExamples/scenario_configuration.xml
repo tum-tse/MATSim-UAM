@@ -2,17 +2,17 @@
 <configurations>
    <scenarioSpecific>
        <!-- Incremental siting or not -->
-       <incremental_siting>true</incremental_siting>
+       <incremental_siting>false</incremental_siting>
 
        <!-- Input file of already selected vertiport, set as null of not incremental siting. Use absolute path or relative path to the main java class, no quotation mark -->
-       <existing_vertiports_file>E:\OneDrive - TUM\MasterArbeit\OptimizingUAMVertiport\examples\OptimizationExamples\selected_vertiports_units.csv</existing_vertiports_file>
+       <existing_vertiports_file>examples/OptimizationExamples/selected_vertiports_units.csv</existing_vertiports_file>
 
        <!-- Output file of selected vertiport. Use absolute path or relative path to the main java class, no quotation mark -->
-       <output_vertiports_file>E:\OneDrive - TUM\MasterArbeit\OptimizingUAMVertiport\examples\OptimizationExamples\output_vertiports_units.csv</output_vertiports_file>
+       <output_vertiports_file>examples/OptimizationExamples/output_vertiports_units.csv</output_vertiports_file>
 
        <!-- Output file of indicator for analysis. Use absolute path or relative path to the main java class, no quotation mark -->
-       <output_trip_indicators_file>E:\OneDrive - TUM\MasterArbeit\OptimizingUAMVertiport\examples\OptimizationExamples\output_trip_indicators.csv</output_trip_indicators_file>
-       <output_vertiport_indicators_file>E:\OneDrive - TUM\MasterArbeit\OptimizingUAMVertiport\examples\OptimizationExamples\output_vertiport_indicators.csv</output_vertiport_indicators_file>
+       <output_trip_indicators_file>examples/OptimizationExamples/output_trip_indicators.csv</output_trip_indicators_file>
+       <output_vertiport_indicators_file>examples/OptimizationExamples/output_vertiport_indicators.csv</output_vertiport_indicators_file>
        <!-- Number of selected vertiports (In hierachical vertiport siting optimization, it is the number of selected clusters. In incremental siting, it is the new selected clusters in this stage.) -->
        <num_of_selected_vertiports>50</num_of_selected_vertiports>
 
@@ -23,10 +23,16 @@
        <neighbouring_distance>5000</neighbouring_distance>
       
        <!-- Sample Size: number of Monte Carlo Scenarios  -->
-       <sample_size>100</sample_size>
+       <Monte_carlo_sample_size>100</Monte_carlo_sample_size>
 
-       <!-- Random Seed  -->
-       <random_seed>42</random_seed>
+       <!-- Random seed for population sampling -->
+       <random_seed_PS>42</random_seed_PS>
+
+       <!-- Random seed for remaing tasks -->
+       <random_seed_RT>1945</random_seed_RT>
+
+       <!-- Factor of population sampling, e.g. 0.01, 0.05 -->
+      <population_sampling_factor>1</population_sampling_factor>
 
        <!-- Fixed cost of UAM (EURO) -->
        <uam_fix_cost>6.1</uam_fix_cost>
@@ -35,7 +41,7 @@
        <uam_km_cost>0.6</uam_km_cost>
 
        <!-- Cost per kilometer for car (EURO/km)-->
-       <car_km_cost>0.5</car_km_cost>
+       <car_km_cost>0.43</car_km_cost>
 
        <!-- Cost for public transportation per trip (EURO/trip)-->
        <pt_cost>0.51</pt_cost>
@@ -53,7 +59,7 @@
        <uam_wait_time>5.0</uam_wait_time>
 
        <!-- UAM vehicle charge time in minutes -->
-       <uam_charge_time>5.0</uam_charge_time>
+       <uam_charge_time>0.0</uam_charge_time>
 
        <!-- Time for vertical speed in m/s -->
        <uam_vertical_speed>10.0</uam_vertical_speed>
@@ -121,7 +127,7 @@
        <annealing_rate>0.999</annealing_rate>
 
        <!-- Maximum number of iterations -->
-       <max_iteration>100</max_iteration>
+       <max_iteration>50</max_iteration>
 
        <!-- Maximum count of iterations without change -->
        <max_not_change_count>2000</max_not_change_count>
@@ -143,7 +149,7 @@
         <!-- Number of clusters of existing vertiport in Kmeans, it is the selected cluster from the initial run. -->
        <num_of_clusters_existing>50</num_of_clusters_existing>
        <!-- Number of iterations for clustering algorithm -->
-       <num_of_cluster_iterations>1000</num_of_cluster_iterations>
+       <num_of_cluster_iterations>10000</num_of_cluster_iterations>
        <!-- Tolerance for clustering convergence -->
        <tolerance>0.01</tolerance>
         <!-- Results of candidate clustering -->
