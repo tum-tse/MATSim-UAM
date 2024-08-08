@@ -815,7 +815,12 @@ else {
                         egressEmisson=egressDistance/1000*PT_EMISSION_FACTOR;
                     }
                     double UAMTotalCost=accessCost+egressCost+flightCost;
-                    double UAMTotalGC= UAMTotalCost+uamTravelTime* tripItemForOptimization.VOT;
+                    double UAMTotalGC = 0;
+                    if (accessDistance+egressDistance+flightDistance>50000)  {
+                        UAMTotalGC= UAMTotalCost+uamTravelTime* tripItemForOptimization.VOT_More_Than_50km; }
+                    else {
+                        UAMTotalGC= UAMTotalCost+uamTravelTime* tripItemForOptimization.VOT_Less_Than_50km;
+                    }
                     double UAMTotalEmission=accessEmisson+egressEmisson+flightEmission;
                     double UAMTotalGCAndEmission=beta_savedCost*UAMTotalGC+beta_savedEmission*UAMTotalEmission*CARBON_EQUIVALENCE_FACTOR; // Already convert to monetary unit
 
