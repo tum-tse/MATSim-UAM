@@ -199,10 +199,9 @@ public class SimulatedAnnealingForPartD {
         log.info("Finished loading the trips.");
 
         // Pre-calculate the access and egress time and distance for each vertiport candidate of each trip
-        log.info("Start pre-calculating the access and egress time and distance for each vertiport candidate of each trip...");
+
         AccessEgressCostCalculator accessEgressCostCalculator = new AccessEgressCostCalculator(tripItems, clusteredAllVertiports, config, scenarioSpecific);
         accessEgressCostCalculator.calculateAccessEgressCost();
-        log.info("Finished pre-calculating the access and egress time and distance for each vertiport candidate of each trip.");
 
         // Initialize the UAM enabled trips and UAM utility
         log.info("Start the simulated annealing algorithm...");
@@ -280,11 +279,11 @@ public class SimulatedAnnealingForPartD {
 
 
                 for (Integer vertiportID : currentSolutionID) {
-                    if (clusteredVertiportCandidates.get(vertiportID).maxSaturationRate > 1) {
+                    if (clusteredVertiportCandidatesMap.get(vertiportID).maxSaturationRate > 1) {
                         saturatedVertiportCount++;
                     }
-                    if (clusteredVertiportCandidates.get(vertiportID).maxSaturationRate > maxSaturationRate) {
-                        maxSaturationRate = clusteredVertiportCandidates.get(vertiportID).maxSaturationRate;
+                    if (clusteredVertiportCandidatesMap.get(vertiportID).maxSaturationRate > maxSaturationRate) {
+                        maxSaturationRate = clusteredVertiportCandidatesMap.get(vertiportID).maxSaturationRate;
                     }
                 }
                 log.info("Initial Solution: " + currentSolutionID + " Initial Energy: " + currentEnergey + " Saturated Vertiport Count: " + saturatedVertiportCount + " Max Saturation Rate: " + maxSaturationRate);
@@ -421,6 +420,7 @@ public class SimulatedAnnealingForPartD {
         List<Vertiport> finalSelectedVertiportsUnits = new ArrayList<>();
         double totalConstructionCost = 0;
         HashMap<Integer,List<Integer>> requiredAndAchievedCapacityMapForCandidates = new HashMap<>();
+        log.info("Start the second phase: select the optimal vertiports from each cluster.");
         for (Vertiport selectedClusteredVertiport : selectedClusteredVertiports) {
                 HashMap<List<Vertiport>,HashMap<Integer,Double>> subSelectedVertiportsAndCost = findMinimumCostVertiportUnitsGRD(clusterResults.get(selectedClusteredVertiport.ID), (int) (selectedClusteredVertiport.totalCapacity *selectedClusteredVertiport.maxSaturationRate)+1);
                 finalSelectedVertiportsUnits.addAll(subSelectedVertiportsAndCost.entrySet().iterator().next().getKey());
@@ -430,6 +430,7 @@ public class SimulatedAnnealingForPartD {
                 requiredAndAchievedCapacity.add(subSelectedVertiportsAndCost.entrySet().iterator().next().getValue().entrySet().iterator().next().getKey());
                 requiredAndAchievedCapacityMapForCandidates.put(selectedClusteredVertiport.ID, requiredAndAchievedCapacity);
         }
+        log.info("Finished the second phase: select the optimal vertiports from each cluster.");
         /*
         HashMap<Integer,List<Integer>> requiredAndAchievedCapacityMapForExisting = new HashMap<>();
         if(incrementalSiting){
@@ -551,7 +552,6 @@ public class SimulatedAnnealingForPartD {
     }
     public static HashMap<List<Vertiport>, HashMap<Integer, Double>> findMinimumCostVertiportUnitsGRD(List<Vertiport> vertiportsUnits, int requiredCapacity) {
         int totalCapacity = vertiportsUnits.stream().mapToInt(v -> v.totalCapacity).sum();
-
         // if the total capacity is less than the required capacity, return all vertiports
         if (requiredCapacity > totalCapacity) {
             HashMap<List<Vertiport>, HashMap<Integer, Double>> result = new HashMap<>();
@@ -653,9 +653,7 @@ public class SimulatedAnnealingForPartD {
         List<Vertiport> currentSelectedVertiportUnits = new ArrayList<>();
         // Update the tempMaxSaturationRate for each vertiport
         for (int vertiportID : chosenAndExistingClusteredVertiportsID) {
-            if(vertiportID<0){
-      //         log.info("The vertiport ID is less than 0");
-            }
+
             Vertiport vertiport = clusteredAllVertiportMap.get(vertiportID);
             vertiport.tempMaxSaturationRate = 0;
             double maxDemandInTimeWindow=0;
@@ -681,7 +679,7 @@ public class SimulatedAnnealingForPartD {
                 vertiport.tempMaxSaturationRate = Double.MAX_VALUE;
             }
             double requiredCapacity=vertiport.tempWaitingAreaCapacity+ maxDemandInTimeWindow;
-            if(vertiportID>0) {
+            if(vertiportID>0) { // if the vertiport is not the existing vertiport
             List<Vertiport> vertiportUnits = savedClusterResults.get(vertiportID);
             HashMap<List<Vertiport>,HashMap<Integer,Double>> result= findMinimumCostVertiportUnitsGRD(vertiportUnits, (int) requiredCapacity+1);
             totalConstructionCost+=result.values().iterator().next().values().iterator().next();
