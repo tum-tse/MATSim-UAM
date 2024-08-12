@@ -498,7 +498,7 @@ if (NUM_OF_SELECTED_CLUSTERED_VERTIPORTS>0) {
 
         // Write out the required and achieved capacity for each vertiport cluster
         CSVWriter requiredAndAchievedWriter = new CSVWriter(new FileWriter(scenarioSpecific.outputVertiportBasedIndicatorFile),CSVWriter.DEFAULT_SEPARATOR, CSVWriter.NO_QUOTE_CHARACTER, CSVWriter.DEFAULT_ESCAPE_CHARACTER, CSVWriter.DEFAULT_LINE_END);
-        String[] requiredAndAchievedHeader = {"ClusterID", "TotalDemandInSimulationHours", "Maximum15-MinuteDemand", "RequiredWaitingAreaCapacity","AchievedCapacity"};
+        String[] requiredAndAchievedHeader = {"ClusterID", "TotalDemandInSimulationHours", "MaximumHourlyDemand", "RequiredWaitingAreaCapacity","AchievedCapacity"};
         requiredAndAchievedWriter.writeNext(requiredAndAchievedHeader);
         for (Map.Entry<Integer, List<Integer>> entry : requiredAndAchievedCapacityMapForCandidates.entrySet()) {
             String[] data = {String.valueOf(entry.getKey()), String.valueOf((int)(clusteredAllVertiportsMap.get(entry.getKey()).totalDemand)+1),String.valueOf((clusteredAllVertiportsMap.get(entry.getKey()).maxHourlyDemand)),String.valueOf(clusteredAllVertiportsMap.get(entry.getKey()).waitingAreaCapacity), String.valueOf(entry.getValue().get(1))};
@@ -549,7 +549,7 @@ else {
     log.info("No vertiport is selected");
     // Write out the required and achieved capacity for each vertiport cluster
     CSVWriter requiredAndAchievedWriter = new CSVWriter(new FileWriter(scenarioSpecific.outputVertiportBasedIndicatorFile),CSVWriter.DEFAULT_SEPARATOR, CSVWriter.NO_QUOTE_CHARACTER, CSVWriter.DEFAULT_ESCAPE_CHARACTER, CSVWriter.DEFAULT_LINE_END);
-    String[] requiredAndAchievedHeader = {"ClusterID", "TotalDemandInSimulationHours", "Maximum15-MinuteDemand", "RequiredWaitingAreaCapacity","AchievedCapacity"};
+    String[] requiredAndAchievedHeader = {"ClusterID", "TotalDemandInSimulationHours", "MaximumHourlyDemand", "RequiredWaitingAreaCapacity","AchievedCapacity"};
     requiredAndAchievedWriter.writeNext(requiredAndAchievedHeader);
     for (Vertiport clusteredVertiport : clusteredExistingVertiports) {
         String[] data = {String.valueOf(clusteredVertiport.ID), String.valueOf((int)(clusteredVertiport.totalDemand)+1),String.valueOf(clusteredVertiport.maxHourlyDemand),String.valueOf(clusteredVertiport.waitingAreaCapacity), String.valueOf(clusteredVertiport.totalCapacity)};
