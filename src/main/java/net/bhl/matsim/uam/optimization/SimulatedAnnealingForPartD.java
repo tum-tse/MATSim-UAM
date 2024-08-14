@@ -29,6 +29,7 @@ public class SimulatedAnnealingForPartD {
     public static String vertiportUnitsCandidateFile;
     public static double flightSpeed; // m/s
     public static double UAM_PROCESS_TIME; // s
+    public static double UAM_CRUISE_ALTITUDE; // m
     public static double takeOffLandingTime; // s
     public static int NUM_OF_SELECTED_CLUSTERED_VERTIPORTS; // In hierarchical clustering, the number of selected vertiports is the number of clusters
     private static double UAM_FIX_COST;
@@ -46,7 +47,8 @@ public class SimulatedAnnealingForPartD {
     public static double pt_utility_sigma;
     public static double CAR_EMISSION_FACTOR; // kg/km
     public static double PT_EMISSION_FACTOR; // kg/km
-    public static double UAM_EMISSION_FACTOR; // kg/km
+    public static double UAM_EMISSION_FACTOR_HORIZONTAL; // kg/km
+    public static double UAM_EMISSION_FACTOR_VERTICAL; // kg/m
     public static double CARBON_EQUIVALENCE_FACTOR; // Euro/kgCO2
     private static int SIMULATION_HOURS;
     public static String configPath;
@@ -87,10 +89,12 @@ public class SimulatedAnnealingForPartD {
         flightSpeed = scenarioSpecific.flight_speed;
         UAM_PROCESS_TIME = scenarioSpecific.uam_process_time;
         takeOffLandingTime = scenarioSpecific.uam_take_off_landing_time;
+        UAM_CRUISE_ALTITUDE = scenarioSpecific.uam_cruise_altitude;
         considerReturnTrip = scenarioSpecific.consider_return_trip;
         CAR_EMISSION_FACTOR = scenarioSpecific.car_emission_factor;
         PT_EMISSION_FACTOR = scenarioSpecific.pt_emission_factor;
-        UAM_EMISSION_FACTOR = scenarioSpecific.uam_emission_factor;
+        UAM_EMISSION_FACTOR_HORIZONTAL = scenarioSpecific.uam_emission_factor_horizontal;
+        UAM_EMISSION_FACTOR_VERTICAL = scenarioSpecific.uam_emission_factor_vertical;
         SIMULATION_HOURS = scenarioSpecific.simulation_hours;
         CARBON_EQUIVALENCE_FACTOR = scenarioSpecific.carbon_equivalent_cost;
         RANDOM_SEED_RT =  scenarioSpecific.random_seed_RT;
@@ -476,7 +480,11 @@ if (NUM_OF_SELECTED_CLUSTERED_VERTIPORTS>0) {
     HashMap<Integer, List<Integer>> requiredAndAchievedCapacityMapForCandidates = new HashMap<>();
     log.info("Start the second phase: select the optimal vertiports from each cluster.");
     for (Vertiport selectedClusteredVertiport : selectedClusteredVertiports) {
-        HashMap<List<Vertiport>, HashMap<Integer, Double>> subSelectedVertiportsAndCost = findMinimumCostVertiportUnitsGRD(clusterResults.get(selectedClusteredVertiport.ID), (int) (selectedClusteredVertiport.totalCapacity * selectedClusteredVertiport.maxSaturationRate) + 1);
+        HashMap<List<Vertiport>, HashMap<Integer, Double>> subSelectedVertiportsAndCost = new HashMap<>();
+        if (clusterResults.get(selectedClusteredVertiport.ID).size() > 1) {
+               subSelectedVertiportsAndCost = findMinimumCostVertiportUnitsGRD(clusterResults.get(selectedClusteredVertiport.ID), (int) (selectedClusteredVertiport.totalCapacity * selectedClusteredVertiport.maxSaturationRate) + 1); }
+        else {
+               subSelectedVertiportsAndCost = findMinimumCostVertiportUnitsDP(clusterResults.get(selectedClusteredVertiport.ID), (int) (selectedClusteredVertiport.totalCapacity * selectedClusteredVertiport.maxSaturationRate) + 1); }
         finalSelectedVertiportsUnits.addAll(subSelectedVertiportsAndCost.entrySet().iterator().next().getKey());
         totalConstructionCost += subSelectedVertiportsAndCost.entrySet().iterator().next().getValue().values().iterator().next();
         List<Integer> requiredAndAchievedCapacity = new ArrayList<>();
@@ -759,7 +767,12 @@ else {
             double requiredCapacity=vertiport.tempWaitingAreaCapacity+ maxDemandInTimeWindow;
             if(vertiportID>0) { // if the vertiport is not the existing vertiport
             List<Vertiport> vertiportUnits = savedClusterResults.get(vertiportID);
-            HashMap<List<Vertiport>,HashMap<Integer,Double>> result= findMinimumCostVertiportUnitsGRD(vertiportUnits, (int) requiredCapacity+1);
+            HashMap<List<Vertiport>,HashMap<Integer,Double>> result = new HashMap<>();
+            if (vertiportUnits.size()>1) {
+                    result = findMinimumCostVertiportUnitsGRD(vertiportUnits, (int) requiredCapacity+1); }
+            else {
+                    result = findMinimumCostVertiportUnitsDP(vertiportUnits, (int) requiredCapacity+1);
+            }
             totalConstructionCost+=result.values().iterator().next().values().iterator().next();
             currentSelectedVertiportUnits.addAll(result.keySet().iterator().next());}
         }
@@ -795,7 +808,7 @@ else {
                     double egressEmisson =0;
                     double flightDistance= calculateEuciDistance(origin.coord,destination.coord);
                     double flightTime=flightDistance/flightSpeed+takeOffLandingTime;
-                    double flightEmission=flightDistance/1000*UAM_EMISSION_FACTOR; // convert m to km
+                    double flightEmission=flightDistance/1000* UAM_EMISSION_FACTOR_HORIZONTAL +  UAM_CRUISE_ALTITUDE * UAM_EMISSION_FACTOR_VERTICAL * 2;
                     double flightCost=UAM_FIX_COST+ calculateEuciDistance(origin.coord,destination.coord)/1000*UAM_KM_COST;
                     double uamTravelTime=accessTime+egressTime+flightTime+UAM_PROCESS_TIME;
                     if (accessMode==1){
