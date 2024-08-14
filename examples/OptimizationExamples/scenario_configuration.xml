@@ -85,8 +85,11 @@
        <!-- Public transportation emission factor in kg CO2 per km per passenger -->
        <pt_emission_factor>0.1</pt_emission_factor>
 
-       <!-- UAM flight emission factor in kg CO2 per km per passenger -->
-       <uam_emission_factor>0.1</uam_emission_factor>       
+       <!-- UAM flight emission factor in kg CO2 per km per passenger (horizontal) -->
+       <uam_emission_factor_horizontal>0.1</uam_emission_factor_horizontal>
+
+       <!-- UAM take-off and landing emission factor in kg CO2 per m per passenger (vertical) -->
+       <uam_emission_factor_vertical>0.1</uam_emission_factor_vertical>
 
        <!-- Simulation duration in hours -->
        <simulation_hours>36</simulation_hours>

@@ -20,6 +20,7 @@ public class ScenarioSpecific {
     public double flight_speed;
     public double uam_process_time;
     public double uam_take_off_landing_time;
+    public double uam_cruise_altitude;
     public double uam_fix_cost;
     public double uam_km_cost;
     public double car_km_cost;
@@ -28,7 +29,8 @@ public class ScenarioSpecific {
     public double uam_utility_waiting_time_parameter;
     public boolean consider_return_trip;
     public double car_emission_factor;
-    public double uam_emission_factor;
+    public double uam_emission_factor_horizontal;
+    public double uam_emission_factor_vertical;
     public double pt_emission_factor;
     public double carbon_equivalent_cost;
     public int simulation_hours;
@@ -67,6 +69,7 @@ public class ScenarioSpecific {
             this.num_of_selected_vertiports = Integer.parseInt(getTagValue("num_of_selected_vertiports", scenarioSpecific));
             this.flight_speed = Double.parseDouble(getTagValue("flight_speed", scenarioSpecific));
             this.uam_process_time = Double.parseDouble(getTagValue("uam_process_time", scenarioSpecific));
+            this.uam_cruise_altitude = Double.parseDouble(getTagValue("uam_cruise_altitude", scenarioSpecific));
             this.uam_take_off_landing_time = Double.parseDouble(getTagValue("uam_cruise_altitude", scenarioSpecific))/Double.parseDouble(getTagValue("uam_vertical_speed", scenarioSpecific))*2;
             this.car_km_cost = Double.parseDouble(getTagValue("car_km_cost", scenarioSpecific));
             this.uam_utility_cost_parameter = Double.parseDouble(getTagValue("uam_utility_cost_parameter", scenarioSpecific));
@@ -76,7 +79,8 @@ public class ScenarioSpecific {
             this.carbon_equivalent_cost = Double.parseDouble(getTagValue("carbon_equivalent_cost", scenarioSpecific));
             this.car_emission_factor = Double.parseDouble(getTagValue("car_emission_factor", scenarioSpecific));
             this.pt_emission_factor = Double.parseDouble(getTagValue("pt_emission_factor", scenarioSpecific));
-            this.uam_emission_factor = Double.parseDouble(getTagValue("uam_emission_factor", scenarioSpecific));
+            this.uam_emission_factor_horizontal = Double.parseDouble(getTagValue("uam_emission_factor", scenarioSpecific));
+            this.uam_emission_factor_vertical = Double.parseDouble(getTagValue("uam_emission_factor_vertical", scenarioSpecific));
             this.simulation_hours = Integer.parseInt(getTagValue("simulation_hours", scenarioSpecific));
             this.consider_pt = Boolean.parseBoolean(getTagValue("consider_pt", scenarioSpecific));
             this.search_radius = Integer.parseInt(getTagValue("search_radius", scenarioSpecific));
