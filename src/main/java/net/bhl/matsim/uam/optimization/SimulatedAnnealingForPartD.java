@@ -61,6 +61,7 @@ public class SimulatedAnnealingForPartD {
     public static boolean incrementalSiting; // For incremental siting
     public static String existingVertiportFile; // For incremental siting
     public static double WAITING_AREA_DEMAND_FACTOR; // The waiting area demand factor
+    public static int THRESHOLD_GRD_UNIT_SELECTION; // The threshold for selecting the GRD units
     public static void main(String[] args) throws Exception {
         MemoryObserver.start(MEMORY_CHECK_INTERVAL);
         // Provide the file via program arguments
@@ -481,7 +482,7 @@ if (NUM_OF_SELECTED_CLUSTERED_VERTIPORTS>0) {
     log.info("Start the second phase: select the optimal vertiports from each cluster.");
     for (Vertiport selectedClusteredVertiport : selectedClusteredVertiports) {
         HashMap<List<Vertiport>, HashMap<Integer, Double>> subSelectedVertiportsAndCost = new HashMap<>();
-        if (clusterResults.get(selectedClusteredVertiport.ID).size() > 1) {
+        if (clusterResults.get(selectedClusteredVertiport.ID).size() > THRESHOLD_GRD_UNIT_SELECTION) {
                subSelectedVertiportsAndCost = findMinimumCostVertiportUnitsGRD(clusterResults.get(selectedClusteredVertiport.ID), (int) (selectedClusteredVertiport.totalCapacity * selectedClusteredVertiport.maxSaturationRate) + 1); }
         else {
                subSelectedVertiportsAndCost = findMinimumCostVertiportUnitsDP(clusterResults.get(selectedClusteredVertiport.ID), (int) (selectedClusteredVertiport.totalCapacity * selectedClusteredVertiport.maxSaturationRate) + 1); }
@@ -768,7 +769,7 @@ else {
             if(vertiportID>0) { // if the vertiport is not the existing vertiport
             List<Vertiport> vertiportUnits = savedClusterResults.get(vertiportID);
             HashMap<List<Vertiport>,HashMap<Integer,Double>> result = new HashMap<>();
-            if (vertiportUnits.size()>1) {
+            if (vertiportUnits.size() > THRESHOLD_GRD_UNIT_SELECTION) {
                     result = findMinimumCostVertiportUnitsGRD(vertiportUnits, (int) requiredCapacity+1); }
             else {
                     result = findMinimumCostVertiportUnitsDP(vertiportUnits, (int) requiredCapacity+1);
