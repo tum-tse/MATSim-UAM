@@ -80,7 +80,7 @@ public class ScenarioSpecific {
             this.carbon_equivalent_cost = Double.parseDouble(getTagValue("carbon_equivalent_cost", scenarioSpecific));
             this.car_emission_factor = Double.parseDouble(getTagValue("car_emission_factor", scenarioSpecific));
             this.pt_emission_factor = Double.parseDouble(getTagValue("pt_emission_factor", scenarioSpecific));
-            this.uam_emission_factor_horizontal = Double.parseDouble(getTagValue("uam_emission_factor", scenarioSpecific));
+            this.uam_emission_factor_horizontal = Double.parseDouble(getTagValue("uam_emission_factor_horizontal", scenarioSpecific));
             this.uam_emission_factor_vertical = Double.parseDouble(getTagValue("uam_emission_factor_vertical", scenarioSpecific));
             this.simulation_hours = Integer.parseInt(getTagValue("simulation_hours", scenarioSpecific));
             this.consider_pt = Boolean.parseBoolean(getTagValue("consider_pt", scenarioSpecific));
