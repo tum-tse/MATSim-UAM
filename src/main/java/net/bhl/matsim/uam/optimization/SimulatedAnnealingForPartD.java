@@ -88,7 +88,7 @@ public class SimulatedAnnealingForPartD {
         CAR_COST = scenarioSpecific.car_km_cost;
         PT_COST = scenarioSpecific.pt_cost;
         flightSpeed = scenarioSpecific.flight_speed;
-        UAM_PROCESS_TIME = scenarioSpecific.uam_process_time;
+        UAM_PROCESS_TIME = scenarioSpecific.uam_process_time * 60; // convert minutes to seconds
         takeOffLandingTime = scenarioSpecific.uam_take_off_landing_time;
         UAM_CRUISE_ALTITUDE = scenarioSpecific.uam_cruise_altitude;
         considerReturnTrip = scenarioSpecific.consider_return_trip;
@@ -551,7 +551,7 @@ if (NUM_OF_SELECTED_CLUSTERED_VERTIPORTS>0) {
         }
         vertiportWriter.close();
         log.info("Finished saving the selected vertiports as a csv file.");
-        log.info("Write the indicators for analysis...");
+        log.info("Write the trip based indicators for analysis...");
         writeTripBasedAnalysisResult(scenarioSpecific.outputTripBasedIndicatorFile,tripItems);
 }
 else {
@@ -565,6 +565,8 @@ else {
         requiredAndAchievedWriter.writeNext(data);
     }
     requiredAndAchievedWriter.close();
+    log.info("Write the trip based indicators for analysis...");
+    writeTripBasedAnalysisResult(scenarioSpecific.outputTripBasedIndicatorFile,tripItems);
 }
         MemoryObserver.stop();
     }
