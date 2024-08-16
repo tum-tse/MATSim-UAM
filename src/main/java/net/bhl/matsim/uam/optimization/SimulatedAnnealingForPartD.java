@@ -706,7 +706,7 @@ else {
                         tripItemForOptimization.originNeighborVertiports = originNeighbourClusteredVertiports;
                         tripItemForOptimization.destinationNeighborVertiports = destinationNeighbourClusteredVertiports;
                         calculateTripSavedCost(tripItemForOptimization, clusteredAllVertiportMap, random, scenarioSpecific);
-                        return beta_savedCost+tripItemForOptimization.tempSavedGeneralizedCosts.get(0)+beta_savedEmission*tripItemForOptimization.tempSavedEmission.get(0)*CARBON_EQUIVALENCE_FACTOR;
+                        return beta_savedCost*tripItemForOptimization.tempSavedGeneralizedCosts.get(0)+beta_savedEmission*tripItemForOptimization.tempSavedEmission.get(0)*CARBON_EQUIVALENCE_FACTOR;
                     }
                 }
 
