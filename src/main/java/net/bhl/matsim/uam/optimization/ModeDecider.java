@@ -15,8 +15,8 @@ public class ModeDecider {
         this.random = random;
     }
 
-    public static double UAM_Utlility;
-    public static double carUtility;
+    public double UAM_Utlility;
+    public double carUtility;
 
     public ModeDecider(double UAM_Utlility, double carUtility, double ptUtility, Random random) {
         this.UAM_Utlility = UAM_Utlility;
@@ -25,12 +25,12 @@ public class ModeDecider {
         this.random = random;
     }
 
-    public static double ptUtility;
+    public double ptUtility;
     public double car_utility_mean;
     public double car_utility_sigma;
     public double pt_utility_mean;
     public double pt_utility_sigma;
-    public static Random random;
+    public Random random;
 
 
 

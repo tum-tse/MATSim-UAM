@@ -423,7 +423,7 @@ if (NUM_OF_SELECTED_CLUSTERED_VERTIPORTS>0) {
                 clusteredVertiport.tempConcurrentEgressDemand.put(i, 0.0);
                 clusteredVertiport.tempConcurrentSaturationRates.put(i, 0.0);
             }
-            clusteredVertiport.tempMaxSaturationRate = 0;
+
             clusteredVertiport.tempTotalDemand = 0;
             clusteredVertiport.tempWaitingAreaCapacity = 0;
             clusteredVertiport.tempAvailableCapacity = 0;
