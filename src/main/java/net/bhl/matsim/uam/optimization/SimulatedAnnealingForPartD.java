@@ -925,7 +925,7 @@ else {
             writer.writeNext(data);
         }
         else{
-            String[] data = {tripItem.tripID, String.valueOf(tripItem.personID), String.valueOf(tripItem.HH_income),String.valueOf(tripItem.age),String.valueOf(tripItem.tripPurpose),String.valueOf(0),String.valueOf(tripItem.carProbability),String.valueOf(tripItem.ptProbability),String.valueOf(tripItem.carTripLength), String.valueOf(tripItem.ptTripLength),"NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA",String.valueOf(tripItem.currentMode),String.valueOf(tripItem.carOwnership),String.valueOf(tripItem.income),String.valueOf(tripItem.hh_id),String.valueOf(tripItem.gender),String.valueOf(tripItem.relationship),String.valueOf(tripItem.occupation),String.valueOf(tripItem.driverLicense),String.valueOf(tripItem.education)};
+            String[] data = {tripItem.tripID, String.valueOf(tripItem.personID), String.valueOf(tripItem.HH_income),String.valueOf(tripItem.age),String.valueOf(tripItem.tripPurpose),String.valueOf(0),String.valueOf(tripItem.carProbabilityBefore),String.valueOf(tripItem.ptProbabilityBefore),String.valueOf(tripItem.carTripLength), String.valueOf(tripItem.ptTripLength),"NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA",String.valueOf(tripItem.currentMode),String.valueOf(tripItem.carOwnership),String.valueOf(tripItem.income),String.valueOf(tripItem.hh_id),String.valueOf(tripItem.gender),String.valueOf(tripItem.relationship),String.valueOf(tripItem.occupation),String.valueOf(tripItem.driverLicense),String.valueOf(tripItem.education)};
             writer.writeNext(data);
             }
         }
