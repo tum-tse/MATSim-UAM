@@ -523,8 +523,8 @@ if (NUM_OF_SELECTED_CLUSTERED_VERTIPORTS>0) {
 
         List<Integer> finalSelectedVertiportsUnitsID = finalSelectedVertiportsUnits.stream().map(vertiport -> vertiport.ID).collect(Collectors.toList());
         log.info("Final Selected Vertiports: " + finalSelectedVertiportsUnitsID);
-        double finalScore = bestEnergy + beta_constructionCost * totalConstructionCost;
-        log.info("Final Score of the Selected Vertiports: " + finalScore);
+
+        log.info("Final Score of the Selected Vertiports: " + bestEnergy + ". Total Construction Cost: " + totalConstructionCost + ".");
         // save the selected vertiports as a csv file
         CSVWriter vertiportWriter = new CSVWriter(new FileWriter(scenarioSpecific.outputVertiportFile),CSVWriter.DEFAULT_SEPARATOR, CSVWriter.NO_QUOTE_CHARACTER, CSVWriter.DEFAULT_ESCAPE_CHARACTER, CSVWriter.DEFAULT_LINE_END);
         String[] vertiportHeader = {"ID", "coordX", "coordY", "capacity","constructionCost","ClusterID"};
