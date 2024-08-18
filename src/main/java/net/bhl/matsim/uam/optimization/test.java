@@ -11,7 +11,7 @@ import java.util.List;
 public class test {
     private static final Logger log = Logger.getLogger(test.class);
     public static void main(String[] args) {
-        String serializedTripItemFile = "E:\\OneDrive - TUM\\MasterArbeit\\demand\\TLongTripsWithUtilityForRunFilippos1.dat";
+        String serializedTripItemFile = "E:\\OneDrive - TUM\\MasterArbeit\\demand\\LongTripsWithUtilityForRunFilippos_new.dat";
         log.info("Loading the trips...");
         List<TripItemForOptimization> deserializedTripItemForOptimizations = deserializeTripItems(serializedTripItemFile);
         log.info("Finished loading the trips.");

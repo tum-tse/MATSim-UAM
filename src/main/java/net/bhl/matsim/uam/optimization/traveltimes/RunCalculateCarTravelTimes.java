@@ -2,9 +2,9 @@ package net.bhl.matsim.uam.optimization.traveltimes;
 
 import com.opencsv.CSVParser;
 import net.bhl.matsim.uam.analysis.traveltimes.utils.ThreadCounter;
+import net.bhl.matsim.uam.config.UAMConfigGroup;
 import net.bhl.matsim.uam.optimization.utils.TripItemForOptimization;
 import net.bhl.matsim.uam.optimization.utils.TripItemReaderForOptimization;
-import net.bhl.matsim.uam.config.UAMConfigGroup;
 import org.apache.log4j.Logger;
 import org.matsim.api.core.v01.Scenario;
 import org.matsim.api.core.v01.TransportMode;
@@ -97,7 +97,8 @@ public class RunCalculateCarTravelTimes {
 		}
 
 		// READ TRIPS INPUT
-		List<TripItemForOptimization> trips = TripItemReaderForOptimization.getTripItems(tripsInput);
+		TripItemReaderForOptimization tripItemReaderForOptimization= new TripItemReaderForOptimization();
+		List<TripItemForOptimization> trips = tripItemReaderForOptimization.getTripItems(tripsInput);
 
 		// Calculate travel times
 		log.info("Calculating travel times...");

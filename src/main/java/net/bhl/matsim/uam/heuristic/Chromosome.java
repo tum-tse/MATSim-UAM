@@ -1,7 +1,7 @@
 package net.bhl.matsim.uam.heuristic;
 
-import net.bhl.matsim.uam.optimization.utils.TripItemForOptimization;
 import net.bhl.matsim.uam.optimization.Vertiport;
+import net.bhl.matsim.uam.optimization.utils.TripItemForOptimization;
 
 import java.util.ArrayList;
 import java.util.List;

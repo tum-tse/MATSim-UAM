@@ -1,0 +1,154 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configurations>
+   <scenarioSpecific>
+       <!-- Incremental siting or not -->
+       <incremental_siting>true</incremental_siting>
+
+       <!-- Input file of already selected vertiport, set as null of not incremental siting. Use absolute path or relative path to the main java class, no quotation mark -->
+       <existing_vertiports_file>E:\OneDrive - TUM\MasterArbeit\OptimizingUAMVertiport\examples\OptimizationExamples\selected_vertiports_units.csv</existing_vertiports_file>
+
+       <!-- Output file of selected vertiport. Use absolute path or relative path to the main java class, no quotation mark -->
+       <output_vertiports_file>E:\OneDrive - TUM\MasterArbeit\OptimizingUAMVertiport\examples\OptimizationExamples\output_vertiports_units.csv</output_vertiports_file>
+
+       <!-- Output file of indicator for analysis. Use absolute path or relative path to the main java class, no quotation mark -->
+       <output_trip_indicators_file>E:\OneDrive - TUM\MasterArbeit\OptimizingUAMVertiport\examples\OptimizationExamples\output_trip_indicators.csv</output_trip_indicators_file>
+       <output_vertiport_indicators_file>E:\OneDrive - TUM\MasterArbeit\OptimizingUAMVertiport\examples\OptimizationExamples\output_vertiport_indicators.csv</output_vertiport_indicators_file>
+       <!-- Number of selected vertiports (In hierachical vertiport siting optimization, it is the number of selected clusters. In incremental siting, it is the new selected clusters in this stage.) -->
+       <num_of_selected_vertiports>50</num_of_selected_vertiports>
+
+       <!-- Search Radius in meter  -->
+       <search_radius>5000</search_radius>
+        
+       <!-- Within what distance can two vertiports be considered neighboring? Unit: meter   -->
+       <neighbouring_distance>5000</neighbouring_distance>
+      
+       <!-- Sample Size: number of Monte Carlo Scenarios  -->
+       <sample_size>100</sample_size>
+
+       <!-- Random Seed  -->
+       <random_seed>42</random_seed>
+
+       <!-- Fixed cost of UAM (EURO) -->
+       <uam_fix_cost>6.1</uam_fix_cost>
+
+       <!-- Cost per kilometer for UAM (EURO/km) -->
+       <uam_km_cost>0.6</uam_km_cost>
+
+       <!-- Cost per kilometer for car (EURO/km)-->
+       <car_km_cost>0.5</car_km_cost>
+
+       <!-- Cost for public transportation per trip (EURO/trip)-->
+       <pt_cost>0.51</pt_cost>
+
+       <!-- Whether to consider public transportation as access and egress mode-->
+       <consider_pt>false</consider_pt>
+
+       <!-- Flight speed in km/h -->
+       <flight_speed>360.0</flight_speed>
+
+       <!-- UAM process time in minutes -->
+       <uam_process_time>5.0</uam_process_time>
+
+       <!-- UAM default waiting time in minutes -->
+       <uam_wait_time>5.0</uam_wait_time>
+
+       <!-- UAM vehicle charge time in minutes -->
+       <uam_charge_time>5.0</uam_charge_time>
+
+       <!-- Time for vertical speed in m/s -->
+       <uam_vertical_speed>10.0</uam_vertical_speed>
+
+       <!-- UAM cruise altitude in meter -->
+       <uam_cruise_altitude>600.0</uam_cruise_altitude>
+
+       <!-- The parameter of UAM cost in EURO in utility function of UAM -->
+       <uam_utility_cost_parameter>-2.48</uam_utility_cost_parameter>
+
+       <!-- The parameter of UAM flight time in minute in utility function of UAM -->
+       <uam_utility_flight_time_parameter>-4.28</uam_utility_flight_time_parameter>
+
+       <!-- The parameter of UAM wait time (including access and egress) in minute in utility function of UAM -->
+       <uam_utility_waiting_time_parameter>-6.79</uam_utility_waiting_time_parameter>
+
+       <!-- Whether to consider return trip, should set as true if the return trip is not separated in the origin trip file. -->
+       <consider_return_trip>true</consider_return_trip>
+
+       <!-- Car emission factor in kg CO2 per km per passenger -->
+       <car_emission_factor>0.21</car_emission_factor>
+
+       <!-- Public transportation emission factor in kg CO2 per km per passenger -->
+       <pt_emission_factor>0.1</pt_emission_factor>
+
+       <!-- UAM flight emission factor in kg CO2 per km per passenger -->
+       <uam_emission_factor>0.1</uam_emission_factor>       
+
+       <!-- Simulation duration in hours -->
+       <simulation_hours>36</simulation_hours>
+
+       <!-- Parameters of the saved generalized cost in objective function -->
+       <beta_savedCost>1.0</beta_savedCost>
+
+       <!-- Parameters of the saved carbon price equivalent in objective function. Note: you should first convert the carbon emission to price equivalent in EURO and then multiply by the factor. -->
+       <beta_savedEmission>1.0</beta_savedEmission>   
+
+       <!-- Parameters of the construction cost in the objective function. -->
+       <beta_constructionCost>-0.000001</beta_constructionCost>   
+
+       <!-- Carbon equivalent cost EURO per kg-->
+       <carbon_equivalent_cost>2.48</carbon_equivalent_cost>
+
+       <!-- In some logit model, the utility have a scale factor for mode specific attributes, e.g., in Adamidis et al. (2023), the factor is 100-->
+       <scale_factor_utility>100</scale_factor_utility>
+
+       <!-- The error term in utility function obeys the Gaussian distribution, here defines the mean and standard deviation of the distribution-->
+       <car_utility_mean>0</car_utility_mean>
+       <car_utility_sigma>2.47</car_utility_sigma>
+       <pt_utility_mean>0</pt_utility_mean>
+       <pt_utility_sigma>2.55</pt_utility_sigma>
+
+       <!-- The factor of convert the waiting area of one person to the capacity-->
+       <wait_area_demand_factor>0.1</wait_area_demand_factor>
+   </scenarioSpecific>
+    
+  <heuristicParameters>
+       <!-- Initial temperature for simulated annealing -->
+       <initial_temperature>5000</initial_temperature>
+
+       <!-- Final temperature for simulated annealing -->
+       <final_temperature>0.1</final_temperature>
+
+       <!-- Annealing rate for simulated annealing -->
+       <annealing_rate>0.999</annealing_rate>
+
+       <!-- Maximum number of iterations -->
+       <max_iteration>100</max_iteration>
+
+       <!-- Maximum count of iterations without change -->
+       <max_not_change_count>2000</max_not_change_count>
+
+      <!-- Output file path of iteration record. Use absolute path or relative path to the main java class, no quotation mark  -->
+      <iteration_record_file>examples/OptimizationExamples/output_iteration_record.csv</iteration_record_file>
+
+   </heuristicParameters>
+
+    <clusteringParameters>
+       <!-- Epsilon for DBSCAN -->
+       <epsilon>5</epsilon>
+       <!-- Minimum points for DBSCAN -->
+       <min_pts>10</min_pts>
+        <!-- Neighbor distance for clustering -->
+        <neighbor_distance>2.0</neighbor_distance>
+       <!-- Number of clusters in Kmeans -->
+       <num_of_clusters>200</num_of_clusters>
+        <!-- Number of clusters of existing vertiport in Kmeans, it is the selected cluster from the initial run. -->
+       <num_of_clusters_existing>50</num_of_clusters_existing>
+       <!-- Number of iterations for clustering algorithm -->
+       <num_of_cluster_iterations>1000</num_of_cluster_iterations>
+       <!-- Tolerance for clustering convergence -->
+       <tolerance>0.01</tolerance>
+        <!-- Results of candidate clustering -->
+        <clustering_output_file_candidates>examples/OptimizationExamples/output_clustered_candidates.csv</clustering_output_file_candidates>
+        <!-- Results of existing vertiports clustering -->
+        <clustering_output_file_existing>examples/OptimizationExamples/output_clustered_existing.csv</clustering_output_file_existing>
+   </clusteringParameters>
+</configurations>

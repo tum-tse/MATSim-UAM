@@ -36,6 +36,14 @@
 						<descriptorRef>jar-with-dependencies</descriptorRef>
 					</descriptorRefs>
 				</configuration>
+				<executions>
+					<execution>
+						<phase>package</phase>
+						<goals>
+							<goal>single</goal>
+						</goals>
+					</execution>
+				</executions>
 			</plugin>
 		</plugins>
 		<extensions>
@@ -77,6 +85,11 @@
 			<version>${matsim.version}</version>
 		</dependency>
 		<dependency>
+			<groupId>edu.mines.jtk</groupId>
+			<artifactId>edu-mines-jtk</artifactId>
+			<version>1.1.0</version>
+		</dependency>
+		<dependency>
 			<groupId>org.matsim.contrib</groupId>
 			<artifactId>discrete_mode_choice</artifactId>
 			<version>${matsim.version}</version>
@@ -87,5 +100,11 @@
 			<version>4.13.1</version>
 			<scope>test</scope>
 		</dependency>
+		<dependency>
+			<groupId>com.github.haifengl</groupId>
+			<artifactId>smile-core</artifactId>
+			<version>2.6.0</version>
+		</dependency>
+
 	</dependencies>
 </project>
