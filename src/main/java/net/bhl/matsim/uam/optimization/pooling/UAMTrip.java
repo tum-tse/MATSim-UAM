@@ -2,12 +2,13 @@ package net.bhl.matsim.uam.optimization.pooling;
 
 import net.bhl.matsim.uam.infrastructure.UAMStation;
 
-public static class UAMTrip {
+public class UAMTrip {
     private final String tripId;
     private final double originX, originY, destX, destY, departureTime, flightDistance;
     private UAMStation origStation, destStation; // Changed to Integer to handle null values
     private final String purpose, income;
     private double accessTimeToPooledStation; // Time for access to the station
+    private static final double TELEPORTATION_SPEED = 30/3.6; // Teleportation speed in meters per second
 
     public UAMTrip(String tripId, double originX, double originY, double destX, double destY, double departureTime, double flightDistance, UAMStation origStation, UAMStation destStation, String purpose, String income) {
         this.tripId = tripId;
