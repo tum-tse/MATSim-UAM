@@ -29,6 +29,7 @@ public class SimulatedAnnealingForPartD {
     public static String vertiportUnitsCandidateFile;
     public static double flightSpeed; // m/s
     public static double UAM_PROCESS_TIME; // s
+    public static double UAM_CRUISE_ALTITUDE; // m
     public static double takeOffLandingTime; // s
     public static int NUM_OF_SELECTED_CLUSTERED_VERTIPORTS; // In hierarchical clustering, the number of selected vertiports is the number of clusters
     private static double UAM_FIX_COST;
@@ -36,15 +37,18 @@ public class SimulatedAnnealingForPartD {
     private static double CAR_COST; // Euro/km
     public static double PT_COST; // Euro/trip
     private static boolean considerReturnTrip;
-    private static  int sampleSize;
-    private static long RANDOM_SEED;
+    private static  int MonteCarloSampleSize;
+    private static long RANDOM_SEED_PS;
+    private static long RANDOM_SEED_RT;
+    private static double POPULATION_SAMPLING_FACTOR;
     public static double car_utility_mean;
     public static double car_utility_sigma;
     public static double pt_utility_mean;
     public static double pt_utility_sigma;
     public static double CAR_EMISSION_FACTOR; // kg/km
     public static double PT_EMISSION_FACTOR; // kg/km
-    public static double UAM_EMISSION_FACTOR; // kg/km
+    public static double UAM_EMISSION_FACTOR_HORIZONTAL; // kg/km
+    public static double UAM_EMISSION_FACTOR_VERTICAL; // kg/m
     public static double CARBON_EQUIVALENCE_FACTOR; // Euro/kgCO2
     private static int SIMULATION_HOURS;
     public static String configPath;
@@ -57,6 +61,7 @@ public class SimulatedAnnealingForPartD {
     public static boolean incrementalSiting; // For incremental siting
     public static String existingVertiportFile; // For incremental siting
     public static double WAITING_AREA_DEMAND_FACTOR; // The waiting area demand factor
+    public static int THRESHOLD_GRD_UNIT_SELECTION; // The threshold for selecting the GRD units
     public static void main(String[] args) throws Exception {
         MemoryObserver.start(MEMORY_CHECK_INTERVAL);
         // Provide the file via program arguments
@@ -83,16 +88,18 @@ public class SimulatedAnnealingForPartD {
         CAR_COST = scenarioSpecific.car_km_cost;
         PT_COST = scenarioSpecific.pt_cost;
         flightSpeed = scenarioSpecific.flight_speed;
-        UAM_PROCESS_TIME = scenarioSpecific.uam_process_time;
+        UAM_PROCESS_TIME = scenarioSpecific.uam_process_time * 60; // convert minutes to seconds
         takeOffLandingTime = scenarioSpecific.uam_take_off_landing_time;
+        UAM_CRUISE_ALTITUDE = scenarioSpecific.uam_cruise_altitude;
         considerReturnTrip = scenarioSpecific.consider_return_trip;
         CAR_EMISSION_FACTOR = scenarioSpecific.car_emission_factor;
         PT_EMISSION_FACTOR = scenarioSpecific.pt_emission_factor;
-        UAM_EMISSION_FACTOR = scenarioSpecific.uam_emission_factor;
+        UAM_EMISSION_FACTOR_HORIZONTAL = scenarioSpecific.uam_emission_factor_horizontal;
+        UAM_EMISSION_FACTOR_VERTICAL = scenarioSpecific.uam_emission_factor_vertical;
         SIMULATION_HOURS = scenarioSpecific.simulation_hours;
         CARBON_EQUIVALENCE_FACTOR = scenarioSpecific.carbon_equivalent_cost;
-        RANDOM_SEED =  scenarioSpecific.random_seed;
-        sampleSize = scenarioSpecific.sampleSize;
+        RANDOM_SEED_RT =  scenarioSpecific.random_seed_RT;
+        MonteCarloSampleSize = scenarioSpecific.MonteCarlosampleSize;
         NEIGHBOR_DISTANCE = scenarioSpecific.neighbouring_distance;
         beta_savedEmission= scenarioSpecific.beta_savedEmission;
         beta_savedCost= scenarioSpecific.beta_savedCost;
@@ -104,6 +111,8 @@ public class SimulatedAnnealingForPartD {
         incrementalSiting = scenarioSpecific.incrementaSiting;
         existingVertiportFile= scenarioSpecific.existingVertiportFile;
         WAITING_AREA_DEMAND_FACTOR=scenarioSpecific.wait_area_demand_factor;
+        RANDOM_SEED_PS=scenarioSpecific.random_seed_PS;
+        POPULATION_SAMPLING_FACTOR=scenarioSpecific.population_sampling_factor;
 
         // load the config
         Config config = ConfigUtils.loadConfig(configPath);
@@ -193,16 +202,17 @@ public class SimulatedAnnealingForPartD {
         findVertiportsNeighbours(clusteredAllVertiports, NEIGHBOR_DISTANCE);
         log.info("Finished clustering the vertiport candidates.");
 
-        log.info("Loading the trips...");
+        log.info("Load the trips and sample trips to "+ POPULATION_SAMPLING_FACTOR+ "...");
         TripItemReaderForOptimization tripItemReaderForOptimization = new TripItemReaderForOptimization(scenarioSpecific);
         List<TripItemForOptimization> tripItems = tripItemReaderForOptimization.getTripItemsForOptimization(tripItemFile);
-        log.info("Finished loading the trips.");
+        Random randomForPopulationSampling = new Random(RANDOM_SEED_PS);
+        tripItems = sampleTrips(tripItems, POPULATION_SAMPLING_FACTOR, randomForPopulationSampling);
+        log.info("Finished loading and sampling the trips.");
 
         // Pre-calculate the access and egress time and distance for each vertiport candidate of each trip
-        log.info("Start pre-calculating the access and egress time and distance for each vertiport candidate of each trip...");
+
         AccessEgressCostCalculator accessEgressCostCalculator = new AccessEgressCostCalculator(tripItems, clusteredAllVertiports, config, scenarioSpecific);
         accessEgressCostCalculator.calculateAccessEgressCost();
-        log.info("Finished pre-calculating the access and egress time and distance for each vertiport candidate of each trip.");
 
         // Initialize the UAM enabled trips and UAM utility
         log.info("Start the simulated annealing algorithm...");
@@ -214,18 +224,22 @@ public class SimulatedAnnealingForPartD {
             }
 
         for (Vertiport clusteredVertiport : clusteredAllVertiports) {
-            for (int i = 0; i < SIMULATION_HOURS*4; i++) {
+            for (int i = 0; i < SIMULATION_HOURS; i++) {
                 clusteredVertiport.tempConcurrentAccessDemand.put(i, 0.0);
                 clusteredVertiport.tempConcurrentEgressDemand.put(i, 0.0);
+                clusteredVertiport.tempConcurrentSaturationRates.put(i, 0.0);
             }
             clusteredVertiport.tempMaxSaturationRate = 0;
             clusteredVertiport.tempTotalDemand = 0;
-            clusteredVertiport.tempWaitingAreaCapacity=0;
+            clusteredVertiport.tempWaitingAreaCapacity = 0;
+            clusteredVertiport.tempAvailableCapacity = 0;
+            clusteredVertiport.tempMaxHourlyDemand = 0;
+            clusteredVertiport.tempMaxSaturationRate = 0;
         }
             // record the start time
             long startTime = System.currentTimeMillis();
 
-            Random random = new Random(RANDOM_SEED);
+            Random random = new Random(RANDOM_SEED_RT);
             List<Integer> currentSolutionID = generateRandomSolution(random, clusteredVertiportCandidatesMap, NUM_OF_SELECTED_CLUSTERED_VERTIPORTS);
             List<Integer> currentSelectedAndExsitingClusteredVertiportIDs = new ArrayList<>(currentSolutionID);
             if (incrementalSiting) {
@@ -268,7 +282,7 @@ public class SimulatedAnnealingForPartD {
                 clusteredVertiport.totalDemand = clusteredVertiport.tempTotalDemand;
                 clusteredVertiport.waitingAreaCapacity=clusteredVertiport.tempWaitingAreaCapacity;
                 clusteredVertiport.availableCapacity=clusteredVertiport.tempAvailableCapacity;
-                clusteredVertiport.max15MinDemand=clusteredVertiport.tempMax15MinDemand;
+                clusteredVertiport.maxHourlyDemand =clusteredVertiport.tempMaxHourlyDemand;
             }
 
             List<Integer> bestSolutionID = new ArrayList<>(currentSolutionID);
@@ -280,156 +294,206 @@ public class SimulatedAnnealingForPartD {
 
 
                 for (Integer vertiportID : currentSolutionID) {
-                    if (clusteredVertiportCandidates.get(vertiportID).maxSaturationRate > 1) {
+                    if (clusteredVertiportCandidatesMap.get(vertiportID).maxSaturationRate > 1) {
                         saturatedVertiportCount++;
                     }
-                    if (clusteredVertiportCandidates.get(vertiportID).maxSaturationRate > maxSaturationRate) {
-                        maxSaturationRate = clusteredVertiportCandidates.get(vertiportID).maxSaturationRate;
+                    if (clusteredVertiportCandidatesMap.get(vertiportID).maxSaturationRate > maxSaturationRate) {
+                        maxSaturationRate = clusteredVertiportCandidatesMap.get(vertiportID).maxSaturationRate;
                     }
                 }
                 log.info("Initial Solution: " + currentSolutionID + " Initial Energy: " + currentEnergey + " Saturated Vertiport Count: " + saturatedVertiportCount + " Max Saturation Rate: " + maxSaturationRate);
                 HashMap<Integer,List<Double>> iterationRecord=new HashMap<>(); // record the indicator through the iterations
 
+if (NUM_OF_SELECTED_CLUSTERED_VERTIPORTS>0) {
+    for (int iteration = 0; iteration < optimizationConfiguration.max_iteration; iteration++) {
 
-            for (int iteration = 0; iteration < optimizationConfiguration.max_iteration; iteration++) {
+        // set the temp value to 0
+        for (Vertiport clusteredVertiport : clusteredAllVertiports) {
+            for (int i = 0; i < SIMULATION_HOURS; i++) {
+                clusteredVertiport.tempConcurrentAccessDemand.put(i, 0.0);
+                clusteredVertiport.tempConcurrentEgressDemand.put(i, 0.0);
+                clusteredVertiport.tempConcurrentSaturationRates.put(i, 0.0);
+            }
+            clusteredVertiport.tempMaxSaturationRate = 0;
+            clusteredVertiport.tempTotalDemand = 0;
+            clusteredVertiport.tempWaitingAreaCapacity = 0;
+            clusteredVertiport.tempAvailableCapacity = 0;
+            clusteredVertiport.tempMaxHourlyDemand = 0;
+            clusteredVertiport.tempMaxSaturationRate = 0;
 
-                // set the temp value to 0
-                for (Vertiport vertiport : clusteredAllVertiports) {
-                    for (int i = 0; i < SIMULATION_HOURS*4; i++) {
-                        vertiport.tempConcurrentAccessDemand.put(i, 0.0);
-                        vertiport.tempConcurrentEgressDemand.put(i, 0.0);
-                    }
-                    vertiport.tempMaxSaturationRate = 0;
-                    vertiport.tempTotalDemand = 0;
-                    vertiport.tempWaitingAreaCapacity=0;
+        }
 
+        List<List<Integer>> newSolutionList;
+        if (incrementalSiting) {
+            newSolutionList = generateNewSolution(random, currentSolutionID, clusteredVertiportCandidatesMap, clusteredExistingVertiportsMap);
+        } else {
+            newSolutionList = generateNewSolution(random, currentSolutionID, clusteredVertiportCandidatesMap);
+        }
+        List<Integer> newSolutionID = newSolutionList.get(0);
+
+
+        double newEnergy = 0;
+        if (incrementalSiting) {
+            List<Integer> newSolutionIDForAll = new ArrayList<>(newSolutionID);
+            for (Vertiport clusteredExistingVertiport : clusteredExistingVertiports) {
+                newSolutionIDForAll.add(clusteredExistingVertiport.ID);
+            }
+            newEnergy = calculateFitness(newSolutionIDForAll, clusteredAllVertiportsMap, tripItems, clusterResults, random, scenarioSpecific);
+        } else {
+            newEnergy = calculateFitness(newSolutionID, clusteredVertiportCandidatesMap, tripItems, clusterResults, random, scenarioSpecific);
+        }
+        double deltaEnergy = newEnergy - currentEnergey;
+
+        if (deltaEnergy > 0 || Math.exp(deltaEnergy / currentTemperature) > random.nextDouble()) {
+            currentSolutionID = new ArrayList<>(newSolutionID);
+            currentEnergey = newEnergy;
+            saturatedVertiportCount = 0;
+            maxSaturationRate = 0;
+            // copy the temp values to the real values of each trip item
+            for (TripItemForOptimization tripItemForOptimization : tripItems) {
+                if (!tripItemForOptimization.tempSavedGeneralizedCosts.isEmpty()) {
+                    tripItemForOptimization.savedGeneralizedCost = tripItemForOptimization.tempSavedGeneralizedCosts.get(0);
+                    tripItemForOptimization.savedEmission = tripItemForOptimization.tempSavedEmission.get(0);
+                    tripItemForOptimization.savedTravelTime = tripItemForOptimization.tempSavedTravelTime.get(0);
                 }
 
-                List<List<Integer>> newSolutionList;
-                if (incrementalSiting) {
-                    newSolutionList = generateNewSolution(random, currentSolutionID, clusteredVertiportCandidatesMap, clusteredExistingVertiportsMap);
-                } else {
-                    newSolutionList = generateNewSolution(random, currentSolutionID, clusteredVertiportCandidatesMap);
-                }
-                List<Integer> newSolutionID = newSolutionList.get(0);
+                tripItemForOptimization.carProbability = tripItemForOptimization.tempCarProbability;
+                tripItemForOptimization.ptProbability = tripItemForOptimization.tempPTProbability;
+                tripItemForOptimization.uamProbability = tripItemForOptimization.tempUAMProbability;
+                tripItemForOptimization.isUAMAvailable = tripItemForOptimization.tempIsUAMAvailable;
+                tripItemForOptimization.accessVertiport = tripItemForOptimization.tempAccessVertiport;
+                tripItemForOptimization.egressVertiport = tripItemForOptimization.tempEgressVertiport;
+                tripItemForOptimization.uamTravelTime = tripItemForOptimization.tempUamTravelTime;
+                tripItemForOptimization.UAMCost = tripItemForOptimization.tempUAMCost;
+                tripItemForOptimization.uamEmission = tripItemForOptimization.tempUamEmission;
+                tripItemForOptimization.UAMGeneralizedCost = tripItemForOptimization.tempUAMGeneralizedCost;
+                tripItemForOptimization.UAMUtilityVar = tripItemForOptimization.tempUAMUtilityVar;
+                tripItemForOptimization.uamUtility = tripItemForOptimization.tempUamUtility;
+                tripItemForOptimization.accessTime = tripItemForOptimization.tempAccessTime;
+                tripItemForOptimization.egressTime = tripItemForOptimization.tempEgressTime;
+                tripItemForOptimization.accessMode = tripItemForOptimization.tempAccessMode;
+                tripItemForOptimization.egressMode = tripItemForOptimization.tempEgressMode;
 
-
-                double newEnergy = 0;
-                if (incrementalSiting){
-                    List<Integer> newSolutionIDForAll = new ArrayList<>(newSolutionID);
-                    for (Vertiport clusteredExistingVertiport : clusteredExistingVertiports) {
-                        newSolutionIDForAll.add(clusteredExistingVertiport.ID);
-                    }
-                    newEnergy=calculateFitness(newSolutionIDForAll,clusteredAllVertiportsMap,tripItems,clusterResults,random,scenarioSpecific);}
-                else{
-                    newEnergy = calculateFitness(newSolutionID, clusteredVertiportCandidatesMap, tripItems,clusterResults,random,scenarioSpecific);
-                }
-                double deltaEnergy = newEnergy - currentEnergey;
-
-                if (deltaEnergy > 0 || Math.exp(deltaEnergy / currentTemperature) > random.nextDouble()) {
-                    currentSolutionID = new ArrayList<>(newSolutionID);
-                    currentEnergey = newEnergy;
-                    saturatedVertiportCount = 0;
-                    maxSaturationRate = 0;
-                    // copy the temp values to the real values of each trip item
-                    for (TripItemForOptimization tripItemForOptimization : tripItems) {
-                        if (!tripItemForOptimization.tempSavedGeneralizedCosts.isEmpty()) {
-                            tripItemForOptimization.savedGeneralizedCost = tripItemForOptimization.tempSavedGeneralizedCosts.get(0);
-                            tripItemForOptimization.savedEmission = tripItemForOptimization.tempSavedEmission.get(0);
-                            tripItemForOptimization.savedTravelTime = tripItemForOptimization.tempSavedTravelTime.get(0);
-                        }
-
-                        tripItemForOptimization.carProbability = tripItemForOptimization.tempCarProbability;
-                        tripItemForOptimization.ptProbability = tripItemForOptimization.tempPTProbability;
-                        tripItemForOptimization.uamProbability = tripItemForOptimization.tempUAMProbability;
-                        tripItemForOptimization.isUAMAvailable = tripItemForOptimization.tempIsUAMAvailable;
-                        tripItemForOptimization.accessVertiport = tripItemForOptimization.tempAccessVertiport;
-                        tripItemForOptimization.egressVertiport = tripItemForOptimization.tempEgressVertiport;
-                        tripItemForOptimization.uamTravelTime=tripItemForOptimization.tempUamTravelTime;
-                        tripItemForOptimization.UAMCost=tripItemForOptimization.tempUAMCost;
-                        tripItemForOptimization.uamEmission=tripItemForOptimization.tempUamEmission;
-                        tripItemForOptimization.UAMGeneralizedCost=tripItemForOptimization.tempUAMGeneralizedCost;
-                        tripItemForOptimization.UAMUtilityVar=tripItemForOptimization.tempUAMUtilityVar;
-                        tripItemForOptimization.uamUtility=tripItemForOptimization.tempUamUtility;
-                        tripItemForOptimization.accessTime = tripItemForOptimization.tempAccessTime;
-                        tripItemForOptimization.egressTime = tripItemForOptimization.tempEgressTime;
-                        tripItemForOptimization.accessMode = tripItemForOptimization.tempAccessMode;
-                        tripItemForOptimization.egressMode = tripItemForOptimization.tempEgressMode;
-
-
-                    }
-                    // copy the temp values to the real values of each clustered vertiport
-                    for (Vertiport clusteredVertiport : clusteredAllVertiports) {
-                        clusteredVertiport.concurrentAccessDemand= clusteredVertiport.tempConcurrentAccessDemand;
-                        clusteredVertiport.concurrentEgressDemand= clusteredVertiport.tempConcurrentEgressDemand;
-                        clusteredVertiport.maxSaturationRate = clusteredVertiport.tempMaxSaturationRate;
-                        clusteredVertiport.totalDemand = clusteredVertiport.tempTotalDemand;
-                        clusteredVertiport.waitingAreaCapacity=clusteredVertiport.tempWaitingAreaCapacity;
-                        clusteredVertiport.availableCapacity=clusteredVertiport.tempAvailableCapacity;
-                        clusteredVertiport.max15MinDemand=clusteredVertiport.tempMax15MinDemand;
-                        if(clusteredVertiport.maxSaturationRate>1){
-                           saturatedVertiportCount++;}
-                        if (clusteredVertiport.maxSaturationRate > maxSaturationRate) {
-                            maxSaturationRate = clusteredVertiport.maxSaturationRate;
-                        }
-                    }
-                }
-                // update the best solution
-                if (currentEnergey > bestEnergy) {
-                    bestSolutionID = new ArrayList<>(currentSolutionID);
-                    bestEnergy = currentEnergey;
-                    notChangeCount = 0;
-                } else {
-                    notChangeCount++;
-                }
-
-                // update the temperature
-                if (currentTemperature > optimizationConfiguration.final_temperature) {
-                    currentTemperature = currentTemperature * optimizationConfiguration.annealing_rate;
-                }
-                // log the information for every 100 iterations
-                if (iteration % 1 == 0) {
-                    log.info("Iteration: " + iteration + " Current Temperature: " + currentTemperature + " Current Energy: " + currentEnergey + " Best Energy: " + bestEnergy + " Saturated Vertiport Count: " + saturatedVertiportCount + " Max Saturation Rate: " + maxSaturationRate);
-                }
-                iterationRecord.put(iteration, Arrays.asList(currentTemperature,bestEnergy,(double)saturatedVertiportCount, maxSaturationRate));
-                // if the best solution is not updated for more than 1000 iterations, break
-                if (notChangeCount > optimizationConfiguration.max_not_change_count) {
-                    break;
-                }
 
             }
-
-            log.info("Best Solution: " + bestSolutionID + " Best Energy: " + bestEnergy);
-            // record the end time
-            long endTime = System.currentTimeMillis();
-            log.info( " Time: " + (endTime - startTime) / 1000 + "s");
-            // Write the iteration record to a csv file
-            CSVWriter iterationWriter = new CSVWriter(new FileWriter(optimizationConfiguration.iteration_record_file),CSVWriter.DEFAULT_SEPARATOR, CSVWriter.NO_QUOTE_CHARACTER, CSVWriter.DEFAULT_ESCAPE_CHARACTER, CSVWriter.DEFAULT_LINE_END);
-            String[] iterationHeader = {"Iteration", "Temperature", "Best Energy", "Saturated Vertiport Count", "Max Saturation Rate"};
-            iterationWriter.writeNext(iterationHeader);
-            for (Map.Entry<Integer, List<Double>> entry : iterationRecord.entrySet()) {
-                String[] data = {String.valueOf(entry.getKey()), String.valueOf(entry.getValue().get(0)), String.valueOf(entry.getValue().get(1)), String.valueOf(entry.getValue().get(2)), String.valueOf(entry.getValue().get(3))};
-                iterationWriter.writeNext(data);
+            // copy the temp values to the real values of each clustered vertiport
+            for (Vertiport clusteredVertiport : clusteredAllVertiports) {
+                clusteredVertiport.concurrentAccessDemand = clusteredVertiport.tempConcurrentAccessDemand;
+                clusteredVertiport.concurrentEgressDemand = clusteredVertiport.tempConcurrentEgressDemand;
+                clusteredVertiport.maxSaturationRate = clusteredVertiport.tempMaxSaturationRate;
+                clusteredVertiport.totalDemand = clusteredVertiport.tempTotalDemand;
+                clusteredVertiport.waitingAreaCapacity = clusteredVertiport.tempWaitingAreaCapacity;
+                clusteredVertiport.availableCapacity = clusteredVertiport.tempAvailableCapacity;
+                clusteredVertiport.maxHourlyDemand = clusteredVertiport.tempMaxHourlyDemand;
+                if (clusteredVertiport.maxSaturationRate > 1) {
+                    saturatedVertiportCount++;
+                }
+                if (clusteredVertiport.maxSaturationRate > maxSaturationRate) {
+                    maxSaturationRate = clusteredVertiport.maxSaturationRate;
+                }
             }
-            iterationWriter.close();
+        }
 
-            List<Vertiport> selectedClusteredVertiports = new ArrayList<>();
-        // assign clusters in bestSolutionID to selectedClusteredVertiports
-        for (int vertiportID : bestSolutionID) {
-            selectedClusteredVertiports.add(clusteredVertiportCandidatesMap.get(vertiportID));
+        // clear the temp values of each trip item
+        for (TripItemForOptimization tripItemForOptimization : tripItems) {
+            tripItemForOptimization.tempSavedGeneralizedCosts.clear();
+            tripItemForOptimization.tempSavedEmission.clear();
+            tripItemForOptimization.tempSavedTravelTime.clear();
+            tripItemForOptimization.tempCarProbability = 0;
+            tripItemForOptimization.tempPTProbability = 0;
+            tripItemForOptimization.tempUAMProbability = 0;
+            tripItemForOptimization.tempIsUAMAvailable = false;
+            tripItemForOptimization.tempAccessVertiport = null;
+            tripItemForOptimization.tempEgressVertiport = null;
+            tripItemForOptimization.tempUamTravelTime = 0;
+            tripItemForOptimization.tempUAMCost = 0;
+            tripItemForOptimization.tempUamEmission = 0;
+            tripItemForOptimization.tempUAMGeneralizedCost = 0;
+            tripItemForOptimization.tempUAMUtilityVar = 0;
+            tripItemForOptimization.tempUamUtility = 0;
+            tripItemForOptimization.tempAccessTime = 0;
+            tripItemForOptimization.tempEgressTime = 0;
+            tripItemForOptimization.tempAccessMode = null;
+            tripItemForOptimization.tempEgressMode = null;
         }
-        List<Vertiport> finalSelectedVertiportsUnits = new ArrayList<>();
-        double totalConstructionCost = 0;
-        HashMap<Integer,List<Integer>> requiredAndAchievedCapacityMapForCandidates = new HashMap<>();
-        for (Vertiport selectedClusteredVertiport : selectedClusteredVertiports) {
-                HashMap<List<Vertiport>,HashMap<Integer,Double>> subSelectedVertiportsAndCost = findMinimumCostVertiportUnits(clusterResults.get(selectedClusteredVertiport.ID), (int) (selectedClusteredVertiport.totalCapacity *selectedClusteredVertiport.maxSaturationRate)+1);
-                finalSelectedVertiportsUnits.addAll(subSelectedVertiportsAndCost.entrySet().iterator().next().getKey());
-                totalConstructionCost += subSelectedVertiportsAndCost.entrySet().iterator().next().getValue().values().iterator().next();
-                List<Integer> requiredAndAchievedCapacity = new ArrayList<>();
-                requiredAndAchievedCapacity.add((int) (selectedClusteredVertiport.totalCapacity *selectedClusteredVertiport.maxSaturationRate)+1);
-                requiredAndAchievedCapacity.add(subSelectedVertiportsAndCost.entrySet().iterator().next().getValue().entrySet().iterator().next().getKey());
-                requiredAndAchievedCapacityMapForCandidates.put(selectedClusteredVertiport.ID, requiredAndAchievedCapacity);
+        // clear the temp values of each clustered vertiport
+        for (Vertiport clusteredVertiport : clusteredAllVertiports) {
+            for (int i = 0; i < SIMULATION_HOURS; i++) {
+                clusteredVertiport.tempConcurrentAccessDemand.put(i, 0.0);
+                clusteredVertiport.tempConcurrentEgressDemand.put(i, 0.0);
+                clusteredVertiport.tempConcurrentSaturationRates.put(i, 0.0);
+            }
+
+            clusteredVertiport.tempTotalDemand = 0;
+            clusteredVertiport.tempWaitingAreaCapacity = 0;
+            clusteredVertiport.tempAvailableCapacity = 0;
+            clusteredVertiport.tempMaxHourlyDemand = 0;
+            clusteredVertiport.tempMaxSaturationRate = 0;
+
+
         }
+        // update the best solution
+        if (currentEnergey > bestEnergy) {
+            bestSolutionID = new ArrayList<>(currentSolutionID);
+            bestEnergy = currentEnergey;
+            notChangeCount = 0;
+        } else {
+            notChangeCount++;
+        }
+
+        // update the temperature
+        if (currentTemperature > optimizationConfiguration.final_temperature) {
+            currentTemperature = currentTemperature * optimizationConfiguration.annealing_rate;
+        }
+        // log the information for every 100 iterations
+        if (iteration % 1 == 0) {
+            log.info("Iteration: " + iteration + " Current Temperature: " + currentTemperature + " Current Energy: " + currentEnergey + " Best Energy: " + bestEnergy + " Saturated Vertiport Count: " + saturatedVertiportCount + " Max Saturation Rate: " + maxSaturationRate);
+        }
+        iterationRecord.put(iteration, Arrays.asList(currentTemperature, bestEnergy, (double) saturatedVertiportCount, maxSaturationRate));
+        // if the best solution is not updated for more than 1000 iterations, break
+        if (notChangeCount > optimizationConfiguration.max_not_change_count) {
+            break;
+        }
+
+    }
+
+    log.info("Best Solution: " + bestSolutionID + " Best Energy: " + bestEnergy);
+    // record the end time
+    long endTime = System.currentTimeMillis();
+    log.info(" Time: " + (endTime - startTime) / 1000 + "s");
+    // Write the iteration record to a csv file
+    CSVWriter iterationWriter = new CSVWriter(new FileWriter(optimizationConfiguration.iteration_record_file), CSVWriter.DEFAULT_SEPARATOR, CSVWriter.NO_QUOTE_CHARACTER, CSVWriter.DEFAULT_ESCAPE_CHARACTER, CSVWriter.DEFAULT_LINE_END);
+    String[] iterationHeader = {"Iteration", "Temperature", "Best Energy", "Saturated Vertiport Count", "Max Saturation Rate"};
+    iterationWriter.writeNext(iterationHeader);
+    for (Map.Entry<Integer, List<Double>> entry : iterationRecord.entrySet()) {
+        String[] data = {String.valueOf(entry.getKey()), String.valueOf(entry.getValue().get(0)), String.valueOf(entry.getValue().get(1)), String.valueOf(entry.getValue().get(2)), String.valueOf(entry.getValue().get(3))};
+        iterationWriter.writeNext(data);
+    }
+    iterationWriter.close();
+
+    List<Vertiport> selectedClusteredVertiports = new ArrayList<>();
+    // assign clusters in bestSolutionID to selectedClusteredVertiports
+    for (int vertiportID : bestSolutionID) {
+        selectedClusteredVertiports.add(clusteredVertiportCandidatesMap.get(vertiportID));
+    }
+    List<Vertiport> finalSelectedVertiportsUnits = new ArrayList<>();
+    double totalConstructionCost = 0;
+    HashMap<Integer, List<Integer>> requiredAndAchievedCapacityMapForCandidates = new HashMap<>();
+    log.info("Start the second phase: select the optimal vertiports from each cluster.");
+    for (Vertiport selectedClusteredVertiport : selectedClusteredVertiports) {
+        HashMap<List<Vertiport>, HashMap<Integer, Double>> subSelectedVertiportsAndCost = new HashMap<>();
+        if (clusterResults.get(selectedClusteredVertiport.ID).size() > THRESHOLD_GRD_UNIT_SELECTION) {
+               subSelectedVertiportsAndCost = findMinimumCostVertiportUnitsGRD(clusterResults.get(selectedClusteredVertiport.ID), (int) (selectedClusteredVertiport.totalCapacity * selectedClusteredVertiport.maxSaturationRate) + 1); }
+        else {
+               subSelectedVertiportsAndCost = findMinimumCostVertiportUnitsDP(clusterResults.get(selectedClusteredVertiport.ID), (int) (selectedClusteredVertiport.totalCapacity * selectedClusteredVertiport.maxSaturationRate) + 1); }
+        finalSelectedVertiportsUnits.addAll(subSelectedVertiportsAndCost.entrySet().iterator().next().getKey());
+        totalConstructionCost += subSelectedVertiportsAndCost.entrySet().iterator().next().getValue().values().iterator().next();
+        List<Integer> requiredAndAchievedCapacity = new ArrayList<>();
+        requiredAndAchievedCapacity.add((int) (selectedClusteredVertiport.totalCapacity * selectedClusteredVertiport.maxSaturationRate) + 1);
+        requiredAndAchievedCapacity.add(subSelectedVertiportsAndCost.entrySet().iterator().next().getValue().entrySet().iterator().next().getKey());
+        requiredAndAchievedCapacityMapForCandidates.put(selectedClusteredVertiport.ID, requiredAndAchievedCapacity);
+    }
+    log.info("Finished the second phase: select the optimal vertiports from each cluster.");
         /*
         HashMap<Integer,List<Integer>> requiredAndAchievedCapacityMapForExisting = new HashMap<>();
         if(incrementalSiting){
@@ -440,27 +504,27 @@ public class SimulatedAnnealingForPartD {
             }
         }
 */
+
         // Write out the required and achieved capacity for each vertiport cluster
         CSVWriter requiredAndAchievedWriter = new CSVWriter(new FileWriter(scenarioSpecific.outputVertiportBasedIndicatorFile),CSVWriter.DEFAULT_SEPARATOR, CSVWriter.NO_QUOTE_CHARACTER, CSVWriter.DEFAULT_ESCAPE_CHARACTER, CSVWriter.DEFAULT_LINE_END);
-        String[] requiredAndAchievedHeader = {"ClusterID", "TotalDemandInSimulationHours", "Maximum15-MinuteDemand", "RequiredWaitingAreaCapacity","AchievedCapacity"};
+        String[] requiredAndAchievedHeader = {"ClusterID", "TotalDemandInSimulationHours", "MaximumHourlyDemand", "RequiredWaitingAreaCapacity","AchievedCapacity"};
         requiredAndAchievedWriter.writeNext(requiredAndAchievedHeader);
         for (Map.Entry<Integer, List<Integer>> entry : requiredAndAchievedCapacityMapForCandidates.entrySet()) {
-            String[] data = {String.valueOf(entry.getKey()), String.valueOf((int)(clusteredAllVertiportsMap.get(entry.getKey()).totalDemand)+1),String.valueOf((clusteredAllVertiportsMap.get(entry.getKey()).max15MinDemand)),String.valueOf(clusteredAllVertiportsMap.get(entry.getKey()).waitingAreaCapacity), String.valueOf(entry.getValue().get(1))};
+            String[] data = {String.valueOf(entry.getKey()), String.valueOf((int)(clusteredAllVertiportsMap.get(entry.getKey()).totalDemand)+1),String.valueOf((clusteredAllVertiportsMap.get(entry.getKey()).maxHourlyDemand)),String.valueOf(clusteredAllVertiportsMap.get(entry.getKey()).waitingAreaCapacity), String.valueOf(entry.getValue().get(1))};
             requiredAndAchievedWriter.writeNext(data);
         }
         if (incrementalSiting) {
             for (Vertiport clusteredVertiport: clusteredExistingVertiports) {
-                String[] data = {String.valueOf(clusteredVertiport.ID), String.valueOf((int)(clusteredVertiport.totalDemand)+1),String.valueOf(clusteredVertiport.max15MinDemand),String.valueOf(clusteredVertiport.waitingAreaCapacity), String.valueOf(clusteredVertiport.totalCapacity)};
+                String[] data = {String.valueOf(clusteredVertiport.ID), String.valueOf((int)(clusteredVertiport.totalDemand)+1),String.valueOf(clusteredVertiport.maxHourlyDemand),String.valueOf(clusteredVertiport.waitingAreaCapacity), String.valueOf(clusteredVertiport.totalCapacity)};
                 requiredAndAchievedWriter.writeNext(data);
             }
         }
         requiredAndAchievedWriter.close();
 
         List<Integer> finalSelectedVertiportsUnitsID = finalSelectedVertiportsUnits.stream().map(vertiport -> vertiport.ID).collect(Collectors.toList());
-        log.info("Finished the second phase: select the optimal vertiports from each cluster.");
         log.info("Final Selected Vertiports: " + finalSelectedVertiportsUnitsID);
-        double finalScore = bestEnergy + beta_constructionCost * totalConstructionCost;
-        log.info("Final Score of the Selected Vertiports: " + finalScore);
+
+        log.info("Final Score of the Selected Vertiports: " + bestEnergy + ". Total Construction Cost: " + totalConstructionCost + ".");
         // save the selected vertiports as a csv file
         CSVWriter vertiportWriter = new CSVWriter(new FileWriter(scenarioSpecific.outputVertiportFile),CSVWriter.DEFAULT_SEPARATOR, CSVWriter.NO_QUOTE_CHARACTER, CSVWriter.DEFAULT_ESCAPE_CHARACTER, CSVWriter.DEFAULT_LINE_END);
         String[] vertiportHeader = {"ID", "coordX", "coordY", "capacity","constructionCost","ClusterID"};
@@ -487,11 +551,36 @@ public class SimulatedAnnealingForPartD {
         }
         vertiportWriter.close();
         log.info("Finished saving the selected vertiports as a csv file.");
-        log.info("Write the indicators for analysis...");
+        log.info("Write the trip based indicators for analysis...");
         writeTripBasedAnalysisResult(scenarioSpecific.outputTripBasedIndicatorFile,tripItems);
+}
+else {
+    log.info("No vertiport is selected");
+    // Write out the required and achieved capacity for each vertiport cluster
+    CSVWriter requiredAndAchievedWriter = new CSVWriter(new FileWriter(scenarioSpecific.outputVertiportBasedIndicatorFile),CSVWriter.DEFAULT_SEPARATOR, CSVWriter.NO_QUOTE_CHARACTER, CSVWriter.DEFAULT_ESCAPE_CHARACTER, CSVWriter.DEFAULT_LINE_END);
+    String[] requiredAndAchievedHeader = {"ClusterID", "TotalDemandInSimulationHours", "MaximumHourlyDemand", "RequiredWaitingAreaCapacity","AchievedCapacity"};
+    requiredAndAchievedWriter.writeNext(requiredAndAchievedHeader);
+    for (Vertiport clusteredVertiport : clusteredExistingVertiports) {
+        String[] data = {String.valueOf(clusteredVertiport.ID), String.valueOf((int)(clusteredVertiport.totalDemand)+1),String.valueOf(clusteredVertiport.maxHourlyDemand),String.valueOf(clusteredVertiport.waitingAreaCapacity), String.valueOf(clusteredVertiport.totalCapacity)};
+        requiredAndAchievedWriter.writeNext(data);
+    }
+    requiredAndAchievedWriter.close();
+    log.info("Write the trip based indicators for analysis...");
+    writeTripBasedAnalysisResult(scenarioSpecific.outputTripBasedIndicatorFile,tripItems);
+}
+        MemoryObserver.stop();
     }
 
-    public static HashMap<List<Vertiport>, HashMap<Integer,Double>> findMinimumCostVertiportUnits(List<Vertiport> vertiportsUnits, int requiredCapacity) {
+    public static List<TripItemForOptimization> sampleTrips(List<TripItemForOptimization> tripItems, double samplingFactor, Random random) {
+        List<TripItemForOptimization> sampledTripItems = new ArrayList<>();
+        for (TripItemForOptimization tripItem : tripItems) {
+            if (random.nextDouble() < samplingFactor) {
+                sampledTripItems.add(tripItem);
+            }
+        }
+        return sampledTripItems;
+    }
+    public static HashMap<List<Vertiport>, HashMap<Integer,Double>> findMinimumCostVertiportUnitsDP(List<Vertiport> vertiportsUnits, int requiredCapacity) {
         log.info("Start finding the minimum cost vertiport units...");
         int totalCapacity = vertiportsUnits.stream().mapToInt(v -> v.totalCapacity).sum();
 
@@ -549,7 +638,40 @@ public class SimulatedAnnealingForPartD {
         log.info("Finished finding the minimum cost vertiport units.");
         return result;
     }
+    public static HashMap<List<Vertiport>, HashMap<Integer, Double>> findMinimumCostVertiportUnitsGRD(List<Vertiport> vertiportsUnits, int requiredCapacity) {
+        int totalCapacity = vertiportsUnits.stream().mapToInt(v -> v.totalCapacity).sum();
+        // if the total capacity is less than the required capacity, return all vertiports
+        if (requiredCapacity > totalCapacity) {
+            HashMap<List<Vertiport>, HashMap<Integer, Double>> result = new HashMap<>();
+            HashMap<Integer, Double> capacityAndCost = new HashMap<>();
+            double totalCost = vertiportsUnits.stream().mapToDouble(v -> v.constructionCost).sum();
+            capacityAndCost.put(totalCapacity, totalCost);
+            result.put(new ArrayList<>(vertiportsUnits), capacityAndCost);
+            return result;
+        }
 
+        // sort the vertiports by the construction cost per capacity
+        Collections.sort(vertiportsUnits, Comparator.comparingDouble(v -> v.constructionCost / v.totalCapacity));
+
+        List<Vertiport> selectedVertiports = new ArrayList<>();
+        double totalCost = 0;
+        int currentCapacity = 0;
+
+        for (Vertiport v : vertiportsUnits) {
+            if (currentCapacity >= requiredCapacity) {
+                break;
+            }
+            selectedVertiports.add(v);
+            totalCost += v.constructionCost;
+            currentCapacity += v.totalCapacity;
+        }
+
+        HashMap<List<Vertiport>, HashMap<Integer, Double>> result = new HashMap<>();
+        HashMap<Integer, Double> capacityAndCost = new HashMap<>();
+        capacityAndCost.put(currentCapacity, totalCost);
+        result.put(selectedVertiports, capacityAndCost);
+        return result;
+    }
     public static List<Integer> generateRandomSolution(Random random,HashMap<Integer, Vertiport> clusteredVertiportCandidatesMap, int numOfSelectedVertiports) {
 
       List<Integer> selectedVertiportsID = new ArrayList<>();
@@ -584,7 +706,7 @@ public class SimulatedAnnealingForPartD {
                         tripItemForOptimization.originNeighborVertiports = originNeighbourClusteredVertiports;
                         tripItemForOptimization.destinationNeighborVertiports = destinationNeighbourClusteredVertiports;
                         calculateTripSavedCost(tripItemForOptimization, clusteredAllVertiportMap, random, scenarioSpecific);
-                        return beta_savedCost+tripItemForOptimization.tempSavedGeneralizedCosts.get(0)+beta_savedEmission*tripItemForOptimization.tempSavedEmission.get(0)*CARBON_EQUIVALENCE_FACTOR;
+                        return beta_savedCost*tripItemForOptimization.tempSavedGeneralizedCosts.get(0)+beta_savedEmission*tripItemForOptimization.tempSavedEmission.get(0)*CARBON_EQUIVALENCE_FACTOR;
                     }
                 }
 
@@ -615,19 +737,18 @@ public class SimulatedAnnealingForPartD {
         }
 
         executor.shutdown();
+        totalSGAndSE= totalSGAndSE/POPULATION_SAMPLING_FACTOR;
         double totalConstructionCost=0;
         List<Vertiport> currentSelectedVertiportUnits = new ArrayList<>();
         // Update the tempMaxSaturationRate for each vertiport
         for (int vertiportID : chosenAndExistingClusteredVertiportsID) {
-            if(vertiportID<0){
-      //         log.info("The vertiport ID is less than 0");
-            }
+
             Vertiport vertiport = clusteredAllVertiportMap.get(vertiportID);
             vertiport.tempMaxSaturationRate = 0;
             double maxDemandInTimeWindow=0;
             double maxAccessDemandInTimeWindow=0;
 
-            for (int i = 0; i < SIMULATION_HOURS*4; i++) {
+            for (int i = 0; i < SIMULATION_HOURS; i++) {
                 if (vertiport.tempConcurrentAccessDemand.get(i)+vertiport.tempConcurrentEgressDemand.get(i)>maxDemandInTimeWindow) {
                     maxDemandInTimeWindow=vertiport.tempConcurrentAccessDemand.get(i)+vertiport.tempConcurrentEgressDemand.get(i);
                 }
@@ -636,7 +757,7 @@ public class SimulatedAnnealingForPartD {
                 }
                 vertiport.tempTotalDemand+=vertiport.tempConcurrentAccessDemand.get(i)+vertiport.tempConcurrentEgressDemand.get(i);
             }
-            vertiport.tempMax15MinDemand=maxDemandInTimeWindow;
+            vertiport.tempMaxHourlyDemand =maxDemandInTimeWindow;
             vertiport.tempWaitingAreaCapacity= maxAccessDemandInTimeWindow*WAITING_AREA_DEMAND_FACTOR;
             vertiport.tempAvailableCapacity = vertiport.totalCapacity - vertiport.tempWaitingAreaCapacity;
 
@@ -647,9 +768,14 @@ public class SimulatedAnnealingForPartD {
                 vertiport.tempMaxSaturationRate = Double.MAX_VALUE;
             }
             double requiredCapacity=vertiport.tempWaitingAreaCapacity+ maxDemandInTimeWindow;
-            if(vertiportID>0) {
+            if(vertiportID>0) { // if the vertiport is not the existing vertiport
             List<Vertiport> vertiportUnits = savedClusterResults.get(vertiportID);
-            HashMap<List<Vertiport>,HashMap<Integer,Double>> result= findMinimumCostVertiportUnits(vertiportUnits, (int) requiredCapacity+1);
+            HashMap<List<Vertiport>,HashMap<Integer,Double>> result = new HashMap<>();
+            if (vertiportUnits.size() > THRESHOLD_GRD_UNIT_SELECTION) {
+                    result = findMinimumCostVertiportUnitsGRD(vertiportUnits, (int) requiredCapacity+1); }
+            else {
+                    result = findMinimumCostVertiportUnitsDP(vertiportUnits, (int) requiredCapacity+1);
+            }
             totalConstructionCost+=result.values().iterator().next().values().iterator().next();
             currentSelectedVertiportUnits.addAll(result.keySet().iterator().next());}
         }
@@ -685,7 +811,7 @@ public class SimulatedAnnealingForPartD {
                     double egressEmisson =0;
                     double flightDistance= calculateEuciDistance(origin.coord,destination.coord);
                     double flightTime=flightDistance/flightSpeed+takeOffLandingTime;
-                    double flightEmission=flightDistance/1000*UAM_EMISSION_FACTOR; // convert m to km
+                    double flightEmission=flightDistance/1000* UAM_EMISSION_FACTOR_HORIZONTAL +  UAM_CRUISE_ALTITUDE * UAM_EMISSION_FACTOR_VERTICAL * 2;
                     double flightCost=UAM_FIX_COST+ calculateEuciDistance(origin.coord,destination.coord)/1000*UAM_KM_COST;
                     double uamTravelTime=accessTime+egressTime+flightTime+UAM_PROCESS_TIME;
                     if (accessMode==1){
@@ -705,7 +831,12 @@ public class SimulatedAnnealingForPartD {
                         egressEmisson=egressDistance/1000*PT_EMISSION_FACTOR;
                     }
                     double UAMTotalCost=accessCost+egressCost+flightCost;
-                    double UAMTotalGC= UAMTotalCost+uamTravelTime* tripItemForOptimization.VOT;
+                    double UAMTotalGC = 0;
+                    if (accessDistance+egressDistance+flightDistance>50000)  {
+                        UAMTotalGC= UAMTotalCost+uamTravelTime* tripItemForOptimization.VOT_More_Than_50km; }
+                    else {
+                        UAMTotalGC= UAMTotalCost+uamTravelTime* tripItemForOptimization.VOT_Less_Than_50km;
+                    }
                     double UAMTotalEmission=accessEmisson+egressEmisson+flightEmission;
                     double UAMTotalGCAndEmission=beta_savedCost*UAMTotalGC+beta_savedEmission*UAMTotalEmission*CARBON_EQUIVALENCE_FACTOR; // Already convert to monetary unit
 
@@ -730,17 +861,17 @@ public class SimulatedAnnealingForPartD {
             // Determine the probability of each mode by Monte Carlo Sampling
             // Create a double list to store the probability of each mode
             ModeDecider modeDecider=new ModeDecider(tripItemForOptimization.tempUamUtility,tripItemForOptimization.carUtility,tripItemForOptimization.ptUtility,car_utility_mean,car_utility_sigma,pt_utility_mean,pt_utility_sigma,random);
-            Double [] modeSamples=modeDecider.sampleWithErrorTerm(sampleSize);
+            Double [] modeSamples=modeDecider.sampleWithErrorTerm(MonteCarloSampleSize);
             tripItemForOptimization.tempUAMProbability=modeSamples[0];
             tripItemForOptimization.tempCarProbability=modeSamples[1];
             tripItemForOptimization.tempPTProbability=modeSamples[2];
 
 
-            int arriveVertiportTimeWindow = (int) Math.floor((tripItemForOptimization.departureTime + tripItemForOptimization.tempAccessTime) / 3600*4);
-            int leaveVertiportTimeWindow = (int) Math.floor((tripItemForOptimization.departureTime + tripItemForOptimization.tempAccessTime+ UAM_PROCESS_TIME + tripItemForOptimization.tempFlightTime) / 3600*4);
+            int arriveVertiportTimeWindow = (int) Math.floor((tripItemForOptimization.departureTime + tripItemForOptimization.tempAccessTime) / 3600);
+            int leaveVertiportTimeWindow = (int) Math.floor((tripItemForOptimization.departureTime + tripItemForOptimization.tempAccessTime+ UAM_PROCESS_TIME + tripItemForOptimization.tempFlightTime) / 3600);
 
-            tripItemForOptimization.tempAccessVertiport.tempConcurrentAccessDemand.put(arriveVertiportTimeWindow,tripItemForOptimization.tempAccessVertiport.tempConcurrentAccessDemand.get(arriveVertiportTimeWindow) + tripItemForOptimization.tempUAMProbability);
-            tripItemForOptimization.tempEgressVertiport.tempConcurrentEgressDemand.put(leaveVertiportTimeWindow,tripItemForOptimization.tempEgressVertiport.tempConcurrentEgressDemand.get(leaveVertiportTimeWindow) + tripItemForOptimization.tempUAMProbability);
+            tripItemForOptimization.tempAccessVertiport.tempConcurrentAccessDemand.put(arriveVertiportTimeWindow,tripItemForOptimization.tempAccessVertiport.tempConcurrentAccessDemand.get(arriveVertiportTimeWindow) + tripItemForOptimization.tempUAMProbability/POPULATION_SAMPLING_FACTOR);
+            tripItemForOptimization.tempEgressVertiport.tempConcurrentEgressDemand.put(leaveVertiportTimeWindow,tripItemForOptimization.tempEgressVertiport.tempConcurrentEgressDemand.get(leaveVertiportTimeWindow) + tripItemForOptimization.tempUAMProbability/POPULATION_SAMPLING_FACTOR);
 
             /*
             clusteredAllVertiportMap.get(tripItemForOptimization.accessVertiport.ID).tempConcurrentSaturationRates.put(arriveVertiportTimeWindow, clusteredAllVertiportMap.get(tripItemForOptimization.accessVertiport.ID).tempConcurrentSaturationRates.get(arriveVertiportTimeWindow) + tripItemForOptimization.tempUAMProbability / tripItemForOptimization.accessVertiport.capacity);
@@ -794,7 +925,7 @@ public class SimulatedAnnealingForPartD {
             writer.writeNext(data);
         }
         else{
-            String[] data = {tripItem.tripID, String.valueOf(tripItem.personID), String.valueOf(tripItem.HH_income),String.valueOf(tripItem.age),String.valueOf(tripItem.tripPurpose),String.valueOf(0),String.valueOf(tripItem.carProbability),String.valueOf(tripItem.ptProbability),String.valueOf(tripItem.carTripLength), String.valueOf(tripItem.ptTripLength),"NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA",String.valueOf(tripItem.currentMode),String.valueOf(tripItem.carOwnership),String.valueOf(tripItem.income),String.valueOf(tripItem.hh_id),String.valueOf(tripItem.gender),String.valueOf(tripItem.relationship),String.valueOf(tripItem.occupation),String.valueOf(tripItem.driverLicense),String.valueOf(tripItem.education)};
+            String[] data = {tripItem.tripID, String.valueOf(tripItem.personID), String.valueOf(tripItem.HH_income),String.valueOf(tripItem.age),String.valueOf(tripItem.tripPurpose),String.valueOf(0),String.valueOf(tripItem.carProbabilityBefore),String.valueOf(tripItem.ptProbabilityBefore),String.valueOf(tripItem.carTripLength), String.valueOf(tripItem.ptTripLength),"NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA",String.valueOf(tripItem.currentMode),String.valueOf(tripItem.carOwnership),String.valueOf(tripItem.income),String.valueOf(tripItem.hh_id),String.valueOf(tripItem.gender),String.valueOf(tripItem.relationship),String.valueOf(tripItem.occupation),String.valueOf(tripItem.driverLicense),String.valueOf(tripItem.education)};
             writer.writeNext(data);
             }
         }
@@ -1035,7 +1166,7 @@ public class SimulatedAnnealingForPartD {
             summarizedVertiport.coord = new Coord(centroidX, centroidY);
             summarizedVertiport.concurrentSaturationRates = new ConcurrentHashMap<>();
             summarizedVertiport.tempConcurrentSaturationRates = new ConcurrentHashMap<>();
-            for (int i = 0; i < SIMULATION_HOURS * 4; i++) {
+            for (int i = 0; i < SIMULATION_HOURS; i++) {
                 summarizedVertiport.concurrentSaturationRates.put(i, 0.0);
                 summarizedVertiport.tempConcurrentSaturationRates.put(i, 0.0);
             }
@@ -1082,7 +1213,7 @@ public class SimulatedAnnealingForPartD {
             summarizedVertiport.coord = new Coord(centroidX, centroidY);
             summarizedVertiport.concurrentSaturationRates = new ConcurrentHashMap<>();
             summarizedVertiport.tempConcurrentSaturationRates = new ConcurrentHashMap<>();
-            for (int i = 0; i < SIMULATION_HOURS * 4; i++) {
+            for (int i = 0; i < SIMULATION_HOURS; i++) {
                 summarizedVertiport.concurrentSaturationRates.put(i, 0.0);
                 summarizedVertiport.tempConcurrentSaturationRates.put(i, 0.0);
             }

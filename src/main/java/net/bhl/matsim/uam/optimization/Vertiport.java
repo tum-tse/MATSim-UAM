@@ -25,8 +25,8 @@ public class Vertiport implements java.io.Serializable{
     public double waitingAreaCapacity;
     public double tempAvailableCapacity;
     public double availableCapacity;
-    public double tempMax15MinDemand;
-    public double max15MinDemand;
+    public double tempMaxHourlyDemand;
+    public double maxHourlyDemand;
     public double tempMaxSaturationRate;
     public double maxSaturationRate;
     public List<Vertiport> neighbors;

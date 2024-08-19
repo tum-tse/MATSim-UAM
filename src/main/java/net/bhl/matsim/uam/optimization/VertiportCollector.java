@@ -97,11 +97,11 @@ public class VertiportCollector implements Runnable {
               carTravelTimeCalculatorAccess.run();
               double carAccessTravelTime = tripItemForOptimizationAccess.travelTime;
               double carAccessTravelDistance = tripItemForOptimizationAccess.distance;
-              double carAccessTravelGeneralizedCost = CAR_COST * carAccessTravelDistance / 1000 + this.trip.VOT * carAccessTravelTime;
+              double carAccessTravelGeneralizedCost = CAR_COST * carAccessTravelDistance / 1000 + this.trip.VOT_Less_Than_50km * carAccessTravelTime;
 
               double walkAccessTravelDistance = calculateEuciDistance(tripItemForOptimizationAccess.origin, tripItemForOptimizationAccess.destination) * 1.2;
               double walkAccessTravelTime = walkAccessTravelDistance / 1.1;
-              double walkAccessTravelGeneralizedCost = this.trip.VOT * walkAccessTravelTime;
+              double walkAccessTravelGeneralizedCost = this.trip.VOT_Less_Than_50km * walkAccessTravelTime;
               HashMap<String, Double> accessInformation = new HashMap<>();
               if (considerPT) {
                   RunCalculatePTTravelTimes.PTTravelTimeCalculator ptTravelTimeCalculatorAccess = new RunCalculatePTTravelTimes.PTTravelTimeCalculator(this.threadCounter, carNetwork, tripItemForOptimizationAccess, this.ptRouters);
@@ -114,7 +114,7 @@ public class VertiportCollector implements Runnable {
                   if (tripItemForOptimizationAccess.travelTime != 0) {
                       ptAccessTravelTime = tripItemForOptimizationAccess.travelTime;
                       ptAccessTravelDistance = tripItemForOptimizationAccess.distance;
-                      ptAccessTravelGeneralizedCost = PT_COST + this.trip.VOT * ptAccessTravelTime;
+                      ptAccessTravelGeneralizedCost = PT_COST + this.trip.VOT_Less_Than_50km * ptAccessTravelTime;
                   } else {
                       ptAccessTravelTime = Integer.MAX_VALUE;
                       ptAccessTravelDistance = Integer.MAX_VALUE;
@@ -172,10 +172,10 @@ public class VertiportCollector implements Runnable {
               carTravelTimeCalculatorEgress.run();
               double carEgressTravelTime = tripItemForOptimizationEgress.travelTime;
               double carEgressTravelDistance = tripItemForOptimizationEgress.distance;
-              double carEgressTravelGeneralizedCost = CAR_COST * carEgressTravelDistance / 1000 + this.trip.VOT * carEgressTravelTime;
+              double carEgressTravelGeneralizedCost = CAR_COST * carEgressTravelDistance / 1000 + this.trip.VOT_Less_Than_50km * carEgressTravelTime;
               double walkEgressTravelDistance = calculateEuciDistance(tripItemForOptimizationEgress.origin, tripItemForOptimizationEgress.destination) * 1.2;
               double walkEgressTravelTime = walkEgressTravelDistance / 1.1;
-              double walkEgressTravelGeneralizedCost = this.trip.VOT * walkEgressTravelTime;
+              double walkEgressTravelGeneralizedCost = this.trip.VOT_Less_Than_50km * walkEgressTravelTime;
               HashMap<String, Double> egressInformation = new HashMap<>();
               if (considerPT) {
                   RunCalculatePTTravelTimes.PTTravelTimeCalculator ptTravelTimeCalculatorEgress = new RunCalculatePTTravelTimes.PTTravelTimeCalculator(this.threadCounter, carNetwork, tripItemForOptimizationEgress, this.ptRouters);
@@ -186,7 +186,7 @@ public class VertiportCollector implements Runnable {
                   if (tripItemForOptimizationEgress.travelTime != 0) {
                       ptEgressTravelTime = tripItemForOptimizationEgress.travelTime;
                       ptEgressTravelDistance = tripItemForOptimizationEgress.distance;
-                      ptEgressTravelGeneralizedCost = PT_COST + this.trip.VOT * ptEgressTravelTime;
+                      ptEgressTravelGeneralizedCost = PT_COST + this.trip.VOT_Less_Than_50km * ptEgressTravelTime;
                   } else {
                       ptEgressTravelTime = Integer.MAX_VALUE;
                       ptEgressTravelDistance = Integer.MAX_VALUE;

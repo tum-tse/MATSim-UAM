@@ -11,15 +11,15 @@ import java.util.List;
 import java.util.Random;
 
 public class TripItemReaderForOptimization {
-	public static double CAR_EMISSION_FACTOR ;
-	public static double PT_EMISSION_FACTOR ;
-	public static double CARBON_EQUIVALENCE;
-	public static double car_utility_mean;
-	public static double car_utility_sigma;
-	public static double pt_utility_mean;
-	public static double pt_utility_sigma;
-	public static long randomSeed;
-    public static int sampleSize;
+	public double CAR_EMISSION_FACTOR ;
+	public double PT_EMISSION_FACTOR ;
+	public double CARBON_EQUIVALENCE;
+	public double car_utility_mean;
+	public double car_utility_sigma;
+	public double pt_utility_mean;
+	public double pt_utility_sigma;
+	public long randomSeed;
+    public int sampleSize;
 	public TripItemReaderForOptimization(ScenarioSpecific scenarioSpecific) {
 		this.scenarioSpecific = scenarioSpecific;
 		CAR_EMISSION_FACTOR = scenarioSpecific.car_emission_factor;
@@ -29,8 +29,8 @@ public class TripItemReaderForOptimization {
 		car_utility_sigma = scenarioSpecific.car_utility_sigma;
 		pt_utility_mean = scenarioSpecific.pt_utility_mean;
 		pt_utility_sigma = scenarioSpecific.pt_utility_sigma;
-		randomSeed = scenarioSpecific.random_seed;
-		sampleSize = scenarioSpecific.sampleSize;
+		randomSeed = scenarioSpecific.random_seed_RT;
+		sampleSize = scenarioSpecific.MonteCarlosampleSize;
 	}
 
 	public TripItemReaderForOptimization() {
@@ -83,7 +83,9 @@ public class TripItemReaderForOptimization {
 			trip.ptGeneralizedCost=Double.parseDouble(row[j++]);
 			trip.income=Double.parseDouble(row[j++]);
 			trip.VOT=trip.income/2080/3600;
-			if (row[j].contains("auto"))
+			trip.VOT_Less_Than_50km=Double.parseDouble(row[j++]);
+			trip.VOT_More_Than_50km=Double.parseDouble(row[j++]);
+			if (row[j++].contains("auto"))
 				trip.currentMode=0;
 			else
 				trip.currentMode=1;
