@@ -15,13 +15,14 @@ import java.util.concurrent.ArrayBlockingQueue;
 
 public class VertiportCollector implements Runnable {
     /*This class aims to collect all the neighboring vertiports for a given trip to its origin and destination. */
-    private static final int processes = Runtime.getRuntime().availableProcessors();
-    private static boolean considerPT;
+    private  final int processes = Runtime.getRuntime().availableProcessors();
+    private  boolean considerPT;
 
-    private static double CAR_COST;
-    private static double searchRadius;
-    private static double PT_COST;
-    private static HashMap<Integer,Vertiport> vertiportsCandidatesMap;
+    private double CAR_KM_COST;
+    private double searchRadius;
+    private double PT_TRIP_COST;
+    private HashMap<Integer,Vertiport> vertiportsCandidatesMap;
+    private String accessEgressChoiceCriteria;
     public VertiportCollector(TripItemForOptimization trip, Network networkCar ,Network networkPt, List<Vertiport> vertiportsCandidates, ThreadCounter threadCounter, ArrayBlockingQueue<LeastCostPathCalculator> carRouters, ArrayBlockingQueue<TransitRouter> ptRouters,ScenarioSpecific scenarioSpecific) {
         this.vertiportsCandidates = vertiportsCandidates;
         this.trip = trip;
@@ -31,10 +32,11 @@ public class VertiportCollector implements Runnable {
         this.carRouters=carRouters;
         this.ptRouters=ptRouters;
         scenarioSpecific.buildScenario();
-        this.CAR_COST = scenarioSpecific.car_km_cost;
+        this.CAR_KM_COST = scenarioSpecific.car_km_cost;
         this.considerPT = scenarioSpecific.consider_pt;
         this.searchRadius = scenarioSpecific.search_radius;
-        this.PT_COST = scenarioSpecific.pt_cost;
+        this.PT_TRIP_COST = scenarioSpecific.pt_cost;
+        this.accessEgressChoiceCriteria = scenarioSpecific.accessEgressChoiceCriteria;
         }
 
     public VertiportCollector(TripItemForOptimization trip, Network networkCar , List<Vertiport> vertiportsCandidates) {
@@ -97,11 +99,32 @@ public class VertiportCollector implements Runnable {
               carTravelTimeCalculatorAccess.run();
               double carAccessTravelTime = tripItemForOptimizationAccess.travelTime;
               double carAccessTravelDistance = tripItemForOptimizationAccess.distance;
-              double carAccessTravelGeneralizedCost = CAR_COST * carAccessTravelDistance / 1000 + this.trip.VOT_Less_Than_50km * carAccessTravelTime;
+              double carAccessTravelGeneralizedCost = CAR_KM_COST * carAccessTravelDistance / 1000 + this.trip.VOT_Less_Than_50km * carAccessTravelTime;
+              double carCriteria ;
+                if (this.accessEgressChoiceCriteria.equals("time")) {
+                    carCriteria = carAccessTravelTime;
+                } else if (this.accessEgressChoiceCriteria.equals("distance")) {
+                    carCriteria = carAccessTravelDistance;
+                } else if (this.accessEgressChoiceCriteria.equals("generalizedCost")) {
+                    carCriteria = carAccessTravelGeneralizedCost;
+                }
+                  else  {
+                    carCriteria = CAR_KM_COST * carAccessTravelDistance / 1000;}
 
               double walkAccessTravelDistance = calculateEuciDistance(tripItemForOptimizationAccess.origin, tripItemForOptimizationAccess.destination) * 1.2;
               double walkAccessTravelTime = walkAccessTravelDistance / 1.1;
               double walkAccessTravelGeneralizedCost = this.trip.VOT_Less_Than_50km * walkAccessTravelTime;
+              double walkCriteria;
+              if (this.accessEgressChoiceCriteria.equals("time")) {
+                  walkCriteria = walkAccessTravelTime;
+              } else if (this.accessEgressChoiceCriteria.equals("distance")) {
+                  walkCriteria = walkAccessTravelDistance;
+              } else if (this.accessEgressChoiceCriteria.equals("generalizedCost")) {
+                  walkCriteria = walkAccessTravelGeneralizedCost;
+              }
+              else  {
+                  walkCriteria = 0.0;
+              }
               HashMap<String, Double> accessInformation = new HashMap<>();
               if (considerPT) {
                   RunCalculatePTTravelTimes.PTTravelTimeCalculator ptTravelTimeCalculatorAccess = new RunCalculatePTTravelTimes.PTTravelTimeCalculator(this.threadCounter, carNetwork, tripItemForOptimizationAccess, this.ptRouters);
@@ -114,21 +137,31 @@ public class VertiportCollector implements Runnable {
                   if (tripItemForOptimizationAccess.travelTime != 0) {
                       ptAccessTravelTime = tripItemForOptimizationAccess.travelTime;
                       ptAccessTravelDistance = tripItemForOptimizationAccess.distance;
-                      ptAccessTravelGeneralizedCost = PT_COST + this.trip.VOT_Less_Than_50km * ptAccessTravelTime;
+                      ptAccessTravelGeneralizedCost = PT_TRIP_COST + this.trip.VOT_Less_Than_50km * ptAccessTravelTime;
                   } else {
                       ptAccessTravelTime = Integer.MAX_VALUE;
                       ptAccessTravelDistance = Integer.MAX_VALUE;
                       ptAccessTravelGeneralizedCost = Integer.MAX_VALUE;
                   }
-
+                  double ptCriteria;
+                  if (this.accessEgressChoiceCriteria.equals("time")) {
+                      ptCriteria = ptAccessTravelTime;
+                  } else if (this.accessEgressChoiceCriteria.equals("distance")) {
+                      ptCriteria = ptAccessTravelDistance;
+                  } else if (this.accessEgressChoiceCriteria.equals("generalizedCost")) {
+                      ptCriteria = ptAccessTravelGeneralizedCost;
+                  }
+                  else  {
+                      ptCriteria = PT_TRIP_COST;
+                  }
                   // find the mode with the lowest generalized cost
-                  if (carAccessTravelGeneralizedCost < ptAccessTravelGeneralizedCost && carAccessTravelGeneralizedCost < walkAccessTravelGeneralizedCost) {
+                  if (carCriteria < ptCriteria && carCriteria < walkCriteria) {
                       this.trip.accessMode = "car";
                       accessInformation.put("travelTime", carAccessTravelTime);
                       accessInformation.put("distance", carAccessTravelDistance);
                       accessInformation.put("generalizedCost", carAccessTravelGeneralizedCost);
                       accessInformation.put("accessMode", 1.0); // 1.0 means car, 0.0 means walk
-                  } else if (ptAccessTravelGeneralizedCost < carAccessTravelGeneralizedCost && ptAccessTravelGeneralizedCost < walkAccessTravelGeneralizedCost) {
+                  } else if (ptCriteria < carCriteria && ptCriteria < walkCriteria) {
                       this.trip.accessMode = "pt";
                       accessInformation.put("travelTime", ptAccessTravelTime);
                       accessInformation.put("distance", ptAccessTravelDistance);
@@ -142,7 +175,7 @@ public class VertiportCollector implements Runnable {
                       accessInformation.put("accessMode", 0.0); // 1.0 means car, 0.0 means walk
                   }
               } else {
-                  if (carAccessTravelGeneralizedCost < walkAccessTravelGeneralizedCost) {
+                  if (carCriteria < walkCriteria) {
                       this.trip.accessMode = "car";
                       accessInformation.put("travelTime", carAccessTravelTime);
                       accessInformation.put("distance", carAccessTravelDistance);
@@ -172,7 +205,7 @@ public class VertiportCollector implements Runnable {
               carTravelTimeCalculatorEgress.run();
               double carEgressTravelTime = tripItemForOptimizationEgress.travelTime;
               double carEgressTravelDistance = tripItemForOptimizationEgress.distance;
-              double carEgressTravelGeneralizedCost = CAR_COST * carEgressTravelDistance / 1000 + this.trip.VOT_Less_Than_50km * carEgressTravelTime;
+              double carEgressTravelGeneralizedCost = CAR_KM_COST * carEgressTravelDistance / 1000 + this.trip.VOT_Less_Than_50km * carEgressTravelTime;
               double walkEgressTravelDistance = calculateEuciDistance(tripItemForOptimizationEgress.origin, tripItemForOptimizationEgress.destination) * 1.2;
               double walkEgressTravelTime = walkEgressTravelDistance / 1.1;
               double walkEgressTravelGeneralizedCost = this.trip.VOT_Less_Than_50km * walkEgressTravelTime;
@@ -186,7 +219,7 @@ public class VertiportCollector implements Runnable {
                   if (tripItemForOptimizationEgress.travelTime != 0) {
                       ptEgressTravelTime = tripItemForOptimizationEgress.travelTime;
                       ptEgressTravelDistance = tripItemForOptimizationEgress.distance;
-                      ptEgressTravelGeneralizedCost = PT_COST + this.trip.VOT_Less_Than_50km * ptEgressTravelTime;
+                      ptEgressTravelGeneralizedCost = PT_TRIP_COST + this.trip.VOT_Less_Than_50km * ptEgressTravelTime;
                   } else {
                       ptEgressTravelTime = Integer.MAX_VALUE;
                       ptEgressTravelDistance = Integer.MAX_VALUE;
