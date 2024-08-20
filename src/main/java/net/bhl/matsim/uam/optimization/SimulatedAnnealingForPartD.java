@@ -62,16 +62,19 @@ public class SimulatedAnnealingForPartD {
     public static String existingVertiportFile; // For incremental siting
     public static double WAITING_AREA_DEMAND_FACTOR; // The waiting area demand factor
     public static int THRESHOLD_GRD_UNIT_SELECTION; // The threshold for selecting the GRD units
+    public static void setFilePaths(String tripItemFilePath, String configFilePath, String vertiportUnitsCandidateFilePath, String scenarioConfigurationsPath) {
+        tripItemFile = tripItemFilePath;
+        configPath = configFilePath;
+        vertiportUnitsCandidateFile = vertiportUnitsCandidateFilePath;
+        scenarioConfigurations = scenarioConfigurationsPath;
+    }
     public static void main(String[] args) throws Exception {
         MemoryObserver.start(MEMORY_CHECK_INTERVAL);
         // Provide the file via program arguments
         if (args.length > 0) {
-            tripItemFile = args[0];
-            configPath=args[1];
-            vertiportUnitsCandidateFile = args[2];
-            scenarioConfigurations = args[3];
+            setFilePaths(args[0], args[1], args[2], args[3]);
         }
-        DataInitializer dataInitializer = getDataInitializer();
+        DataInitializer dataInitializer = getDataInitializer(tripItemFile, configPath, vertiportUnitsCandidateFile, scenarioConfigurations);
 
         // Initialize the UAM enabled trips and UAM utility
         log.info("Start the simulated annealing algorithm...");
@@ -430,7 +433,9 @@ else {
         MemoryObserver.stop();
     }
 
-    private static DataInitializer getDataInitializer() throws IOException, InterruptedException {
+    public static DataInitializer getDataInitializer(String tripItemFile, String configFile, String vertiportUnitsCandidateFile, String scenarioConfigurations) throws IOException, InterruptedException {
+        setFilePaths(tripItemFile, configFile, vertiportUnitsCandidateFile, scenarioConfigurations);
+
         // Build the scenario of Munich
         log.info("Building the scenario...");
         ScenarioSpecific scenarioSpecific = new ScenarioSpecific(scenarioConfigurations);
@@ -577,7 +582,7 @@ else {
         return dataInitializer;
     }
 
-    private static class DataInitializer {
+    public static class DataInitializer {
         public final ScenarioSpecific scenarioSpecific;
         public final OptimizationConfiguration optimizationConfiguration;
         public final List<Vertiport> existingVertiportsUnits;

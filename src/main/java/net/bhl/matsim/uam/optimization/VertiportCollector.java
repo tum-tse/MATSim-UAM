@@ -160,19 +160,19 @@ public class VertiportCollector implements Runnable {
                       accessInformation.put("travelTime", carAccessTravelTime);
                       accessInformation.put("distance", carAccessTravelDistance);
                       accessInformation.put("generalizedCost", carAccessTravelGeneralizedCost);
-                      accessInformation.put("accessMode", 1.0); // 1.0 means car, 0.0 means walk
+                      accessInformation.put("accessMode", 1.0); //  0.0 means walk, 1.0 means car, 2.0 means pt
                   } else if (ptCriteria < carCriteria && ptCriteria < walkCriteria) {
                       this.trip.accessMode = "pt";
                       accessInformation.put("travelTime", ptAccessTravelTime);
                       accessInformation.put("distance", ptAccessTravelDistance);
                       accessInformation.put("generalizedCost", ptAccessTravelGeneralizedCost);
-                      accessInformation.put("accessMode", 2.0); // 1.0 means car, 0.0 means walk
+                      accessInformation.put("accessMode", 2.0); // 0.0 means walk, 1.0 means car, 2.0 means pt
                   } else {
                       this.trip.accessMode = "walk";
                       accessInformation.put("travelTime", walkAccessTravelTime);
                       accessInformation.put("distance", walkAccessTravelDistance);
                       accessInformation.put("generalizedCost", walkAccessTravelGeneralizedCost);
-                      accessInformation.put("accessMode", 0.0); // 1.0 means car, 0.0 means walk
+                      accessInformation.put("accessMode", 0.0); // 0.0 means walk, 1.0 means car, 2.0 means pt
                   }
               } else {
                   if (carCriteria < walkCriteria) {
@@ -180,13 +180,13 @@ public class VertiportCollector implements Runnable {
                       accessInformation.put("travelTime", carAccessTravelTime);
                       accessInformation.put("distance", carAccessTravelDistance);
                       accessInformation.put("generalizedCost", carAccessTravelGeneralizedCost);
-                      accessInformation.put("accessMode", 1.0); // 1.0 means car, 0.0 means walk
+                      accessInformation.put("accessMode", 1.0); // 0.0 means walk, 1.0 means car, 2.0 means pt
                   } else {
                       this.trip.accessMode = "walk";
                       accessInformation.put("travelTime", walkAccessTravelTime);
                       accessInformation.put("distance", walkAccessTravelDistance);
                       accessInformation.put("generalizedCost", walkAccessTravelGeneralizedCost);
-                      accessInformation.put("accessMode", 0.0); // 1.0 means car, 0.0 means walk
+                      accessInformation.put("accessMode", 0.0); // 0.0 means walk, 1.0 means car, 2.0 means pt
                   }
               }
 
