@@ -865,7 +865,7 @@ else {
                         egressEmisson=egressDistance/1000*PT_EMISSION_FACTOR;
                     }
                     double UAMTotalCost=accessCost+egressCost+flightCost;
-                    double UAMTotalGC = 0;
+                    double UAMTotalGC;
                     if (accessDistance+egressDistance+flightDistance>50000)  {
                         UAMTotalGC= UAMTotalCost+uamTravelTime* tripItemForOptimization.VOT_More_Than_50km; }
                     else {
@@ -919,16 +919,16 @@ else {
             emissionAfter=modeSamples[1]*tripItemForOptimization.carEmission+modeSamples[2]*tripItemForOptimization.ptEmission+modeSamples[0]* tripItemForOptimization.tempUamEmission;
             travelTimeAfter=modeSamples[1]*tripItemForOptimization.carTravelTime+modeSamples[2]*tripItemForOptimization.ptTravelTime+modeSamples[0]* tripItemForOptimization.tempUamTravelTime;
             double savedGCOneTrip=Double.max(tripItemForOptimization.currentGeneralizedCost-generalizedTravelCostAfter,0);
-            double savedEmissionOneTrip=Double.max(tripItemForOptimization.currentEmission-emissionAfter,0);
+            double changedEmissionOneTrip = tripItemForOptimization.currentEmission-emissionAfter;
             double savedTravelTimeOneTrip=Double.max(tripItemForOptimization.currentTravelTime-travelTimeAfter,0);
             if (tripItemForOptimization.tripPurpose.startsWith("H") && considerReturnTrip){
                 savedGCOneTrip=savedGCOneTrip*2;
-                savedEmissionOneTrip=savedEmissionOneTrip*2;
+                changedEmissionOneTrip=changedEmissionOneTrip*2;
                 savedTravelTimeOneTrip=savedTravelTimeOneTrip*2;
             }
 
             tripItemForOptimization.tempSavedGeneralizedCosts.add(savedGCOneTrip);
-            tripItemForOptimization.tempSavedEmission.add(savedEmissionOneTrip);
+            tripItemForOptimization.tempSavedEmission.add(changedEmissionOneTrip);
             tripItemForOptimization.tempSavedTravelTime.add(savedTravelTimeOneTrip);
     }
 
