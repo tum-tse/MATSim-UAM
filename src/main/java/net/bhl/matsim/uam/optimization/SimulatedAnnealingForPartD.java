@@ -93,7 +93,7 @@ public class SimulatedAnnealingForPartD {
             clusteredVertiport.tempWaitingAreaCapacity = 0;
             clusteredVertiport.tempAvailableCapacity = 0;
             clusteredVertiport.tempMaxHourlyDemand = 0;
-            clusteredVertiport.tempMaxSaturationRate = 0;
+
         }
             // record the start time
             long startTime = System.currentTimeMillis();
@@ -1050,8 +1050,6 @@ else {
         for (Vertiport vertiport: clusteredExistingVertiportsMap.values()) {
             if (vertiport.maxSaturationRate > 1) {
                 saturationVertiportsID.add(vertiport.ID);
-            } else {
-                notSaturationVertiportsID.add(vertiport.ID); // This should be outside the loop
             }
         }
 
