@@ -62,16 +62,19 @@ public class SimulatedAnnealingForPartD {
     public static String existingVertiportFile; // For incremental siting
     public static double WAITING_AREA_DEMAND_FACTOR; // The waiting area demand factor
     public static int THRESHOLD_GRD_UNIT_SELECTION; // The threshold for selecting the GRD units
+    public static void setFilePaths(String tripItemFilePath, String configFilePath, String vertiportUnitsCandidateFilePath, String scenarioConfigurationsPath) {
+        tripItemFile = tripItemFilePath;
+        configPath = configFilePath;
+        vertiportUnitsCandidateFile = vertiportUnitsCandidateFilePath;
+        scenarioConfigurations = scenarioConfigurationsPath;
+    }
     public static void main(String[] args) throws Exception {
         MemoryObserver.start(MEMORY_CHECK_INTERVAL);
         // Provide the file via program arguments
         if (args.length > 0) {
-            tripItemFile = args[0];
-            configPath=args[1];
-            vertiportUnitsCandidateFile = args[2];
-            scenarioConfigurations = args[3];
+            setFilePaths(args[0], args[1], args[2], args[3]);
         }
-        DataInitializer dataInitializer = getDataInitializer();
+        DataInitializer dataInitializer = getDataInitializer(tripItemFile, configPath, vertiportUnitsCandidateFile, scenarioConfigurations);
 
         // Initialize the UAM enabled trips and UAM utility
         log.info("Start the simulated annealing algorithm...");
@@ -93,7 +96,7 @@ public class SimulatedAnnealingForPartD {
             clusteredVertiport.tempWaitingAreaCapacity = 0;
             clusteredVertiport.tempAvailableCapacity = 0;
             clusteredVertiport.tempMaxHourlyDemand = 0;
-            clusteredVertiport.tempMaxSaturationRate = 0;
+
         }
             // record the start time
             long startTime = System.currentTimeMillis();
@@ -430,7 +433,9 @@ else {
         MemoryObserver.stop();
     }
 
-    private static DataInitializer getDataInitializer() throws IOException, InterruptedException {
+    public static DataInitializer getDataInitializer(String tripItemFile, String configFile, String vertiportUnitsCandidateFile, String scenarioConfigurations) throws IOException, InterruptedException {
+        setFilePaths(tripItemFile, configFile, vertiportUnitsCandidateFile, scenarioConfigurations);
+
         // Build the scenario of Munich
         log.info("Building the scenario...");
         ScenarioSpecific scenarioSpecific = new ScenarioSpecific(scenarioConfigurations);
@@ -577,7 +582,7 @@ else {
         return dataInitializer;
     }
 
-    private static class DataInitializer {
+    public static class DataInitializer {
         public final ScenarioSpecific scenarioSpecific;
         public final OptimizationConfiguration optimizationConfiguration;
         public final List<Vertiport> existingVertiportsUnits;
@@ -865,7 +870,7 @@ else {
                         egressEmisson=egressDistance/1000*PT_EMISSION_FACTOR;
                     }
                     double UAMTotalCost=accessCost+egressCost+flightCost;
-                    double UAMTotalGC = 0;
+                    double UAMTotalGC;
                     if (accessDistance+egressDistance+flightDistance>50000)  {
                         UAMTotalGC= UAMTotalCost+uamTravelTime* tripItemForOptimization.VOT_More_Than_50km; }
                     else {
@@ -919,16 +924,16 @@ else {
             emissionAfter=modeSamples[1]*tripItemForOptimization.carEmission+modeSamples[2]*tripItemForOptimization.ptEmission+modeSamples[0]* tripItemForOptimization.tempUamEmission;
             travelTimeAfter=modeSamples[1]*tripItemForOptimization.carTravelTime+modeSamples[2]*tripItemForOptimization.ptTravelTime+modeSamples[0]* tripItemForOptimization.tempUamTravelTime;
             double savedGCOneTrip=Double.max(tripItemForOptimization.currentGeneralizedCost-generalizedTravelCostAfter,0);
-            double savedEmissionOneTrip=Double.max(tripItemForOptimization.currentEmission-emissionAfter,0);
+            double changedEmissionOneTrip = tripItemForOptimization.currentEmission-emissionAfter;
             double savedTravelTimeOneTrip=Double.max(tripItemForOptimization.currentTravelTime-travelTimeAfter,0);
             if (tripItemForOptimization.tripPurpose.startsWith("H") && considerReturnTrip){
                 savedGCOneTrip=savedGCOneTrip*2;
-                savedEmissionOneTrip=savedEmissionOneTrip*2;
+                changedEmissionOneTrip=changedEmissionOneTrip*2;
                 savedTravelTimeOneTrip=savedTravelTimeOneTrip*2;
             }
 
             tripItemForOptimization.tempSavedGeneralizedCosts.add(savedGCOneTrip);
-            tripItemForOptimization.tempSavedEmission.add(savedEmissionOneTrip);
+            tripItemForOptimization.tempSavedEmission.add(changedEmissionOneTrip);
             tripItemForOptimization.tempSavedTravelTime.add(savedTravelTimeOneTrip);
     }
 
@@ -1050,8 +1055,6 @@ else {
         for (Vertiport vertiport: clusteredExistingVertiportsMap.values()) {
             if (vertiport.maxSaturationRate > 1) {
                 saturationVertiportsID.add(vertiport.ID);
-            } else {
-                notSaturationVertiportsID.add(vertiport.ID); // This should be outside the loop
             }
         }
 

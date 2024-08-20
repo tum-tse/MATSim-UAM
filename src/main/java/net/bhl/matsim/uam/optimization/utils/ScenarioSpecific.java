@@ -52,6 +52,7 @@ public class ScenarioSpecific {
     public String outputVertiportBasedIndicatorFile;
     public double wait_area_demand_factor;
     public int threshold_GRD_Unit_Selection;
+    public String accessEgressChoiceCriteria; // possible values: time, distance, generalizedCost, cost
 
 
     public void buildScenario() {
@@ -106,6 +107,7 @@ public class ScenarioSpecific {
             this.outputVertiportBasedIndicatorFile = getTagValue("output_vertiport_indicators_file", scenarioSpecific);
             this.wait_area_demand_factor = Double.parseDouble(getTagValue("wait_area_demand_factor", scenarioSpecific));
             this.threshold_GRD_Unit_Selection = Integer.parseInt(getTagValue("threshold_GRD_Unit_Selection", scenarioSpecific));
+            this.accessEgressChoiceCriteria = getTagValue("access_egress_choice_criteria", scenarioSpecific);
         } catch (Exception e) {
             e.printStackTrace();
         }
