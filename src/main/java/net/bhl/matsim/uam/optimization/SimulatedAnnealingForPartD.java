@@ -757,8 +757,8 @@ else {
                 tripItemForOptimization.tempCarProbability=tripItemForOptimization.carProbabilityBefore;
                 tripItemForOptimization.tempPTProbability=tripItemForOptimization.ptProbabilityBefore;
                 tripItemForOptimization.tempUAMProbability=0;
-                tripItemForOptimization.accessVertiport=null;
-                tripItemForOptimization.egressVertiport=null;
+                tripItemForOptimization.tempAccessVertiport =null;
+                tripItemForOptimization.tempEgressVertiport =null;
                 tripItemForOptimization.tempUamTravelTime=0;
                 tripItemForOptimization.tempUAMCost=0;
                 tripItemForOptimization.tempUamEmission=0;
