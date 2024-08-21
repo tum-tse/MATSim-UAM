@@ -372,12 +372,12 @@ if (NUM_OF_SELECTED_CLUSTERED_VERTIPORTS>0) {
         String[] requiredAndAchievedHeader = {"ClusterID", "TotalDemandInSimulationHours", "MaximumHourlyDemand", "RequiredWaitingAreaCapacity","AchievedCapacity"};
         requiredAndAchievedWriter.writeNext(requiredAndAchievedHeader);
         for (Map.Entry<Integer, List<Integer>> entry : requiredAndAchievedCapacityMapForCandidates.entrySet()) {
-            String[] data = {String.valueOf(entry.getKey()), String.valueOf((int)(dataInitializer.clusteredAllVertiportsMap.get(entry.getKey()).totalDemand)+1),String.valueOf((dataInitializer.clusteredAllVertiportsMap.get(entry.getKey()).maxHourlyDemand)),String.valueOf(dataInitializer.clusteredAllVertiportsMap.get(entry.getKey()).waitingAreaCapacity), String.valueOf(entry.getValue().get(1))};
+            String[] data = {String.valueOf(entry.getKey()), String.valueOf(dataInitializer.clusteredAllVertiportsMap.get(entry.getKey()).totalDemand),String.valueOf((dataInitializer.clusteredAllVertiportsMap.get(entry.getKey()).maxHourlyDemand)),String.valueOf(dataInitializer.clusteredAllVertiportsMap.get(entry.getKey()).waitingAreaCapacity), String.valueOf(entry.getValue().get(1))};
             requiredAndAchievedWriter.writeNext(data);
         }
         if (incrementalSiting) {
             for (Vertiport clusteredVertiport: dataInitializer.clusteredExistingVertiports) {
-                String[] data = {String.valueOf(clusteredVertiport.ID), String.valueOf((int)(clusteredVertiport.totalDemand)+1),String.valueOf(clusteredVertiport.maxHourlyDemand),String.valueOf(clusteredVertiport.waitingAreaCapacity), String.valueOf(clusteredVertiport.totalCapacity)};
+                String[] data = {String.valueOf(clusteredVertiport.ID), String.valueOf(clusteredVertiport.totalDemand),String.valueOf(clusteredVertiport.maxHourlyDemand),String.valueOf(clusteredVertiport.waitingAreaCapacity), String.valueOf(clusteredVertiport.totalCapacity)};
                 requiredAndAchievedWriter.writeNext(data);
             }
         }
@@ -423,7 +423,7 @@ else {
     String[] requiredAndAchievedHeader = {"ClusterID", "TotalDemandInSimulationHours", "MaximumHourlyDemand", "RequiredWaitingAreaCapacity","AchievedCapacity"};
     requiredAndAchievedWriter.writeNext(requiredAndAchievedHeader);
     for (Vertiport clusteredVertiport : dataInitializer.clusteredExistingVertiports) {
-        String[] data = {String.valueOf(clusteredVertiport.ID), String.valueOf((int)(clusteredVertiport.totalDemand)+1),String.valueOf(clusteredVertiport.maxHourlyDemand),String.valueOf(clusteredVertiport.waitingAreaCapacity), String.valueOf(clusteredVertiport.totalCapacity)};
+        String[] data = {String.valueOf(clusteredVertiport.ID), String.valueOf(clusteredVertiport.totalDemand),String.valueOf(clusteredVertiport.maxHourlyDemand),String.valueOf(clusteredVertiport.waitingAreaCapacity), String.valueOf(clusteredVertiport.totalCapacity)};
         requiredAndAchievedWriter.writeNext(data);
     }
     requiredAndAchievedWriter.close();
