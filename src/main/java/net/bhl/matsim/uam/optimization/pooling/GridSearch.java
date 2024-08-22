@@ -10,10 +10,13 @@ import weka.core.Attribute;
 import java.util.ArrayList;
 import java.util.concurrent.*;
 import java.util.List;
+import java.util.logging.*;
 
 public class GridSearch {
     private static final int numProcessors = Runtime.getRuntime().availableProcessors();
-    private static final int bufferDivider = 2;
+    private static final int bufferDivider = 1;
+    private static final Logger logger = Logger.getLogger(GridSearch.class.getName());
+    private static final int TIMEOUT_MINUTES = 6000;
 
     public static void main(String[] args) throws Exception {
         // Define the attributes
@@ -28,7 +31,7 @@ public class GridSearch {
         dataset.setClassIndex(dataset.numAttributes() - 1);
 
         // Create a thread pool
-        int numThreads = Runtime.getRuntime().availableProcessors();
+        int numThreads = Runtime.getRuntime().availableProcessors() / bufferDivider;
         ExecutorService executor = Executors.newFixedThreadPool(numThreads);
 
         List<Future<double[]>> futures = new ArrayList<>();
@@ -36,57 +39,75 @@ public class GridSearch {
         MultiObjectiveNSGAII.initialization(args);
         ThreadCounter threadCounter = new ThreadCounter();
 
-        // Example loop to optimize parameters
-        for (double ptw = 5.0; ptw <= 15.0; ptw += 1.0) {
-            for (double sro = 500; sro <= 3000; sro += 500) {
-                for (double srd = 500; srd <= 3000; srd += 500) {
-                    final double finalPtw = ptw;
-                    final double finalSro = sro;
-                    final double finalSrd = srd;
+        try {
+            // Example loop to optimize parameters
+            for (double ptw = 5.0; ptw <= 20.0; ptw += 5.0) {
+                for (double sro = 2000; sro <= 10000; sro += 500) {
+                    for (double srd = 2000; srd <= 10000; srd += 500) {
+                        final double finalPtw = ptw;
+                        final double finalSro = sro;
+                        final double finalSrd = srd;
 
-                    while (threadCounter.getProcesses() >= numProcessors/bufferDivider - 1)
-                        Thread.sleep(200);
-                    // Submit task to thread pool
-                    Future<double[]> future = executor.submit(new Callable<>() {
-                        @Override
-                        public double[] call() throws Exception {
-                            threadCounter.register(); // Register at the start of the task
-                            try {
-                            String[] multiObjectiveArgs = {
-                                    String.valueOf("" ), // INPUT_FILE
-                                    String.valueOf("" ), // INPUT_FILE
-                                    String.valueOf("" ), // INPUT_FILE
-                                    String.valueOf("" ), // INPUT_FILE
-                                    String.valueOf("" ), // OUTPUT_DIRECTORY
-                                    String.valueOf(finalPtw), // BUFFER_END_TIME
-                                    String.valueOf(finalSro), // SEARCH_RADIUS_ORIGIN
-                                    String.valueOf(finalSrd), // SEARCH_RADIUS_DESTINATION
-                                    String.valueOf(false),  // ENABLE_LOCAL_SEARCH
-                                    String.valueOf(true),  // ENABLE_PRINT_RESULTS
-                                    String.valueOf(finalPtw + "_" + finalSro + "_" + finalSrd + "/") // OUTPUT_SUB_DIRECTORY
-                            };
-                            return MultiObjectiveNSGAII.callAlgorithm(multiObjectiveArgs);
-                            } finally {
-                                threadCounter.deregister(); // Deregister at the end of the task, even if an exception occurs
+                        while (threadCounter.getProcesses() >= numProcessors/bufferDivider - 1)
+                            Thread.sleep(200);
+                        // Submit task to thread pool
+                        Future<double[]> future = executor.submit(new Callable<>() {
+                            @Override
+                            public double[] call() throws Exception {
+                                threadCounter.register(); // Register at the start of the task
+                                try {
+                                    String[] multiObjectiveArgs = {
+                                            String.valueOf("" ), // INPUT_FILE
+                                            String.valueOf("" ), // INPUT_FILE
+                                            String.valueOf("" ), // INPUT_FILE
+                                            String.valueOf("" ), // INPUT_FILE
+                                            String.valueOf("" ), // OUTPUT_DIRECTORY
+                                            String.valueOf(finalPtw), // BUFFER_END_TIME
+                                            String.valueOf(finalSro), // SEARCH_RADIUS_ORIGIN
+                                            String.valueOf(finalSrd), // SEARCH_RADIUS_DESTINATION
+                                            String.valueOf(false),  // ENABLE_LOCAL_SEARCH
+                                            String.valueOf(true),  // ENABLE_PRINT_RESULTS
+                                            String.valueOf(finalPtw + "_" + finalSro + "_" + finalSrd + "/") // OUTPUT_SUB_DIRECTORY
+                                    };
+                                    return MultiObjectiveNSGAII.callAlgorithm(multiObjectiveArgs);
+                                } catch (Exception e) {
+                                    logger.log(Level.SEVERE, "Task failed for ptw=" + finalPtw + ", sro=" + finalSro + ", srd=" + finalSrd, e);
+                                    return null;
+                                } finally {
+                                    threadCounter.deregister(); // Deregister at the end of the task, even if an exception occurs
+                                }
                             }
-                        }
-                    });
+                        });
 
-                    futures.add(future);
+                        futures.add(future);
+                    }
                 }
             }
-        }
 
-        // Collect results and add to dataset
-        for (Future<double[]> future : futures) {
-            double[] fitnessScore = future.get();
-            // Add the instance to the dataset
-            // Note: You'll need to keep track of which parameters correspond to which future
-            // This might require additional bookkeeping
-            dataset.add(new DenseInstance(1.0, fitnessScore));
-        }
+            executor.shutdown();
+            if (!executor.awaitTermination(TIMEOUT_MINUTES, TimeUnit.MINUTES)) {
+                logger.warning("Timeout occurred. Not all tasks completed.");
+            }
 
-        executor.shutdown();
+            // Collect results and add to dataset
+            for (Future<double[]> future : futures) {
+                try {
+                    double[] fitnessScore = future.get(6000, TimeUnit.MINUTES);
+                    if (fitnessScore != null) {
+                        // Add the instance to the dataset
+                        // Note: You'll need to keep track of which parameters correspond to which future
+                        // This might require additional bookkeeping
+                        dataset.add(new DenseInstance(1.0, fitnessScore));
+                    }
+                } catch (Exception e) {
+                    logger.log(Level.WARNING, "Error getting task result", e);
+                }
+            }
+        } catch (Exception e) {
+            logger.log(Level.SEVERE, "An error occurred in the main execution", e);
+        } finally {
+            executor.shutdownNow();
+        }
 
         // Use Weka to find the best parameters using a simple linear regression
         //SimpleLinearRegression slr = new SimpleLinearRegression();
