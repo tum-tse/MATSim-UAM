@@ -85,9 +85,10 @@ public class MultiObjectiveNSGAII {
     private static final int bufferDivider = 1;
 
     // io paths
-    private static String outputFile;
+    private static String outputFile = "src/main/java/net/bhl/matsim/uam/optimization/pooling/output/";
     private static double POOLING_TIME_WINDOW = BUFFER_END_TIME - BUFFER_START_TIME;
-    private static String outputSubFolder = outputFile + POOLING_TIME_WINDOW + "_" + SEARCH_RADIUS_ORIGIN + "_" + SEARCH_RADIUS_DESTINATION + "/";
+    private static String subFolder = POOLING_TIME_WINDOW + "_" + SEARCH_RADIUS_ORIGIN + "_" + SEARCH_RADIUS_DESTINATION + "/";
+    private static String outputSubFolder = !outputFile.endsWith("/") ? outputFile + "/" + subFolder : outputFile + subFolder;
     // TODO: Create an initial population of solutions using domain-specific knowledge (in our case is the vehicles which were used to create the initial fleet of the vehicles).
 
     // For travel time calculator
@@ -176,7 +177,18 @@ public class MultiObjectiveNSGAII {
             SEARCH_RADIUS_DESTINATION = Double.parseDouble(args[7]);
             ENABLE_LOCAL_SEARCH = Boolean.parseBoolean(args[8]);
             ENABLE_PRINT_RESULTS = Boolean.parseBoolean(args[9]);
-            outputSubFolder = args[4] + args[10];
+            outputSubFolder = outputFile.endsWith("/") ? outputFile + args[10] : outputFile + "/" + args[10];
+        }
+        // Check if the output folder exists, if not create it
+        File outputFolder = new File(outputSubFolder);
+        if (!outputFolder.exists()) {
+            if (outputFolder.mkdirs()) {
+                System.out.println("Output directory created: " + outputFolder.getAbsolutePath());
+            } else {
+                System.err.println("Failed to create output directory: " + outputFolder.getAbsolutePath());
+            }
+        } else {
+            System.out.println("Output directory already exists: " + outputFolder.getAbsolutePath());
         }
 
         MemoryObserver.start(600);
@@ -229,17 +241,6 @@ public class MultiObjectiveNSGAII {
         // Calculate and print the performance indicators
         SolutionIndicatorData indicatorData = new SolutionIndicatorData(bestFeasibleSolution);
         SolutionFitnessPair finalSolution = calculateFitness(bestFeasibleSolution, indicatorData, true);
-        // Check if the output folder exists, if not create it
-        File outputFolder = new File(outputSubFolder);
-        if (!outputFolder.exists()) {
-            if (outputFolder.mkdirs()) {
-                System.out.println("Output directory created: " + outputFolder.getAbsolutePath());
-            } else {
-                System.err.println("Failed to create output directory: " + outputFolder.getAbsolutePath());
-            }
-        } else {
-            System.out.println("Output directory already exists: " + outputFolder.getAbsolutePath());
-        }
         printPerformanceIndicators(bestFeasibleSolution, indicatorData, outputSubFolder + "trip_statistics.csv");
         // Print the NUMBER_OF_TRIPS_LONGER_THAN
         //System.out.println("Threshold for trips longer than " + THRESHOLD_FOR_TRIPS_LONGER_THAN_STRING + ": " + NUMBER_OF_TRIPS_LONGER_TAHN);
