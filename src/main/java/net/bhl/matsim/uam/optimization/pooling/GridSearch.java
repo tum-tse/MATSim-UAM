@@ -1,5 +1,6 @@
 package net.bhl.matsim.uam.optimization.pooling;
 
+import net.bhl.matsim.uam.analysis.traveltimes.utils.ThreadCounter;
 import weka.classifiers.Evaluation;
 import weka.classifiers.functions.SimpleLinearRegression;
 import weka.core.DenseInstance;
@@ -11,6 +12,8 @@ import java.util.concurrent.*;
 import java.util.List;
 
 public class GridSearch {
+    private static final int numProcessors = Runtime.getRuntime().availableProcessors();
+    private static final int bufferDivider = 2;
 
     public static void main(String[] args) throws Exception {
         // Define the attributes
@@ -31,6 +34,7 @@ public class GridSearch {
         List<Future<double[]>> futures = new ArrayList<>();
 
         MultiObjectiveNSGAII.initialization(args);
+        ThreadCounter threadCounter = new ThreadCounter();
 
         // Example loop to optimize parameters
         for (double ptw = 5.0; ptw <= 15.0; ptw += 1.0) {
@@ -40,10 +44,14 @@ public class GridSearch {
                     final double finalSro = sro;
                     final double finalSrd = srd;
 
+                    while (threadCounter.getProcesses() >= numProcessors/bufferDivider - 1)
+                        Thread.sleep(200);
                     // Submit task to thread pool
                     Future<double[]> future = executor.submit(new Callable<>() {
                         @Override
                         public double[] call() throws Exception {
+                            threadCounter.register(); // Register at the start of the task
+                            try {
                             String[] multiObjectiveArgs = {
                                     String.valueOf("" ), // INPUT_FILE
                                     String.valueOf("" ), // INPUT_FILE
@@ -58,6 +66,9 @@ public class GridSearch {
                                     String.valueOf(finalPtw + "_" + finalSro + "_" + finalSrd + "/") // OUTPUT_SUB_DIRECTORY
                             };
                             return MultiObjectiveNSGAII.callAlgorithm(multiObjectiveArgs);
+                            } finally {
+                                threadCounter.deregister(); // Deregister at the end of the task, even if an exception occurs
+                            }
                         }
                     });
 
@@ -78,15 +89,15 @@ public class GridSearch {
         executor.shutdown();
 
         // Use Weka to find the best parameters using a simple linear regression
-        SimpleLinearRegression slr = new SimpleLinearRegression();
-        slr.buildClassifier(dataset);
+        //SimpleLinearRegression slr = new SimpleLinearRegression();
+        //slr.buildClassifier(dataset);
 
         // Evaluate the model
-        Evaluation eval = new Evaluation(dataset);
-        eval.evaluateModel(slr, dataset);
+        //Evaluation eval = new Evaluation(dataset);
+        //eval.evaluateModel(slr, dataset);
 
         // Output the results
-        System.out.println("Best fitness score: " + eval.meanAbsoluteError());
+        //System.out.println("Best fitness score: " + eval.meanAbsoluteError());
         //System.out.println("Summary: " + eval.toSummaryString());
     }
 }
