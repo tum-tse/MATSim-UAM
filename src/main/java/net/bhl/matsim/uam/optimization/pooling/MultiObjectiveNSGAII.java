@@ -551,7 +551,7 @@ public class MultiObjectiveNSGAII {
                 totalViolationPenalty += PENALTY_FOR_VEHICLE_CAPACITY_VIOLATION * (trips.size() - VEHICLE_CAPACITY);
             }
         }
-        return new double[]{totalFitness, totalDistanceChange, totalTimeChange, totalViolationPenalty};
+        return new double[]{totalFitness, ALPHA * totalDistanceChange, BETA * totalTimeChange, totalViolationPenalty};
     }
     private double getFitnessForNonPooledOrBaseTrip(UAMTrip trip, UAMStation originStationOfVehicle, UAMStation destinationStationOfVehicle, double totalFitness, boolean isFinalSolutions, Map<String, Double> travelTimeChangeMap, SolutionIndicatorData indicatorData) {
         double tripTimeChange = 0.0;
