@@ -4,6 +4,7 @@ import net.bhl.matsim.uam.optimization.SimulatedAnnealingForPartD;
 import net.bhl.matsim.uam.optimization.Vertiport;
 import net.bhl.matsim.uam.optimization.utils.TripItemForOptimization;
 import org.apache.log4j.Level;
+import org.matsim.api.core.v01.Coord;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.network.Link;
 import org.matsim.api.core.v01.network.Network;
@@ -431,8 +432,8 @@ public class MultiObjectiveNSGAII {
 
         for (TripItemForOptimization trip : subTrips) {
             if (trip.originNeighborVertiportCandidatesTimeAndDistance.containsKey(originStation)&&trip.destinationNeighborVertiportCandidatesTimeAndDistance.containsKey(destinationStation)) {
-                if (trip.originNeighborVertiportCandidatesTimeAndDistance.get(originStation).get("distance") <= SEARCH_RADIUS_ORIGIN &&
-                        trip.destinationNeighborVertiportCandidatesTimeAndDistance.get(destinationStation).get("distance") <= SEARCH_RADIUS_DESTINATION) {
+                if (calculateEuclideanDistance(trip.origin, originStation.coord) <= SEARCH_RADIUS_ORIGIN &&
+                        calculateEuclideanDistance(trip.destination, destinationStation.coord) <= SEARCH_RADIUS_DESTINATION) {
 
                     List<UAMVehicle> tripVehicles = tripVehicleMap.getOrDefault(trip.tripID, new ArrayList<>());
                     tripVehicles.add(newVehicle);
@@ -668,7 +669,10 @@ public class MultiObjectiveNSGAII {
         return calculateFlightDistance(originStationOfVehicle, destinationStationOfVehicle) - calculateFlightDistance(trip.accessVertiport, trip.egressVertiport);
     }
     public static double calculateFlightDistance(Vertiport originStation, Vertiport destStation) {
-        return Math.sqrt(Math.pow(originStation.coord.getX() - destStation.coord.getX(), 2) + Math.pow(originStation.coord.getY() - destStation.coord.getY(), 2));
+        return calculateEuclideanDistance(originStation.coord, destStation.coord);
+    }
+    public static double calculateEuclideanDistance(Coord coord1, Coord coord2) {
+        return Math.sqrt(Math.pow(coord1.getX() - coord2.getX(), 2) + Math.pow(coord1.getY() - coord2.getY(), 2));
     }
     private static double getTravelTimeChangeDueToEgressMatching(TripItemForOptimization trip, Vertiport destinationStationOfVehicle) {
         return trip.destinationNeighborVertiportCandidatesTimeAndDistance.get(destinationStationOfVehicle).get("travelTime") - trip.destinationNeighborVertiportCandidatesTimeAndDistance.get(trip.egressVertiport).get("travelTime");
@@ -726,7 +730,7 @@ public class MultiObjectiveNSGAII {
                 if (!trip.originNeighborVertiportCandidatesTimeAndDistance.containsKey(station)){
                     continue;
                 }
-                if (trip.originNeighborVertiportCandidatesTimeAndDistance.get(station).get("distance") <= SEARCH_RADIUS_ORIGIN) {
+                if (calculateEuclideanDistance(trip.origin, station.coord) <= SEARCH_RADIUS_ORIGIN) {
                     List<UAMVehicle> vehicles = originStationVehicleMap.get(Id.create(station.ID, Vertiport.class));
                     if (vehicles == null){
                         continue;
@@ -738,7 +742,7 @@ public class MultiObjectiveNSGAII {
                             .filter(vehicle -> {
                                 Vertiport vertiport = vehicleDestinationStationMap.get(vehicle.getId());
                                 return trip.destinationNeighborVertiportCandidatesTimeAndDistance.containsKey(vertiport) &&
-                                        trip.destinationNeighborVertiportCandidatesTimeAndDistance.get(vertiport).get("distance") <= SEARCH_RADIUS_DESTINATION;
+                                        calculateEuclideanDistance(trip.destination, vertiport.coord) <= SEARCH_RADIUS_DESTINATION;
                             })
                             .collect(Collectors.toCollection(ArrayList::new));
 
