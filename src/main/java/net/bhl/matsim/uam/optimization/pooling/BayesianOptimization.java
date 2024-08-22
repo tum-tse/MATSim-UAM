@@ -18,6 +18,8 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Logger;
 import java.util.logging.Level;
 
+import static net.bhl.matsim.uam.optimization.pooling.MultiObjectiveNSGAII.setFilePaths;
+
 public class BayesianOptimization {
 
     private static final Logger LOGGER = Logger.getLogger(BayesianOptimization.class.getName());
@@ -227,16 +229,19 @@ public class BayesianOptimization {
 
     public static void main(String[] args) {
         try {
-            ParameterRange poolingTimeWindowRange = new ParameterRange(1, 20);
-            ParameterRange searchRadiusOriginRange = new ParameterRange(600, 5000);
-            ParameterRange searchRadiusDestinationRange = new ParameterRange(600, 5000);
+            ParameterRange poolingTimeWindowRange = new ParameterRange(5, 20);
+            ParameterRange searchRadiusOriginRange = new ParameterRange(2000, 10000);
+            ParameterRange searchRadiusDestinationRange = new ParameterRange(2000, 10000);
 
-            MultiObjectiveNSGAII.initialization(args);
+            //MultiObjectiveNSGAII.initialization(args);
+            String outputSubFolder = args[4].endsWith("/") ? args[4] + "bayesian_optimization" : args[4] + "/" + "bayesian_optimization";
+            MultiObjectiveNSGAII.createFolder(outputSubFolder);
+            setFilePaths(args[0], args[1], args[2], args[3], outputSubFolder);
 
             BayesianOptimization optimization = new BayesianOptimization(
                     poolingTimeWindowRange, searchRadiusOriginRange, searchRadiusDestinationRange);
 
-            int[] bestParams = optimization.optimizeParameters(10);
+            int[] bestParams = optimization.optimizeParameters(20);
             System.out.println("Best Parameters: Pooling Time Window = " + bestParams[0] +
                     ", Search Radius Origin = " + bestParams[1] +
                     ", Search Radius Destination = " + bestParams[2]);

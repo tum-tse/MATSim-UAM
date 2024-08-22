@@ -12,6 +12,8 @@ import java.util.concurrent.*;
 import java.util.List;
 import java.util.logging.*;
 
+import static net.bhl.matsim.uam.optimization.pooling.MultiObjectiveNSGAII.setFilePaths;
+
 public class GridSearch {
     private static final int numProcessors = Runtime.getRuntime().availableProcessors();
     private static final int bufferDivider = 1;
@@ -36,7 +38,10 @@ public class GridSearch {
 
         List<Future<double[]>> futures = new ArrayList<>();
 
-        MultiObjectiveNSGAII.initialization(args);
+        //MultiObjectiveNSGAII.initialization(args);
+        String outputSubFolder = args[4].endsWith("/") ? args[4] + "grid_search" : args[4] + "/" + "grid_search";
+        MultiObjectiveNSGAII.createFolder(outputSubFolder);
+        setFilePaths(args[0], args[1], args[2], args[3], outputSubFolder);
         ThreadCounter threadCounter = new ThreadCounter();
 
         try {

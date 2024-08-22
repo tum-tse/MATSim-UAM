@@ -173,7 +173,7 @@ public class MultiObjectiveNSGAII {
         // Reinitialize data with new file paths
         initializeData();
 
-        log.setLevel(Level.WARN);
+        log.setLevel(Level.ERROR);
     }
     public double[] runAlgorithm(String[] args) {
         if (args.length > 5) {
@@ -185,16 +185,7 @@ public class MultiObjectiveNSGAII {
             outputSubFolder = outputFile.endsWith("/") ? outputFile + args[10] : outputFile + "/" + args[10];
         }
         // Check if the output folder exists, if not create it
-        File outputFolder = new File(outputSubFolder);
-        if (!outputFolder.exists()) {
-            if (outputFolder.mkdirs()) {
-                log.info("Output directory created: " + outputFolder.getAbsolutePath());
-            } else {
-                System.out.println("Failed to create output directory: " + outputFolder.getAbsolutePath());
-            }
-        } else {
-            System.out.println("Output directory already exists: " + outputFolder.getAbsolutePath());
-        }
+        createFolder(outputSubFolder);
 
         log.info("Scheduler started...");
         List<TripItemForOptimization> trips = dataInitializer.tripItems;
@@ -250,6 +241,19 @@ public class MultiObjectiveNSGAII {
         //System.out.println("Threshold for trips longer than " + THRESHOLD_FOR_TRIPS_LONGER_THAN_STRING + ": " + NUMBER_OF_TRIPS_LONGER_TAHN);
 
         return new double[]{BUFFER_END_TIME, SEARCH_RADIUS_ORIGIN, SEARCH_RADIUS_DESTINATION, bestFeasibleSolutionFitness[0]};
+    }
+
+    public static void createFolder(String folderPath) {
+        File outputFolder = new File(folderPath);
+        if (!outputFolder.exists()) {
+            if (outputFolder.mkdirs()) {
+                log.info("Output directory created: " + outputFolder.getAbsolutePath());
+            } else {
+                System.out.println("Failed to create output directory: " + outputFolder.getAbsolutePath());
+            }
+        } else {
+            System.out.println("Output directory already exists: " + outputFolder.getAbsolutePath());
+        }
     }
 
     // GA solver with NSGA-II modifications==============================================================================
