@@ -1,8 +1,10 @@
 package net.bhl.matsim.uam.optimization.pooling;
 
-import net.bhl.matsim.uam.infrastructure.readers.UAMXMLReader;
-
+import net.bhl.matsim.uam.optimization.SimulatedAnnealingForPartD;
+import net.bhl.matsim.uam.optimization.Vertiport;
+import net.bhl.matsim.uam.optimization.utils.TripItemForOptimization;
 import org.matsim.api.core.v01.Id;
+import org.matsim.api.core.v01.network.Link;
 import org.matsim.api.core.v01.network.Network;
 import org.matsim.contrib.dvrp.fleet.DvrpVehicle;
 import org.matsim.contrib.dvrp.fleet.ImmutableDvrpVehicleSpecification;
@@ -13,14 +15,12 @@ import net.bhl.matsim.uam.infrastructure.UAMVehicleType;
 import org.apache.log4j.Logger;
 import org.matsim.core.network.NetworkUtils;
 import org.matsim.core.network.io.MatsimNetworkReader;
+import org.matsim.utils.MemoryObserver;
 
 import java.io.IOException;
 import java.util.*;
 import java.util.stream.Collectors;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.io.FileWriter;
-import java.util.stream.Stream;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class MultiObjectiveNSGAII {
@@ -33,11 +33,11 @@ public class MultiObjectiveNSGAII {
     private static final double MUTATION_RATE = 0.05; // Mutation rate
     private static final double CROSSOVER_RATE = 0.7; // Crossover rate
     private static final int TOURNAMENT_SIZE = 5; // Tournament size for selection
-    private static boolean ENABLE_LOCAL_SEARCH = true; // Enable local search after each generation
+    private static boolean ENABLE_LOCAL_SEARCH = false; // Enable local search after each generation
     private static boolean ENABLE_PRINT_RESULTS = true; // Enable printing results to the CSVs
 
-    private static final double ALPHA = - 2.02 * 0.9101 / 1000; // Weight for changed flight distances
-    private static final double BETA = - 64.0 / 3600; // Weight for change in travel time
+    private static final double ALPHA = -2.02 * 0.9101 / 1000; // Weight for changed flight distances
+    private static final double BETA = -64.0 / 3600; // Weight for change in travel time
     //private static final double BETA_CRUCIAL_TIME_ChANGE = - 0.1; //TODO: need to reconsider the value
     private static final double PENALTY_FOR_VEHICLE_CAPACITY_VIOLATION = -10000;
 
@@ -53,7 +53,7 @@ public class MultiObjectiveNSGAII {
 
     // Variables for the UAM problem ===================================================================================
     private double BUFFER_START_TIME = 3600*7; // Buffer start time for the first trip
-    private double BUFFER_END_TIME = 3600*7+600; // Buffer end time for the last trip
+    private double BUFFER_END_TIME = 3600*7+420; // Buffer end time for the last trip
     private double SEARCH_RADIUS_ORIGIN = 1500; // search radius for origin station
     private double SEARCH_RADIUS_DESTINATION = 1500; // search radius for destination station
 
@@ -61,12 +61,13 @@ public class MultiObjectiveNSGAII {
     private static final int SHARED_RIDE_TRAVEL_TIME_CHANGE_THRESHOLD = 700;
 
     // Data container for the UAM problem ==============================================================================
-    private static List<UAMTrip> trips;
-    private List<UAMTrip> subTrips = null;
-    private static Map<Id<UAMStation>, UAMStation> stations;
-    private final Map<Id<UAMStation>, List<UAMVehicle>> originStationVehicleMap = new HashMap<>();
-    private final Map<Id<DvrpVehicle>, UAMStation> vehicleOriginStationMap = new ConcurrentHashMap<>();
-    private final Map<Id<DvrpVehicle>, UAMStation> vehicleDestinationStationMap = new ConcurrentHashMap<>();
+    //private static List<UAMTrip> trips;
+    private List<TripItemForOptimization> subTrips;
+    //private static Map<Id<UAMStation>, UAMStation> stations;
+    private HashMap<Integer, Vertiport> vertiportsMap;
+    private final Map<Id<Vertiport>, List<UAMVehicle>> originStationVehicleMap = new HashMap<>();
+    private final Map<Id<DvrpVehicle>, Vertiport> vehicleOriginStationMap = new ConcurrentHashMap<>();
+    private final Map<Id<DvrpVehicle>, Vertiport> vehicleDestinationStationMap = new ConcurrentHashMap<>();
     private Map<String, List<UAMVehicle>> tripVehicleMap = new ConcurrentHashMap<>(); // Update tripVehicleMap to use ConcurrentHashMap
     //private static final Map<UAMVehicle, Integer> vehicleOccupancyMap = new HashMap<>();
 
@@ -84,16 +85,35 @@ public class MultiObjectiveNSGAII {
 
     // io paths
     private static String uamScenarioInputPath = "scenarios/1-percent/uam-scenario_800";
-    private String outputFile = "src/main/java/org/eqasim/sao_paulo/siting/ga/results/vertiports_800";
+    private String outputFile = "src/main/java/net/bhl/matsim/uam/optimization/pooling/output";
     // TODO: Create an initial population of solutions using domain-specific knowledge (in our case is the vehicles which were used to create the initial fleet of the vehicles).
 
-    // Static initializer block
-    static {
-        initializeData();
+    // For travel time calculator
+    private static String tripItemFile;
+    private static String configFile;
+    private static String vertiportUnitsCandidateFile;
+    private static String scenarioConfigurations;
+    private static SimulatedAnnealingForPartD.DataInitializer dataInitializer;
+    private static Network network;
+
+    public static void setFilePaths(String tripItemFilePath, String configFilePath, String vertiportUnitsCandidateFilePath, String scenarioConfigurationsPath) {
+        tripItemFile = tripItemFilePath;
+        configFile = configFilePath;
+        vertiportUnitsCandidateFile = vertiportUnitsCandidateFilePath;
+        scenarioConfigurations = scenarioConfigurationsPath;
     }
 
+/*    // Static initializer block
+    static {
+        try {
+            initializeData();
+        } catch (IOException | InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+    }*/
+
     // Static method to initialize data
-    private static void initializeData() {
+    private static void initializeData() throws IOException, InterruptedException {
         // Load data
 /*        {
             DataLoader dataLoader = new DataLoader();
@@ -101,7 +121,7 @@ public class MultiObjectiveNSGAII {
             //vehicles = dataLoader.getVehicles();
             stations = dataLoader.getStations();
         }*/
-        Network network = NetworkUtils.createNetwork();
+/*        Network network = NetworkUtils.createNetwork();
         new MatsimNetworkReader(network).readFile(uamScenarioInputPath + "/uam_network.xml.gz");
         UAMXMLReader uamReader = new UAMXMLReader(network);
         uamReader.readFile(uamScenarioInputPath + "/uam_vehicles.xml.gz");
@@ -109,7 +129,12 @@ public class MultiObjectiveNSGAII {
 
         //subTrips = extractSubTrips(dataLoader.getUamTrips());
         String filePath = "scenarios/1-percent/sao_paulo_population2trips.csv";
-        trips = readTripsFromCsv(filePath);
+        trips = readTripsFromCsv(filePath);*/
+
+        dataInitializer = SimulatedAnnealingForPartD.getDataInitializer(tripItemFile, configFile, vertiportUnitsCandidateFile, scenarioConfigurations);
+
+        network = NetworkUtils.createNetwork();
+        new MatsimNetworkReader(network).readFile("examples/uam-test-scenario/uam_routed_network.xml.gz");
     }
 
     // Constructor
@@ -118,40 +143,56 @@ public class MultiObjectiveNSGAII {
     }
 
     // Main method for testing
-    public static void main(String[] args) {
+    public static void main(String[] args) throws IOException, InterruptedException {
+        callAlgorithm(args);
+    }
+
+    private static double[] callAlgorithm(String[] args) throws IOException, InterruptedException {
+        initialization(args);
         MultiObjectiveNSGAII instance = new MultiObjectiveNSGAII();
-        instance.runAlgorithm();
+        return instance.runAlgorithm(args);
     }
 
     // Main method to run the the specified algorithm ==================================================================
-    public double[] callAlgorithm(String[] args) throws IOException, InterruptedException {
-        if (args.length < 5) {
-            System.out.println("Usage: java MultiObjectiveNSGAII <BUFFER_END_TIME> <SEARCH_RADIUS_ORIGIN> <SEARCH_RADIUS_DESTINATION> <ENABLE_LOCAL_SEARCH> <ENABLE_PRINT_RESULTS>");
+    public static void initialization(String[] args) throws IOException, InterruptedException {
+        MemoryObserver.start(600);
+
+        if (args.length < 4) {
+            System.out.println("Necessary: <Trip_Item> <Config> <Vertiport_Unit_Candidate> <Scenario_Configuration> Optional: <BUFFER_END_TIME> <SEARCH_RADIUS_ORIGIN> <SEARCH_RADIUS_DESTINATION> <ENABLE_LOCAL_SEARCH> <ENABLE_PRINT_RESULTS>");
             System.exit(1);
         }
 
-        BUFFER_END_TIME = BUFFER_START_TIME + Double.parseDouble(args[0])*60;
-        SEARCH_RADIUS_ORIGIN = Double.parseDouble(args[1]);
-        SEARCH_RADIUS_DESTINATION = Double.parseDouble(args[2]);
-        ENABLE_LOCAL_SEARCH = Boolean.parseBoolean(args[3]);
-        ENABLE_PRINT_RESULTS = Boolean.parseBoolean(args[4]);
+        // Provide the file via arguments
+        setFilePaths(args[0], args[1], args[2], args[3]);
 
-        MultiObjectiveNSGAII instance = new MultiObjectiveNSGAII();
-        return instance.runAlgorithm();
+        // Reinitialize data with new file paths
+        initializeData();
     }
-    public double[] runAlgorithm() {
+    public double[] runAlgorithm(String[] args) {
+        if (args.length > 4) {
+            BUFFER_END_TIME = BUFFER_START_TIME + Double.parseDouble(args[4]) * 60;
+            SEARCH_RADIUS_ORIGIN = Double.parseDouble(args[5]);
+            SEARCH_RADIUS_DESTINATION = Double.parseDouble(args[6]);
+            ENABLE_LOCAL_SEARCH = Boolean.parseBoolean(args[7]);
+            ENABLE_PRINT_RESULTS = Boolean.parseBoolean(args[8]);
+        }
+
+        log.info("Scheduler started...");
+        List<TripItemForOptimization> trips = dataInitializer.tripItems;
         // Randomly select a share of trips from the list of subTrips
         subTrips = trips.stream()
-                .filter(trip -> trip.getDepartureTime() >= BUFFER_START_TIME && trip.getDepartureTime() < BUFFER_END_TIME) // Add the filter
+                .filter(trip -> trip.departureTime >= BUFFER_START_TIME && trip.departureTime < BUFFER_END_TIME) // Add the filter
                 .filter(trip -> rand.nextDouble() <= 1)
                 .collect(Collectors.toCollection(ArrayList::new));
 
         log.info("The number of UAM trips: " + subTrips.size());
+        vertiportsMap = dataInitializer.clusteredVertiportCandidatesMap;
+        log.info("The number of Vertiports: " + dataInitializer.clusteredVertiportCandidatesMap.size());
 
         // Initialize the origin station and destination station for each trip
-        for (UAMTrip uamTrip : subTrips) {
-            uamTrip.setOriginStation(findNearestStation(uamTrip, stations, true));
-            uamTrip.setDestinationStation(findNearestStation(uamTrip, stations, false));
+        for (TripItemForOptimization uamTrip : subTrips) {
+            uamTrip.accessVertiport = (findNearestStation(uamTrip, vertiportsMap, true));
+            uamTrip.egressVertiport = (findNearestStation(uamTrip, vertiportsMap, false));
         }
         saveStationVehicleNumber(subTrips);
         tripVehicleMap = findNearbyVehiclesToTrips(subTrips);
@@ -318,8 +359,8 @@ public class MultiObjectiveNSGAII {
 
     // Method to assign an available vehicle to a trip
     private void assignAvailableVehicle(int i, int[] individual) {
-        UAMTrip trip = subTrips.get(i);
-        List<UAMVehicle> vehicleList = tripVehicleMap.get(trip.getTripId());
+        TripItemForOptimization trip = subTrips.get(i);
+        List<UAMVehicle> vehicleList = tripVehicleMap.get(trip.tripID);
 
         /*        //add occupancy constraint
         if (!vehicleList.isEmpty()) {
@@ -342,7 +383,7 @@ public class MultiObjectiveNSGAII {
                 }
                 UAMVehicle newVehicle = feedDataForVehicleCreation(trip, false);
                 vehicleList.add(newVehicle);
-                tripVehicleMap.put(trip.getTripId(), vehicleList);
+                tripVehicleMap.put(trip.tripID, vehicleList);
                 //vehicleOccupancyMap.put(vehicle, VEHICLE_CAPACITY);
 
                 // Update tripVehicleMap for all relevant trips
@@ -368,16 +409,18 @@ public class MultiObjectiveNSGAII {
         }
     }
     private void updateTripVehicleMapForNewVehicle(UAMVehicle newVehicle) {
-        UAMStation originStation = vehicleOriginStationMap.get(newVehicle.getId());
-        UAMStation destinationStation = vehicleDestinationStationMap.get(newVehicle.getId());
+        Vertiport originStation = vehicleOriginStationMap.get(newVehicle.getId());
+        Vertiport destinationStation = vehicleDestinationStationMap.get(newVehicle.getId());
 
-        for (UAMTrip trip : subTrips) {
-            if (trip.calculateAccessTeleportationDistance(originStation) <= SEARCH_RADIUS_ORIGIN &&
-                    trip.calculateEgressTeleportationDistance(destinationStation) <= SEARCH_RADIUS_DESTINATION) {
+        for (TripItemForOptimization trip : subTrips) {
+            if (trip.originNeighborVertiportCandidatesTimeAndDistance.containsKey(originStation)&&trip.destinationNeighborVertiportCandidatesTimeAndDistance.containsKey(destinationStation)) {
+                if (trip.originNeighborVertiportCandidatesTimeAndDistance.get(originStation).get("distance") <= SEARCH_RADIUS_ORIGIN &&
+                        trip.destinationNeighborVertiportCandidatesTimeAndDistance.get(destinationStation).get("distance") <= SEARCH_RADIUS_DESTINATION) {
 
-                List<UAMVehicle> tripVehicles = tripVehicleMap.getOrDefault(trip.getTripId(), new ArrayList<>());
-                tripVehicles.add(newVehicle);
-                tripVehicleMap.put(trip.getTripId(), tripVehicles);
+                    List<UAMVehicle> tripVehicles = tripVehicleMap.getOrDefault(trip.tripID, new ArrayList<>());
+                    tripVehicles.add(newVehicle);
+                    tripVehicleMap.put(trip.tripID, tripVehicles);
+                }
             }
         }
     }
@@ -385,7 +428,7 @@ public class MultiObjectiveNSGAII {
     // Objective function ==============================================================================================
     // Calculate fitness for an individual
     private SolutionFitnessPair calculateFitness(int[] individual, SolutionIndicatorData indicatorData, boolean isFinalSolutions) {
-        Map<Integer, List<UAMTrip>> vehicleAssignments = new HashMap<>();
+        Map<Integer, List<TripItemForOptimization>> vehicleAssignments = new HashMap<>();
         Map<Integer, Integer> vehicleLoadCount = new HashMap<>();
         Map<String, Double> travelTimeChangeMap = new HashMap<>();
 
@@ -408,7 +451,7 @@ public class MultiObjectiveNSGAII {
             int pooledTrips = 0;
             int totalVehicles = vehicleAssignments.size();
             Map<Integer, Integer> capacityCount = new HashMap<>();
-            for (List<UAMTrip> trips : vehicleAssignments.values()) {
+            for (List<TripItemForOptimization> trips : vehicleAssignments.values()) {
                 int tripCount = trips.size();
                 if (tripCount > 1) {
                     pooledTrips += tripCount;
@@ -426,10 +469,10 @@ public class MultiObjectiveNSGAII {
             // Calculate shared ride statistics
             List<Double> sharedTravelTimeChanges = new ArrayList<>();
             int sharedRidesExceedingThreshold = 0;
-            for (List<UAMTrip> trips : vehicleAssignments.values()) {
+            for (List<TripItemForOptimization> trips : vehicleAssignments.values()) {
                 if (trips.size() > 1) {
-                    for (UAMTrip trip : trips) {
-                        double travelTimeChange = indicatorData.getTravelTimeChanges().get(trip.getTripId());
+                    for (TripItemForOptimization trip : trips) {
+                        double travelTimeChange = indicatorData.getTravelTimeChanges().get(trip.tripID);
                         sharedTravelTimeChanges.add(travelTimeChange);
                         if (travelTimeChange > SHARED_RIDE_TRAVEL_TIME_CHANGE_THRESHOLD) {
                             sharedRidesExceedingThreshold++;
@@ -451,40 +494,40 @@ public class MultiObjectiveNSGAII {
 
         return solutionPair;
     }
-    private double[] getFitnessPerVehicle(boolean isFinalSolutions, Map<Integer, List<UAMTrip>> vehicleAssignments, Map<String, Double> travelTimeChangeMap, SolutionIndicatorData indicatorData) {
+    private double[] getFitnessPerVehicle(boolean isFinalSolutions, Map<Integer, List<TripItemForOptimization>> vehicleAssignments, Map<String, Double> travelTimeChangeMap, SolutionIndicatorData indicatorData) {
         double totalFitness = 0.0;
         double totalDistanceChange = 0.0;
         double totalTimeChange = 0.0;
         double totalViolationPenalty = 0.0;
 
         // Calculate fitness per vehicle
-        for (Map.Entry<Integer, List<UAMTrip>> entry : vehicleAssignments.entrySet()) {
-            List<UAMTrip> trips = entry.getValue();
-            UAMStation originStationOfVehicle = vehicleOriginStationMap.get(Id.create(entry.getKey().toString(), DvrpVehicle.class));
-            UAMStation destinationStationOfVehicle = vehicleDestinationStationMap.get(Id.create(entry.getKey().toString(), DvrpVehicle.class));
+        for (Map.Entry<Integer, List<TripItemForOptimization>> entry : vehicleAssignments.entrySet()) {
+            List<TripItemForOptimization> trips = entry.getValue();
+            Vertiport originStationOfVehicle = vehicleOriginStationMap.get(Id.create(entry.getKey().toString(), DvrpVehicle.class));
+            Vertiport destinationStationOfVehicle = vehicleDestinationStationMap.get(Id.create(entry.getKey().toString(), DvrpVehicle.class));
 
             // safety check
             if (trips.isEmpty()) continue;
             if (trips.size() == 1){
-                UAMTrip trip = trips.get(0);
+                TripItemForOptimization trip = trips.get(0);
                 totalFitness = getFitnessForNonPooledOrBaseTrip(trip, originStationOfVehicle, destinationStationOfVehicle, totalFitness, isFinalSolutions, travelTimeChangeMap, indicatorData);
                 continue;
             }
 
             // Find the base trip (the trip with the latest arrival time at the departure UAM station)
-            UAMTrip baseTrip = trips.get(0);
-            for (UAMTrip trip : trips) {
-                double accessTimeOfBaseTrip = baseTrip.calculateAccessTeleportationTime(originStationOfVehicle);
-                double accessTimeOfPooledTrip = trip.calculateAccessTeleportationTime(originStationOfVehicle);
-                if ((trip.getDepartureTime() + accessTimeOfPooledTrip) > (baseTrip.getDepartureTime() + accessTimeOfBaseTrip)) {
+            TripItemForOptimization baseTrip = trips.get(0);
+            for (TripItemForOptimization trip : trips) {
+                double accessTimeOfBaseTrip = baseTrip.originNeighborVertiportCandidatesTimeAndDistance.get(originStationOfVehicle).get("travelTime");
+                double accessTimeOfPooledTrip = trip.originNeighborVertiportCandidatesTimeAndDistance.get(originStationOfVehicle).get("travelTime");
+                if ((trip.departureTime + accessTimeOfPooledTrip) > (baseTrip.departureTime + accessTimeOfBaseTrip)) {
                     baseTrip = trip;
                 }
             }
 
-            double boardingTimeForAllTrips = baseTrip.getDepartureTime() + baseTrip.calculateAccessTeleportationTime(originStationOfVehicle);
+            double boardingTimeForAllTrips = baseTrip.departureTime + baseTrip.originNeighborVertiportCandidatesTimeAndDistance.get(originStationOfVehicle).get("travelTime");
             // Calculate fitness based on the proposed pooling option
-            for (UAMTrip trip : trips) {
-                if(trip.getTripId().equals(baseTrip.getTripId())){
+            for (TripItemForOptimization trip : trips) {
+                if(trip.tripID.equals(baseTrip.tripID)){
                     totalFitness = getFitnessForNonPooledOrBaseTrip(trip, originStationOfVehicle, destinationStationOfVehicle, totalFitness, isFinalSolutions, travelTimeChangeMap, indicatorData);
                     continue;
                 }
@@ -498,18 +541,18 @@ public class MultiObjectiveNSGAII {
                 totalFitness += ALPHA * flightDistanceChange;
                 tripFlightDistanceChange += flightDistanceChange;
                 // calculate saved flight distance
-                double savedFlightDistance = trip.calculateFlightDistance(trip.getOriginStation(), trip.getDestinationStation());
+                double savedFlightDistance = calculateFlightDistance(trip.accessVertiport, trip.egressVertiport);
                 totalFitness += ALPHA * (-1) * savedFlightDistance;
                 tripFlightDistanceChange -= savedFlightDistance;
                 if(isFinalSolutions){
-                    indicatorData.setFlightDistanceChanges(trip.getTripId(), tripFlightDistanceChange);
+                    indicatorData.setFlightDistanceChanges(trip.tripID, tripFlightDistanceChange);
                 }
                 // calculate change in flight time due to the change in flight distance
                 double flightTimeChange = flightDistanceChange / VEHICLE_CRUISE_SPEED;
                 totalFitness += BETA * flightTimeChange;
                 tripTimeChange += flightTimeChange;
                 // calculate additional travel time
-                double originalArrivalTimeForThePooledTrip = trip.getDepartureTime() + trip.calculateAccessTeleportationTime(trip.getOriginStation());
+                double originalArrivalTimeForThePooledTrip = trip.departureTime + trip.originNeighborVertiportCandidatesTimeAndDistance.get(trip.accessVertiport).get("travelTime");
                 double travelTimeChangeDueToAccessMatching = boardingTimeForAllTrips - originalArrivalTimeForThePooledTrip;
                 tripTimeChange += travelTimeChangeDueToAccessMatching;
                 if(travelTimeChangeDueToAccessMatching > 0) {
@@ -522,26 +565,26 @@ public class MultiObjectiveNSGAII {
                 tripTimeChange += additionalTravelTimeDueToEgressMatching;
 
                 if(isFinalSolutions){
-                    indicatorData.setTravelTimeChanges(trip.getTripId(), tripTimeChange);
+                    indicatorData.setTravelTimeChanges(trip.tripID, tripTimeChange);
                 }
 
-                travelTimeChangeMap.put(trip.getTripId(), tripTimeChange);
+                travelTimeChangeMap.put(trip.tripID, tripTimeChange);
 
                 if(isFinalSolutions){
-                    double departureRedirectionRate = ( trip.calculateAccessTeleportationDistance(originStationOfVehicle) - trip.calculateAccessTeleportationDistance(trip.getOriginStation()) ) / ( trip.calculateAccessTeleportationDistance(trip.getOriginStation()) );
-                    indicatorData.setDepartureRedirectionRate(trip.getTripId(), departureRedirectionRate);
-                    double arrivalRedirectionRate = ( trip.calculateEgressTeleportationDistance(destinationStationOfVehicle) - trip.calculateEgressTeleportationDistance(trip.getDestinationStation()) ) / ( trip.calculateEgressTeleportationDistance(trip.getDestinationStation()) );
-                    indicatorData.setArrivalRedirectionRate(trip.getTripId(), arrivalRedirectionRate);
+                    double departureRedirectionRate = ( trip.originNeighborVertiportCandidatesTimeAndDistance.get(originStationOfVehicle).get("distance") - trip.originNeighborVertiportCandidatesTimeAndDistance.get(trip.accessVertiport).get("distance") ) / ( trip.originNeighborVertiportCandidatesTimeAndDistance.get(trip.accessVertiport).get("distance") );
+                    indicatorData.setDepartureRedirectionRate(trip.tripID, departureRedirectionRate);
+                    double arrivalRedirectionRate = ( trip.destinationNeighborVertiportCandidatesTimeAndDistance.get(destinationStationOfVehicle).get("distance") - trip.destinationNeighborVertiportCandidatesTimeAndDistance.get(trip.egressVertiport).get("distance") ) / ( trip.destinationNeighborVertiportCandidatesTimeAndDistance.get(trip.egressVertiport).get("distance") );
+                    indicatorData.setArrivalRedirectionRate(trip.tripID, arrivalRedirectionRate);
 
                     // total travel time for the trip
                     //TODO: Should the accessTime = boardingTimeForAllTrips - trip.getDepartureTime()?
-                    tripTotalTravelTime = trip.calculateAccessTeleportationTime(originStationOfVehicle) + trip.calculateFlightDistance(originStationOfVehicle, destinationStationOfVehicle) / VEHICLE_CRUISE_SPEED + trip.calculateEgressTeleportationTime(destinationStationOfVehicle);
-                    indicatorData.setTotalTravelTime(trip.getTripId(), tripTotalTravelTime);
+                    tripTotalTravelTime = trip.originNeighborVertiportCandidatesTimeAndDistance.get(originStationOfVehicle).get("travelTime") + calculateFlightDistance(originStationOfVehicle, destinationStationOfVehicle) / VEHICLE_CRUISE_SPEED + trip.destinationNeighborVertiportCandidatesTimeAndDistance.get(destinationStationOfVehicle).get("travelTime");
+                    indicatorData.setTotalTravelTime(trip.tripID, tripTotalTravelTime);
 
                     // assigned origin station
-                    indicatorData.setAssignedAccessStation(trip.getTripId(), originStationOfVehicle.getId().toString());
+                    indicatorData.setAssignedAccessStation(trip.tripID, String.valueOf(originStationOfVehicle.ID));
                     // assigned destination station
-                    indicatorData.setAssignedEgressStation(trip.getTripId(), destinationStationOfVehicle.getId().toString());
+                    indicatorData.setAssignedEgressStation(trip.tripID, String.valueOf(destinationStationOfVehicle.ID));
                 }
                 totalDistanceChange += tripFlightDistanceChange;
                 totalTimeChange += tripTimeChange;
@@ -553,7 +596,7 @@ public class MultiObjectiveNSGAII {
         }
         return new double[]{totalFitness, -totalDistanceChange, -totalTimeChange, totalViolationPenalty};
     }
-    private double getFitnessForNonPooledOrBaseTrip(UAMTrip trip, UAMStation originStationOfVehicle, UAMStation destinationStationOfVehicle, double totalFitness, boolean isFinalSolutions, Map<String, Double> travelTimeChangeMap, SolutionIndicatorData indicatorData) {
+    private double getFitnessForNonPooledOrBaseTrip(TripItemForOptimization trip, Vertiport originStationOfVehicle, Vertiport destinationStationOfVehicle, double totalFitness, boolean isFinalSolutions, Map<String, Double> travelTimeChangeMap, SolutionIndicatorData indicatorData) {
         double tripTimeChange = 0.0;
         double tripFlightDistanceChange = 0.0;
 
@@ -562,14 +605,14 @@ public class MultiObjectiveNSGAII {
         totalFitness += ALPHA * flightDistanceChange;
         tripFlightDistanceChange += flightDistanceChange;
         if(isFinalSolutions){
-            indicatorData.setFlightDistanceChanges(trip.getTripId(), tripFlightDistanceChange);
+            indicatorData.setFlightDistanceChanges(trip.tripID, tripFlightDistanceChange);
         }
         // calculate change in flight time due to the change in flight distance
         double flightTimeChange = flightDistanceChange / VEHICLE_CRUISE_SPEED;
         totalFitness += BETA * flightTimeChange;
         tripTimeChange += flightTimeChange;
         // calculate change in travel time due to access matching
-        double travelTimeChangeDueToAccessMatching = trip.calculateAccessTeleportationTime(originStationOfVehicle) - trip.calculateAccessTeleportationTime(trip.getOriginStation());
+        double travelTimeChangeDueToAccessMatching = trip.originNeighborVertiportCandidatesTimeAndDistance.get(originStationOfVehicle).get("travelTime") - trip.originNeighborVertiportCandidatesTimeAndDistance.get(trip.accessVertiport).get("travelTime");
         tripTimeChange += travelTimeChangeDueToAccessMatching;
         if(travelTimeChangeDueToAccessMatching > 0) {
             totalFitness += BETA * travelTimeChangeDueToAccessMatching;
@@ -582,33 +625,36 @@ public class MultiObjectiveNSGAII {
         tripTimeChange += travelTimeChangeDueToEgressMatching;
 
         if(isFinalSolutions){
-            indicatorData.setTravelTimeChanges(trip.getTripId(), tripTimeChange);
+            indicatorData.setTravelTimeChanges(trip.tripID, tripTimeChange);
         }
 
-        travelTimeChangeMap.put(trip.getTripId(), tripTimeChange);
+        travelTimeChangeMap.put(trip.tripID, tripTimeChange);
 
         if(isFinalSolutions){
-            double departureRedirectionRate = ( trip.calculateAccessTeleportationDistance(originStationOfVehicle) - trip.calculateAccessTeleportationDistance(trip.getOriginStation()) ) / ( trip.calculateAccessTeleportationDistance(trip.getOriginStation()) );
-            indicatorData.setDepartureRedirectionRate(trip.getTripId(), departureRedirectionRate);
-            double arrivalRedirectionRate = ( trip.calculateEgressTeleportationDistance(destinationStationOfVehicle) - trip.calculateEgressTeleportationDistance(trip.getDestinationStation()) ) / ( trip.calculateEgressTeleportationDistance(trip.getDestinationStation()) );
-            indicatorData.setArrivalRedirectionRate(trip.getTripId(), arrivalRedirectionRate);
+            double departureRedirectionRate = ( trip.originNeighborVertiportCandidatesTimeAndDistance.get(originStationOfVehicle).get("distance") - trip.originNeighborVertiportCandidatesTimeAndDistance.get(trip.accessVertiport).get("distance") ) / ( trip.originNeighborVertiportCandidatesTimeAndDistance.get(trip.accessVertiport).get("distance") );
+            indicatorData.setDepartureRedirectionRate(trip.tripID, departureRedirectionRate);
+            double arrivalRedirectionRate = ( trip.destinationNeighborVertiportCandidatesTimeAndDistance.get(destinationStationOfVehicle).get("distance") - trip.destinationNeighborVertiportCandidatesTimeAndDistance.get(trip.egressVertiport).get("distance") ) / ( trip.destinationNeighborVertiportCandidatesTimeAndDistance.get(trip.egressVertiport).get("distance") );
+            indicatorData.setArrivalRedirectionRate(trip.tripID, arrivalRedirectionRate);
 
             // total travel time for the trip
-            double totalTravelTime = trip.calculateAccessTeleportationTime(originStationOfVehicle) + trip.calculateFlightDistance(originStationOfVehicle, destinationStationOfVehicle) / VEHICLE_CRUISE_SPEED + trip.calculateEgressTeleportationTime(destinationStationOfVehicle);
-            indicatorData.setTotalTravelTime(trip.getTripId(), totalTravelTime);
+            double totalTravelTime = trip.originNeighborVertiportCandidatesTimeAndDistance.get(originStationOfVehicle).get("travelTime") + calculateFlightDistance(originStationOfVehicle, destinationStationOfVehicle) / VEHICLE_CRUISE_SPEED + trip.destinationNeighborVertiportCandidatesTimeAndDistance.get(destinationStationOfVehicle).get("travelTime");
+            indicatorData.setTotalTravelTime(trip.tripID, totalTravelTime);
 
             // assigned origin station
-            indicatorData.setAssignedAccessStation(trip.getTripId(), originStationOfVehicle.getId().toString());
+            indicatorData.setAssignedAccessStation(trip.tripID, String.valueOf(originStationOfVehicle.ID));
             // assigned destination station
-            indicatorData.setAssignedEgressStation(trip.getTripId(), destinationStationOfVehicle.getId().toString());
+            indicatorData.setAssignedEgressStation(trip.tripID, String.valueOf(destinationStationOfVehicle.ID));
         }
         return totalFitness;
     }
-    private static double getFlightDistanceChange(UAMTrip trip, UAMStation originStationOfVehicle, UAMStation destinationStationOfVehicle) {
-        return trip.calculateFlightDistance(originStationOfVehicle, destinationStationOfVehicle) - trip.calculateFlightDistance(trip.getOriginStation(), trip.getDestinationStation());
+    private static double getFlightDistanceChange(TripItemForOptimization trip, Vertiport originStationOfVehicle, Vertiport destinationStationOfVehicle) {
+        return calculateFlightDistance(originStationOfVehicle, destinationStationOfVehicle) - calculateFlightDistance(trip.accessVertiport, trip.egressVertiport);
     }
-    private static double getTravelTimeChangeDueToEgressMatching(UAMTrip trip, UAMStation destinationStationOfVehicle) {
-        return trip.calculateEgressTeleportationTime(destinationStationOfVehicle) - trip.calculateEgressTeleportationTime(trip.getDestinationStation());
+    public static double calculateFlightDistance(Vertiport originStation, Vertiport destStation) {
+        return Math.sqrt(Math.pow(originStation.coord.getX() - destStation.coord.getX(), 2) + Math.pow(originStation.coord.getY() - destStation.coord.getY(), 2));
+    }
+    private static double getTravelTimeChangeDueToEgressMatching(TripItemForOptimization trip, Vertiport destinationStationOfVehicle) {
+        return trip.destinationNeighborVertiportCandidatesTimeAndDistance.get(destinationStationOfVehicle).get("travelTime") - trip.destinationNeighborVertiportCandidatesTimeAndDistance.get(trip.egressVertiport).get("travelTime");
     }
 
     // Helper methods for GA and NSGA-II ======================================================================
@@ -656,25 +702,32 @@ public class MultiObjectiveNSGAII {
         return fronts;
     }
 
-    private Map<String, List<UAMVehicle>> findNearbyVehiclesToTrips(List<UAMTrip> subTrips) {
+    private Map<String, List<UAMVehicle>> findNearbyVehiclesToTrips(List<TripItemForOptimization> subTrips) {
         Map<String, List<UAMVehicle>> tripVehicleMap = new HashMap<>();
-        for (UAMTrip trip : subTrips) {
-            for (UAMStation station : stations.values()) {
-                if (trip.calculateAccessTeleportationDistance(station) <= SEARCH_RADIUS_ORIGIN) {
-                    List<UAMVehicle> vehicles = originStationVehicleMap.get(station.getId());
+        for (TripItemForOptimization trip : subTrips) {
+            for (Vertiport station : vertiportsMap.values()) {
+                if (!trip.originNeighborVertiportCandidatesTimeAndDistance.containsKey(station)){
+                    continue;
+                }
+                if (trip.originNeighborVertiportCandidatesTimeAndDistance.get(station).get("distance") <= SEARCH_RADIUS_ORIGIN) {
+                    List<UAMVehicle> vehicles = originStationVehicleMap.get(Id.create(station.ID, Vertiport.class));
                     if (vehicles == null){
                         continue;
                     }
-                    List<UAMVehicle> existingVehicles = tripVehicleMap.getOrDefault(trip.getTripId(), new ArrayList<>());
+                    List<UAMVehicle> existingVehicles = tripVehicleMap.getOrDefault(trip.tripID, new ArrayList<>());
 
                     //add egress constraint
                     vehicles = vehicles.stream()
-                            .filter(vehicle -> trip.calculateEgressTeleportationDistance(vehicleDestinationStationMap.get(vehicle.getId())) <= SEARCH_RADIUS_DESTINATION)
+                            .filter(vehicle -> {
+                                Vertiport vertiport = vehicleDestinationStationMap.get(vehicle.getId());
+                                return trip.destinationNeighborVertiportCandidatesTimeAndDistance.containsKey(vertiport) &&
+                                        trip.destinationNeighborVertiportCandidatesTimeAndDistance.get(vertiport).get("distance") <= SEARCH_RADIUS_DESTINATION;
+                            })
                             .collect(Collectors.toCollection(ArrayList::new));
 
                     existingVehicles.addAll(vehicles);
 
-                    tripVehicleMap.put(trip.getTripId(), existingVehicles);
+                    tripVehicleMap.put(trip.tripID, existingVehicles);
                 }
             }
         }
@@ -796,7 +849,7 @@ public class MultiObjectiveNSGAII {
         for (int i = 0; i < ruinedSolution.length; i++) {
             int vehicleId = ruinedSolution[i];
 
-            if ((vehicleLoadCount.containsKey(vehicleId) && vehicleLoadCount.get(vehicleId) > VEHICLE_CAPACITY) || travelTimeChangeMap.get(subTrips.get(i).getTripId()) > SHARED_RIDE_TRAVEL_TIME_CHANGE_THRESHOLD) {
+            if ((vehicleLoadCount.containsKey(vehicleId) && vehicleLoadCount.get(vehicleId) > VEHICLE_CAPACITY) || travelTimeChangeMap.get(subTrips.get(i).tripID) > SHARED_RIDE_TRAVEL_TIME_CHANGE_THRESHOLD) {
                 targetTrips.add(i);
             }
         }
@@ -961,21 +1014,21 @@ public class MultiObjectiveNSGAII {
                 if (assignedTrips.size() > VEHICLE_CAPACITY) {
                     // Sort trips by arrival time at the station
                     assignedTrips.sort((a, b) -> {
-                        UAMTrip tripA = subTrips.get(a);
-                        UAMTrip tripB = subTrips.get(b);
-                        UAMStation station = vehicleOriginStationMap.get(Id.create(String.valueOf(vehicleId), DvrpVehicle.class));
-                        double arrivalTimeA = tripA.getDepartureTime() + tripA.calculateAccessTeleportationTime(station);
-                        double arrivalTimeB = tripB.getDepartureTime() + tripB.calculateAccessTeleportationTime(station);
+                        TripItemForOptimization tripA = subTrips.get(a);
+                        TripItemForOptimization tripB = subTrips.get(b);
+                        Vertiport station = vehicleOriginStationMap.get(Id.create(String.valueOf(vehicleId), DvrpVehicle.class));
+                        double arrivalTimeA = tripA.departureTime + tripA.originNeighborVertiportCandidatesTimeAndDistance.get(station).get("travelTime");
+                        double arrivalTimeB = tripB.departureTime + tripB.originNeighborVertiportCandidatesTimeAndDistance.get(station).get("travelTime");
                         return Double.compare(arrivalTimeA, arrivalTimeB);
                     });
 
                     // Reassign extra trips
                     for (int i = VEHICLE_CAPACITY; i < assignedTrips.size(); i++) {
                         int tripIndex = assignedTrips.get(i);
-                        UAMTrip trip = subTrips.get(tripIndex);
+                        TripItemForOptimization trip = subTrips.get(tripIndex);
 
                         // Check if all available vehicles are at capacity
-                        List<UAMVehicle> availableVehicles = new ArrayList<>(tripVehicleMap.get(trip.getTripId()));
+                        List<UAMVehicle> availableVehicles = new ArrayList<>(tripVehicleMap.get(trip.tripID));
                         boolean allVehiclesAtCapacity = availableVehicles.stream()
                                 .allMatch(v -> vehicleAssignments.getOrDefault(Integer.parseInt(v.getId().toString()), Collections.emptyList()).size() >= VEHICLE_CAPACITY);
 
@@ -983,7 +1036,7 @@ public class MultiObjectiveNSGAII {
                             // Create a new vehicle for this trip
                             UAMVehicle newVehicle = feedDataForVehicleCreation(trip, false);
                             availableVehicles.add(newVehicle);
-                            tripVehicleMap.put(trip.getTripId(), availableVehicles);
+                            tripVehicleMap.put(trip.tripID, availableVehicles);
 
                             // Update tripVehicleMap for the new vehicle
                             updateTripVehicleMapForNewVehicle(newVehicle);
@@ -1030,11 +1083,11 @@ public class MultiObjectiveNSGAII {
             if (assignedTrips.size() > VEHICLE_CAPACITY) {
                 for (int i = VEHICLE_CAPACITY; i < assignedTrips.size(); i++) {
                     int tripIndex = assignedTrips.get(i);
-                    UAMTrip trip = subTrips.get(tripIndex);
+                    TripItemForOptimization trip = subTrips.get(tripIndex);
                     UAMVehicle newVehicle = feedDataForVehicleCreation(trip, false);
-                    List<UAMVehicle> availableVehicles = new ArrayList<>(tripVehicleMap.getOrDefault(trip.getTripId(), new ArrayList<>()));
+                    List<UAMVehicle> availableVehicles = new ArrayList<>(tripVehicleMap.getOrDefault(trip.tripID, new ArrayList<>()));
                     availableVehicles.add(newVehicle);
-                    tripVehicleMap.put(trip.getTripId(), availableVehicles);
+                    tripVehicleMap.put(trip.tripID, availableVehicles);
 
                     // Update tripVehicleMap for the new vehicle
                     updateTripVehicleMapForNewVehicle(newVehicle);
@@ -1079,7 +1132,7 @@ public class MultiObjectiveNSGAII {
             }
             if (tripsForVehicle.size() > 1) { // Vehicle shared with others
                 for (int tripIndex : tripsForVehicle) {
-                    String tripId = subTrips.get(tripIndex).getTripId();
+                    String tripId = subTrips.get(tripIndex).tripID;
                     if (indicatorData.getTravelTimeChanges().containsKey(tripId)) {
                         double travelTimeChange = indicatorData.getTravelTimeChanges().get(tripId);
                         sharedTravelTimeChanges.add(travelTimeChange);
@@ -1173,8 +1226,8 @@ public class MultiObjectiveNSGAII {
         try (FileWriter writer = new FileWriter(fileName)) {
             writer.append("TripId,AssignedVehicleId,AccessStationId,EgressStationId,TotalTravelTime,TravelTimeChange,FlightDistanceChange,DepartureRedirectionRate,ArrivalRedirectionRate,VehicleTripCount\n");
             for (int i = 0; i < solution.length; i++) {
-                UAMTrip trip = subTrips.get(i);
-                String tripId = trip.getTripId();
+                TripItemForOptimization trip = subTrips.get(i);
+                String tripId = trip.tripID;
                 int assignedVehicleId = solution[i];
                 double travelTimeChange = indicatorData.getTravelTimeChanges().get(tripId);
                 double flightDistanceChange = indicatorData.getFlightDistanceChanges().get(tripId);
@@ -1401,27 +1454,27 @@ public class MultiObjectiveNSGAII {
     }
 
     // Initial data extraction methods =================================================================================
-    private ArrayList<UAMTrip> extractSubTrips(List<UAMTrip> uamTrips) {
+/*    private ArrayList<UAMTrip> extractSubTrips(List<UAMTrip> uamTrips) {
         // extract sub trips from uamTrips based on the departure time of trips falling between buffer start and end time
         return uamTrips.stream()
                 .filter(trip -> trip.getDepartureTime() >= BUFFER_START_TIME && trip.getDepartureTime() < BUFFER_END_TIME)
                 .collect(Collectors.toCollection(ArrayList::new));
-    }
+    }*/
 
     // Method to create UAM vehicles and assign them to stations in the initialization phase (could also be used in later stage)
-    private void saveStationVehicleNumber(List<UAMTrip> subTrips) {
+    private void saveStationVehicleNumber(List<TripItemForOptimization> subTrips) {
         // save the station's vehicle number for the current time based on the UAMTrips' origin and destination station
-        for (UAMTrip subTrip : subTrips) {
+        for (TripItemForOptimization subTrip : subTrips) {
             feedDataForVehicleCreation(subTrip, true);
         }
     }
 
-    private UAMVehicle feedDataForVehicleCreation(UAMTrip subTrip, boolean isAddingVehicleBeforeInitialization) {
-        UAMStation nearestOriginStation = findNearestStation(subTrip, stations, true);
-        UAMStation nearestDestinationStation = findNearestStation(subTrip, stations, false);
+    private UAMVehicle feedDataForVehicleCreation(TripItemForOptimization subTrip, boolean isAddingVehicleBeforeInitialization) {
+        Vertiport nearestOriginStation = findNearestStation(subTrip, vertiportsMap, true);
+        Vertiport nearestDestinationStation = findNearestStation(subTrip, vertiportsMap, false);
 
         if (nearestOriginStation == null || nearestDestinationStation == null) {
-            log.error("Found null station for trip: " + subTrip.getTripId());
+            log.error("Found null station for trip: " + subTrip.tripID);
         }
 
         UAMVehicle vehicle = createVehicle(nearestOriginStation);
@@ -1433,7 +1486,7 @@ public class MultiObjectiveNSGAII {
 
         if (isAddingVehicleBeforeInitialization){
             // Get the station ID
-            Id<UAMStation> nearestOriginStationId = nearestOriginStation.getId();
+            Id<Vertiport> nearestOriginStationId = Id.create(nearestOriginStation.ID, Vertiport.class);
             // Check if there is already a list for this station ID, if not, create one
             List<UAMVehicle> vehiclesAtStation = originStationVehicleMap.computeIfAbsent(nearestOriginStationId, k -> new ArrayList<>());
             // Add the new vehicle to the list
@@ -1443,7 +1496,7 @@ public class MultiObjectiveNSGAII {
         return vehicle;
     }
     // vehicle creator function
-    private UAMVehicle createVehicle(UAMStation uamStation) {
+    private UAMVehicle createVehicle(Vertiport uamStation) {
         /*        UAMVehicleType vehicleType = new UAMVehicleType(id, capacity, range, horizontalSpeed, verticalSpeed,
                 boardingTime, deboardingTime, turnAroundTime, energyConsumptionVertical, energyConsumptionHorizontal,
                 maximumCharge);*/
@@ -1457,7 +1510,7 @@ public class MultiObjectiveNSGAII {
         ImmutableDvrpVehicleSpecification.Builder builder = ImmutableDvrpVehicleSpecification.newBuilder();
         // Set the properties of the vehicle
         builder.id(Id.create(String.valueOf(FIRST_UAM_VEHICLE_ID++), DvrpVehicle.class));
-        builder.startLinkId(uamStation.getLocationLink().getId());
+        builder.startLinkId(Id.create("0001", Link.class));
         builder.capacity(VEHICLE_CAPACITY);
         builder.serviceBeginTime(BUFFER_START_TIME);
         builder.serviceEndTime(END_SERVICE_TIME_OF_THE_DAY);
@@ -1465,62 +1518,38 @@ public class MultiObjectiveNSGAII {
         ImmutableDvrpVehicleSpecification vehicleSpecification = builder.build();
 
         return new UAMVehicle(vehicleSpecification,
-                uamStation.getLocationLink(), uamStation.getId(), vehicleType);
+                network.getLinks().get(Id.create("0001", Link.class)), // TODO: need do it more elegantly
+                Id.create(uamStation.ID, UAMStation.class),
+                vehicleType);
     }
 
-    private static UAMStation findNearestStation(UAMTrip trip, Map<Id<UAMStation>, UAMStation> stations, boolean accessLeg) {
-        UAMStation nearestStation = null;
+    private static Vertiport findNearestStation(TripItemForOptimization trip, HashMap<Integer, Vertiport> vertiportsMap, boolean accessLeg) {
+        Vertiport nearestStation = null;
         double shortestDistance = Double.MAX_VALUE;
-        for (UAMStation station : stations.values()) {
+        for (Vertiport station : vertiportsMap.values()) {
             if (station == null) {
                 log.error("Encountered null station in stations map");
                 continue; // Skip null stations
             }
-            double distance = accessLeg ? trip.calculateAccessTeleportationDistance(station) : trip.calculateEgressTeleportationDistance(station);
+            double distance = Double.MAX_VALUE;
+            if (accessLeg) {
+                if (trip.originNeighborVertiportCandidatesTimeAndDistance.containsKey(station)) {
+                    distance = trip.originNeighborVertiportCandidatesTimeAndDistance.get(station).get("distance");
+                }
+            } else {
+                if (trip.destinationNeighborVertiportCandidatesTimeAndDistance.containsKey(station)) {
+                    distance = trip.destinationNeighborVertiportCandidatesTimeAndDistance.get(station).get("distance");
+                }
+            }
             if (distance < shortestDistance) {
                 nearestStation = station;
                 shortestDistance = distance;
             }
         }
         if (nearestStation == null) {
-            log.warn("No nearest station found for trip: " + trip.getTripId());
+            log.warn("No nearest station found for trip: " + trip.tripID);
         }
         return nearestStation;
-    }
-
-    // read demand =====================================================================================================
-    public static List<UAMTrip> readTripsFromCsv(String filePath) {
-        List<UAMTrip> trips = new ArrayList<>();
-
-        try (Stream<String> lines = Files.lines(Paths.get(filePath))) {
-            trips = lines
-                    .skip(1) // Skip header line
-                    .map(MultiObjectiveNSGAII::parseTrip)
-                    .collect(Collectors.toList());
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-
-        return trips;
-    }
-
-    private static UAMTrip parseTrip(String line) {
-        String[] fields = line.split(",");
-        String tripId = fields[0];
-        double originX = Double.parseDouble(fields[1]);
-        double originY = Double.parseDouble(fields[2]);
-        double destX = Double.parseDouble(fields[3]);
-        double destY = Double.parseDouble(fields[4]);
-        double departureTime = Double.parseDouble(fields[5]);
-        String purpose = fields[6];
-
-        // Default values for optional fields
-        double flightDistance = 0.0;
-        UAMStation origStation = null;
-        UAMStation destStation = null;
-        String income = "0";
-
-        return new UAMTrip(tripId, originX, originY, destX, destY, departureTime, flightDistance, origStation, destStation, purpose, income);
     }
 
 }
