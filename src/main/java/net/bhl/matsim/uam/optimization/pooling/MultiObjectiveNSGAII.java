@@ -17,6 +17,7 @@ import org.matsim.core.network.NetworkUtils;
 import org.matsim.core.network.io.MatsimNetworkReader;
 import org.matsim.utils.MemoryObserver;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -52,10 +53,10 @@ public class MultiObjectiveNSGAII {
     private static final int VEHICLE_CAPACITY = 4; // Vehicle capacity
 
     // Variables for the UAM problem ===================================================================================
-    private double BUFFER_START_TIME = 3600*7; // Buffer start time for the first trip
-    private double BUFFER_END_TIME = 3600*7+420; // Buffer end time for the last trip
-    private double SEARCH_RADIUS_ORIGIN = 1500; // search radius for origin station
-    private double SEARCH_RADIUS_DESTINATION = 1500; // search radius for destination station
+    private static double BUFFER_START_TIME = 3600*7; // Buffer start time for the first trip
+    private static double BUFFER_END_TIME = 3600*7+420; // Buffer end time for the last trip
+    private static double SEARCH_RADIUS_ORIGIN = 1500; // search radius for origin station
+    private static double SEARCH_RADIUS_DESTINATION = 1500; // search radius for destination station
 
     // Helpers for the UAM problem =====================================================================================
     private static final int SHARED_RIDE_TRAVEL_TIME_CHANGE_THRESHOLD = 700;
@@ -84,8 +85,9 @@ public class MultiObjectiveNSGAII {
     private static final int bufferDivider = 1;
 
     // io paths
-    private static String uamScenarioInputPath = "scenarios/1-percent/uam-scenario_800";
-    private String outputFile = "src/main/java/net/bhl/matsim/uam/optimization/pooling/output";
+    private static String outputFile;
+    private static double POOLING_TIME_WINDOW = BUFFER_END_TIME - BUFFER_START_TIME;
+    private static String outputSubFolder = outputFile + POOLING_TIME_WINDOW + "_" + SEARCH_RADIUS_ORIGIN + "_" + SEARCH_RADIUS_DESTINATION + "/";
     // TODO: Create an initial population of solutions using domain-specific knowledge (in our case is the vehicles which were used to create the initial fleet of the vehicles).
 
     // For travel time calculator
@@ -96,11 +98,12 @@ public class MultiObjectiveNSGAII {
     private static SimulatedAnnealingForPartD.DataInitializer dataInitializer;
     private static Network network;
 
-    public static void setFilePaths(String tripItemFilePath, String configFilePath, String vertiportUnitsCandidateFilePath, String scenarioConfigurationsPath) {
+    public static void setFilePaths(String tripItemFilePath, String configFilePath, String vertiportUnitsCandidateFilePath, String scenarioConfigurationsPath, String outputFilePath) {
         tripItemFile = tripItemFilePath;
         configFile = configFilePath;
         vertiportUnitsCandidateFile = vertiportUnitsCandidateFilePath;
         scenarioConfigurations = scenarioConfigurationsPath;
+        outputFile = outputFilePath;
     }
 
 /*    // Static initializer block
@@ -144,39 +147,39 @@ public class MultiObjectiveNSGAII {
 
     // Main method for testing
     public static void main(String[] args) throws IOException, InterruptedException {
+        initialization(args);
         callAlgorithm(args);
     }
 
-    private static double[] callAlgorithm(String[] args) throws IOException, InterruptedException {
-        initialization(args);
+    public static double[] callAlgorithm(String[] args) {
         MultiObjectiveNSGAII instance = new MultiObjectiveNSGAII();
         return instance.runAlgorithm(args);
     }
 
     // Main method to run the the specified algorithm ==================================================================
     public static void initialization(String[] args) throws IOException, InterruptedException {
-        MemoryObserver.start(600);
-
-        if (args.length < 4) {
-            System.out.println("Necessary: <Trip_Item> <Config> <Vertiport_Unit_Candidate> <Scenario_Configuration> Optional: <BUFFER_END_TIME> <SEARCH_RADIUS_ORIGIN> <SEARCH_RADIUS_DESTINATION> <ENABLE_LOCAL_SEARCH> <ENABLE_PRINT_RESULTS>");
+        if (args.length < 5) {
+            System.out.println("Necessary: <Trip_Item> <Config> <Vertiport_Unit_Candidate> <Scenario_Configuration> <Result_Output> Optional: <BUFFER_END_TIME> <SEARCH_RADIUS_ORIGIN> <SEARCH_RADIUS_DESTINATION> <ENABLE_LOCAL_SEARCH> <ENABLE_PRINT_RESULTS>");
             System.exit(1);
         }
 
         // Provide the file via arguments
-        setFilePaths(args[0], args[1], args[2], args[3]);
+        setFilePaths(args[0], args[1], args[2], args[3], args[4]);
 
         // Reinitialize data with new file paths
         initializeData();
     }
     public double[] runAlgorithm(String[] args) {
-        if (args.length > 4) {
-            BUFFER_END_TIME = BUFFER_START_TIME + Double.parseDouble(args[4]) * 60;
-            SEARCH_RADIUS_ORIGIN = Double.parseDouble(args[5]);
-            SEARCH_RADIUS_DESTINATION = Double.parseDouble(args[6]);
-            ENABLE_LOCAL_SEARCH = Boolean.parseBoolean(args[7]);
-            ENABLE_PRINT_RESULTS = Boolean.parseBoolean(args[8]);
+        if (args.length > 5) {
+            BUFFER_END_TIME = BUFFER_START_TIME + Double.parseDouble(args[5]) * 60;
+            SEARCH_RADIUS_ORIGIN = Double.parseDouble(args[6]);
+            SEARCH_RADIUS_DESTINATION = Double.parseDouble(args[7]);
+            ENABLE_LOCAL_SEARCH = Boolean.parseBoolean(args[8]);
+            ENABLE_PRINT_RESULTS = Boolean.parseBoolean(args[9]);
+            outputSubFolder = args[4] + args[10];
         }
 
+        MemoryObserver.start(600);
         log.info("Scheduler started...");
         List<TripItemForOptimization> trips = dataInitializer.tripItems;
         // Randomly select a share of trips from the list of subTrips
@@ -226,8 +229,18 @@ public class MultiObjectiveNSGAII {
         // Calculate and print the performance indicators
         SolutionIndicatorData indicatorData = new SolutionIndicatorData(bestFeasibleSolution);
         SolutionFitnessPair finalSolution = calculateFitness(bestFeasibleSolution, indicatorData, true);
-        printPerformanceIndicators(bestFeasibleSolution, indicatorData, outputFile + "/trip_statistics.csv");
-
+        // Check if the output folder exists, if not create it
+        File outputFolder = new File(outputSubFolder);
+        if (!outputFolder.exists()) {
+            if (outputFolder.mkdirs()) {
+                System.out.println("Output directory created: " + outputFolder.getAbsolutePath());
+            } else {
+                System.err.println("Failed to create output directory: " + outputFolder.getAbsolutePath());
+            }
+        } else {
+            System.out.println("Output directory already exists: " + outputFolder.getAbsolutePath());
+        }
+        printPerformanceIndicators(bestFeasibleSolution, indicatorData, outputSubFolder + "trip_statistics.csv");
         // Print the NUMBER_OF_TRIPS_LONGER_THAN
         //System.out.println("Threshold for trips longer than " + THRESHOLD_FOR_TRIPS_LONGER_THAN_STRING + ": " + NUMBER_OF_TRIPS_LONGER_TAHN);
 
@@ -1369,7 +1382,7 @@ public class MultiObjectiveNSGAII {
         }
 
         // Write indicators to CSV
-        writeIndicatorsToCsv(indicatorDataList, outputFile + "/last_iteration_solutions_indicators.csv");
+        writeIndicatorsToCsv(indicatorDataList, outputSubFolder + "last_iteration_solutions_indicators.csv");
     }
     private void calculateAdditionalIndicators(SolutionIndicatorData indicatorData) {
         List<Double> travelTimeChanges = new ArrayList<>(indicatorData.getTravelTimeChanges().values());

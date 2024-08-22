@@ -172,13 +172,20 @@ public class BayesianOptimization {
     }
 
     private double evaluateParameters(int poolingTimeWindow, int searchRadiusOrigin, int searchRadiusDestination) throws IOException, InterruptedException {
-        double[] actualPerformance = new MultiObjectiveNSGAII().callAlgorithm(new String[]{
+        String[] multiObjectiveArgs = new String[]{
+                String.valueOf("" ), // INPUT_FILE
+                String.valueOf("" ), // INPUT_FILE
+                String.valueOf("" ), // INPUT_FILE
+                String.valueOf("" ), // INPUT_FILE
+                String.valueOf("" ), // OUTPUT_DIRECTORY
                 String.valueOf(poolingTimeWindow),
                 String.valueOf(searchRadiusOrigin),
                 String.valueOf(searchRadiusDestination),
                 String.valueOf(false),
-                String.valueOf(false)
-        });
+                String.valueOf(true),
+                String.valueOf(poolingTimeWindow + "_" + searchRadiusOrigin + "_" + searchRadiusDestination + "/") // OUTPUT_SUB_DIRECTORY
+        };
+        double[] actualPerformance = MultiObjectiveNSGAII.callAlgorithm(multiObjectiveArgs);
         return actualPerformance[3];
     }
 
@@ -223,6 +230,8 @@ public class BayesianOptimization {
             ParameterRange poolingTimeWindowRange = new ParameterRange(1, 20);
             ParameterRange searchRadiusOriginRange = new ParameterRange(600, 5000);
             ParameterRange searchRadiusDestinationRange = new ParameterRange(600, 5000);
+
+            MultiObjectiveNSGAII.initialization(args);
 
             BayesianOptimization optimization = new BayesianOptimization(
                     poolingTimeWindowRange, searchRadiusOriginRange, searchRadiusDestinationRange);

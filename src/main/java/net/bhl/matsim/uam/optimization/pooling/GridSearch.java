@@ -30,6 +30,8 @@ public class GridSearch {
 
         List<Future<double[]>> futures = new ArrayList<>();
 
+        MultiObjectiveNSGAII.initialization(args);
+
         // Example loop to optimize parameters
         for (double ptw = 5.0; ptw <= 15.0; ptw += 1.0) {
             for (double sro = 500; sro <= 3000; sro += 500) {
@@ -43,12 +45,19 @@ public class GridSearch {
                         @Override
                         public double[] call() throws Exception {
                             String[] multiObjectiveArgs = {
+                                    String.valueOf("" ), // INPUT_FILE
+                                    String.valueOf("" ), // INPUT_FILE
+                                    String.valueOf("" ), // INPUT_FILE
+                                    String.valueOf("" ), // INPUT_FILE
+                                    String.valueOf("" ), // OUTPUT_DIRECTORY
                                     String.valueOf(finalPtw), // BUFFER_END_TIME
                                     String.valueOf(finalSro), // SEARCH_RADIUS_ORIGIN
                                     String.valueOf(finalSrd), // SEARCH_RADIUS_DESTINATION
-                                    String.valueOf(false)  // ENABLE_LOCAL_SEARCH
+                                    String.valueOf(false),  // ENABLE_LOCAL_SEARCH
+                                    String.valueOf(true),  // ENABLE_PRINT_RESULTS
+                                    String.valueOf(finalPtw + "_" + finalSro + "_" + finalSrd + "/") // OUTPUT_SUB_DIRECTORY
                             };
-                            return new MultiObjectiveNSGAII().callAlgorithm(multiObjectiveArgs);
+                            return MultiObjectiveNSGAII.callAlgorithm(multiObjectiveArgs);
                         }
                     });
 
