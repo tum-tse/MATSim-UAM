@@ -1,5 +1,6 @@
 package net.bhl.matsim.uam.optimization.pooling;
 
+import net.bhl.matsim.uam.analysis.traveltimes.utils.ThreadCounter;
 import weka.classifiers.functions.GaussianProcesses;
 import weka.core.DenseInstance;
 import weka.core.Instance;
@@ -9,10 +10,7 @@ import weka.core.Attribute;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Random;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.Callable;
+import java.util.concurrent.*;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Logger;
@@ -22,7 +20,10 @@ import static net.bhl.matsim.uam.optimization.pooling.MultiObjectiveNSGAII.setFi
 
 public class BayesianOptimization {
 
+    private static final int numProcessors = Runtime.getRuntime().availableProcessors();
+    private static final int bufferDivider = 1;
     private static final Logger LOGGER = Logger.getLogger(BayesianOptimization.class.getName());
+    private static final int TIMEOUT_MINUTES = 6000;
 
     private GaussianProcesses gaussianProcess;
     private Instances dataset;
@@ -116,23 +117,33 @@ public class BayesianOptimization {
         AtomicReference<Double> bestPerformance = new AtomicReference<>(Double.NEGATIVE_INFINITY);
         AtomicReference<int[]> bestParams = new AtomicReference<>(new int[3]);
 
+        ThreadCounter threadCounter = new ThreadCounter();
+
         for (int i = 0; i < iterations; i++) {
             List<Future<OptimizationResult>> futures = new ArrayList<>();
+
             for (int ptw = poolingTimeWindowRange.getMinValue(); ptw <= poolingTimeWindowRange.getMaxValue(); ptw++) {
                 for (int sro = searchRadiusOriginRange.getMinValue(); sro <= searchRadiusOriginRange.getMaxValue(); sro += 100) {
                     for (int srd = searchRadiusDestinationRange.getMinValue(); srd <= searchRadiusDestinationRange.getMaxValue(); srd += 100) {
                         final int finalPtw = ptw;
                         final int finalSro = sro;
                         final int finalSrd = srd;
+
+                        while (threadCounter.getProcesses() >= numProcessors/bufferDivider - 1)
+                            Thread.sleep(200);
+
                         futures.add(executorService.submit(new Callable<OptimizationResult>() {
                             @Override
                             public OptimizationResult call() throws Exception {
+                                threadCounter.register(); // Register at the start of the task
                                 try {
                                     double acquisitionValue = acquisitionFunction(finalPtw, finalSro, finalSrd);
                                     return new OptimizationResult(finalPtw, finalSro, finalSrd, acquisitionValue);
                                 } catch (Exception e) {
                                     LOGGER.warning("Failed to evaluate point (" + finalPtw + ", " + finalSro + ", " + finalSrd + "): " + e.getMessage());
                                     return null;
+                                } finally {
+                                threadCounter.deregister(); // Deregister at the end of the task, even if an exception occurs
                                 }
                             }
                         }));
@@ -170,6 +181,10 @@ public class BayesianOptimization {
         }
 
         executorService.shutdown();
+        if (!executorService.awaitTermination(TIMEOUT_MINUTES, TimeUnit.MINUTES)) {
+            LOGGER.warning("Timeout occurred. Not all tasks completed.");
+        }
+
         return bestParams.get();
     }
 
