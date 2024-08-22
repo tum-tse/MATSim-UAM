@@ -3,6 +3,7 @@ package net.bhl.matsim.uam.optimization.pooling;
 import net.bhl.matsim.uam.optimization.SimulatedAnnealingForPartD;
 import net.bhl.matsim.uam.optimization.Vertiport;
 import net.bhl.matsim.uam.optimization.utils.TripItemForOptimization;
+import org.apache.log4j.Level;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.network.Link;
 import org.matsim.api.core.v01.network.Network;
@@ -55,8 +56,8 @@ public class MultiObjectiveNSGAII {
     // Variables for the UAM problem ===================================================================================
     private static double BUFFER_START_TIME = 3600*7; // Buffer start time for the first trip
     private static double BUFFER_END_TIME = 3600*7+420; // Buffer end time for the last trip
-    private static double SEARCH_RADIUS_ORIGIN = 1500; // search radius for origin station
-    private static double SEARCH_RADIUS_DESTINATION = 1500; // search radius for destination station
+    private static double SEARCH_RADIUS_ORIGIN = 3000; // search radius for origin station
+    private static double SEARCH_RADIUS_DESTINATION = 3000; // search radius for destination station
 
     // Helpers for the UAM problem =====================================================================================
     private static final int SHARED_RIDE_TRAVEL_TIME_CHANGE_THRESHOLD = 700;
@@ -88,7 +89,7 @@ public class MultiObjectiveNSGAII {
     private static String outputFile = "src/main/java/net/bhl/matsim/uam/optimization/pooling/output/";
     private static double POOLING_TIME_WINDOW = BUFFER_END_TIME - BUFFER_START_TIME;
     private static String subFolder = POOLING_TIME_WINDOW + "_" + SEARCH_RADIUS_ORIGIN + "_" + SEARCH_RADIUS_DESTINATION + "/";
-    private static String outputSubFolder = !outputFile.endsWith("/") ? outputFile + "/" + subFolder : outputFile + subFolder;
+    private String outputSubFolder = !outputFile.endsWith("/") ? outputFile + "/" + subFolder : outputFile + subFolder;
     // TODO: Create an initial population of solutions using domain-specific knowledge (in our case is the vehicles which were used to create the initial fleet of the vehicles).
 
     // For travel time calculator
@@ -150,6 +151,7 @@ public class MultiObjectiveNSGAII {
     public static void main(String[] args) throws IOException, InterruptedException {
         initialization(args);
         callAlgorithm(args);
+        log.setLevel(Level.ALL);
     }
 
     public static double[] callAlgorithm(String[] args) {
@@ -169,6 +171,8 @@ public class MultiObjectiveNSGAII {
 
         // Reinitialize data with new file paths
         initializeData();
+
+        log.setLevel(Level.WARN);
     }
     public double[] runAlgorithm(String[] args) {
         if (args.length > 5) {
@@ -183,15 +187,14 @@ public class MultiObjectiveNSGAII {
         File outputFolder = new File(outputSubFolder);
         if (!outputFolder.exists()) {
             if (outputFolder.mkdirs()) {
-                System.out.println("Output directory created: " + outputFolder.getAbsolutePath());
+                log.info("Output directory created: " + outputFolder.getAbsolutePath());
             } else {
-                System.err.println("Failed to create output directory: " + outputFolder.getAbsolutePath());
+                System.out.println("Failed to create output directory: " + outputFolder.getAbsolutePath());
             }
         } else {
             System.out.println("Output directory already exists: " + outputFolder.getAbsolutePath());
         }
 
-        MemoryObserver.start(600);
         log.info("Scheduler started...");
         List<TripItemForOptimization> trips = dataInitializer.tripItems;
         // Randomly select a share of trips from the list of subTrips
@@ -217,7 +220,7 @@ public class MultiObjectiveNSGAII {
             population = evolvePopulation(population, gen);
             // Find the best solution in the current population
             SolutionFitnessPair bestSolution = Collections.max(population, Comparator.comparingDouble(p -> p.getFitness()[0]));
-            System.out.println("Generation " + gen + ": Best fitness = " + Arrays.toString(bestSolution.getFitness()));
+            log.info("Generation " + gen + ": Best fitness = " + Arrays.toString(bestSolution.getFitness()));
             if (gen == MAX_GENERATIONS - 1) {
                 if(ENABLE_PRINT_RESULTS) {
                     calculatePopulationIndicators(population);
@@ -229,8 +232,8 @@ public class MultiObjectiveNSGAII {
         SolutionFitnessPair bestFeasibleSolutionFitnessPair = findBestFeasibleSolution(population);
         int[] bestFeasibleSolution = bestFeasibleSolutionFitnessPair.getSolution();
         double [] bestFeasibleSolutionFitness = bestFeasibleSolutionFitnessPair.getFitness();
-        System.out.println("Best feasible solution: " + Arrays.toString(bestFeasibleSolution));
-        System.out.println("The fitness of the best feasible solution: " + Arrays.toString(bestFeasibleSolutionFitness));
+        log.info("Best feasible solution: " + Arrays.toString(bestFeasibleSolution));
+        log.info("The fitness of the best feasible solution: " + Arrays.toString(bestFeasibleSolutionFitness));
 
 /*        // Find the best feasible solution from all generations
         SolutionFitnessPair bestFeasibleSolutionFitnessPair = findBestFeasibleSolution(new ArrayList<>(bestSolutionsAcrossGenerations));
@@ -1116,7 +1119,7 @@ public class MultiObjectiveNSGAII {
     // Method to calculate and print the performance indicators
     private void printPerformanceIndicators(int[] solution, SolutionIndicatorData indicatorData, String tripStatisticsCSVFile) {
         // Print the pooling rate
-        System.out.println("Pooling rate: " + indicatorData.getPoolingRate());
+        log.info("Pooling rate: " + indicatorData.getPoolingRate());
 
         // Method to calculate and print the number of vehicles by capacity
         Map<Integer, Integer> capacityCount = countVehicleCapacities(solution);
@@ -1126,11 +1129,11 @@ public class MultiObjectiveNSGAII {
         }
         int totalVehicles = uniqueVehicles.size();
 
-        System.out.println("Vehicle Capacity Rates:");
+        log.info("Vehicle Capacity Rates:");
         for (int capacity = 0; capacity <= VEHICLE_CAPACITY; capacity++) {
             int count = capacityCount.getOrDefault(capacity, 0);
             double rate = (double) count / totalVehicles;
-            System.out.println("Capacity " + capacity + ": " + count + " vehicles, Rate: " + rate);
+            log.info("Capacity " + capacity + ": " + count + " vehicles, Rate: " + rate);
         }
 
         // Collect travel time changes only for trips assigned to a vehicle shared with others
@@ -1161,9 +1164,9 @@ public class MultiObjectiveNSGAII {
         // Calculate and print the share of shared rides with travel time changes exceeding threshold
         int totalSharedRides = sharedTravelTimeChanges.size();
         double shareExceedingThreshold = totalSharedRides == 0 ? 0 : (double) sharedRidesExceedingThreshold / totalSharedRides;
-        System.out.println("Share of shared rides with travel time changes exceeding" + SHARED_RIDE_TRAVEL_TIME_CHANGE_THRESHOLD + ": " + shareExceedingThreshold);
+        log.info("Share of shared rides with travel time changes exceeding" + SHARED_RIDE_TRAVEL_TIME_CHANGE_THRESHOLD + ": " + shareExceedingThreshold);
         double totalShareExceedingThreshold = subTrips.isEmpty() ? 0 : (double) sharedRidesExceedingThreshold / subTrips.size();
-        System.out.println("Total share of shared rides with travel time changes exceeding" + SHARED_RIDE_TRAVEL_TIME_CHANGE_THRESHOLD + ": " + totalShareExceedingThreshold);
+       log.info("Total share of shared rides with travel time changes exceeding" + SHARED_RIDE_TRAVEL_TIME_CHANGE_THRESHOLD + ": " + totalShareExceedingThreshold);
 
         List<Double> sortedTravelTimeChanges = new ArrayList<>(sharedTravelTimeChanges);
         Collections.sort(sortedTravelTimeChanges);
@@ -1175,9 +1178,9 @@ public class MultiObjectiveNSGAII {
         double percentile5thTravelTime = sortedTravelTimeChanges.isEmpty() ? Double.NaN : sortedTravelTimeChanges.get((int) (0.05 * sortedTravelTimeChanges.size()));
         double percentile95thTravelTime = sortedTravelTimeChanges.isEmpty() ? Double.NaN : sortedTravelTimeChanges.get((int) (0.95 * sortedTravelTimeChanges.size()) - 1);
 
-        System.out.println("Average travel time change (shared vehicles): " + averageTravelTime);
-        System.out.println("5th percentile of travel time change (shared vehicles): " + percentile5thTravelTime);
-        System.out.println("95th percentile of travel time change (shared vehicles): " + percentile95thTravelTime);
+        log.info("Average travel time change (shared vehicles): " + averageTravelTime);
+        log.info("5th percentile of travel time change (shared vehicles): " + percentile5thTravelTime);
+        log.info("95th percentile of travel time change (shared vehicles): " + percentile95thTravelTime);
 
         Collection<Double> flightDistanceChanges = indicatorData.getFlightDistanceChanges().values();
         List<Double> sortedFlightDistanceChanges = new ArrayList<>(flightDistanceChanges);
@@ -1190,9 +1193,9 @@ public class MultiObjectiveNSGAII {
         double percentile5thFlightDistance = sortedFlightDistanceChanges.isEmpty() ? Double.NaN : sortedFlightDistanceChanges.get((int) (0.05 * sortedFlightDistanceChanges.size()));
         double percentile95thFlightDistance = sortedFlightDistanceChanges.isEmpty() ? Double.NaN : sortedFlightDistanceChanges.get((int) (0.95 * sortedFlightDistanceChanges.size()) - 1);
 
-        System.out.println("Average flight distance change: " + averageFlightDistance);
-        System.out.println("5th percentile of flight distance change: " + percentile5thFlightDistance);
-        System.out.println("95th percentile of flight distance change: " + percentile95thFlightDistance);
+        log.info("Average flight distance change: " + averageFlightDistance);
+        log.info("5th percentile of flight distance change: " + percentile5thFlightDistance);
+        log.info("95th percentile of flight distance change: " + percentile95thFlightDistance);
 
         Collection<Double> departureRedirectionRates = indicatorData.getDepartureRedirectionRates().values();
         List<Double> sortedDepartureRedirectionRates = new ArrayList<>(departureRedirectionRates);
@@ -1205,9 +1208,9 @@ public class MultiObjectiveNSGAII {
         double percentile5thDepartureRedirectionRate = sortedDepartureRedirectionRates.isEmpty() ? Double.NaN : sortedDepartureRedirectionRates.get((int) (0.05 * sortedDepartureRedirectionRates.size()));
         double percentile95thDepartureRedirectionRate = sortedDepartureRedirectionRates.isEmpty() ? Double.NaN : sortedDepartureRedirectionRates.get((int) (0.95 * sortedDepartureRedirectionRates.size()) - 1);
 
-        System.out.println("Average departure redirection rate: " + averageDepartureRedirectionRate);
-        System.out.println("5th percentile of departure redirection rate: " + percentile5thDepartureRedirectionRate);
-        System.out.println("95th percentile of departure redirection rate: " + percentile95thDepartureRedirectionRate);
+        log.info("Average departure redirection rate: " + averageDepartureRedirectionRate);
+        log.info("5th percentile of departure redirection rate: " + percentile5thDepartureRedirectionRate);
+        log.info("95th percentile of departure redirection rate: " + percentile95thDepartureRedirectionRate);
 
         Collection<Double> arrivalRedirectionRates = indicatorData.getArrivalRedirectionRates().values();
         List<Double> sortedArrivalRedirectionRates = new ArrayList<>(arrivalRedirectionRates);
@@ -1220,9 +1223,9 @@ public class MultiObjectiveNSGAII {
         double percentile5thArrivalRedirectionRate = sortedArrivalRedirectionRates.isEmpty() ? Double.NaN : sortedArrivalRedirectionRates.get((int) (0.05 * sortedArrivalRedirectionRates.size()));
         double percentile95thArrivalRedirectionRate = sortedArrivalRedirectionRates.isEmpty() ? Double.NaN : sortedArrivalRedirectionRates.get((int) (0.95 * sortedArrivalRedirectionRates.size()) - 1);
 
-        System.out.println("Average arrival redirection rate: " + averageArrivalRedirectionRate);
-        System.out.println("5th percentile of arrival redirection rate: " + percentile5thArrivalRedirectionRate);
-        System.out.println("95th percentile of arrival redirection rate: " + percentile95thArrivalRedirectionRate);
+        log.info("Average arrival redirection rate: " + averageArrivalRedirectionRate);
+        log.info("5th percentile of arrival redirection rate: " + percentile5thArrivalRedirectionRate);
+        log.info("95th percentile of arrival redirection rate: " + percentile95thArrivalRedirectionRate);
 
         // Print statistics to CSV
         if(ENABLE_PRINT_RESULTS) {
