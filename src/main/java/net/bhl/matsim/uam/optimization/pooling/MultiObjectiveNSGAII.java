@@ -140,7 +140,7 @@ public class MultiObjectiveNSGAII {
         dataInitializer = SimulatedAnnealingForPartD.getDataInitializer(tripItemFile, configFile, vertiportUnitsCandidateFile, scenarioConfigurations);
 
         network = NetworkUtils.createNetwork();
-        new MatsimNetworkReader(network).readFile("examples/uam-test-scenario/uam_routed_network.xml.gz");
+        new MatsimNetworkReader(network).readFile("./uam_routed_network.xml.gz");
     }
 
     // Constructor
