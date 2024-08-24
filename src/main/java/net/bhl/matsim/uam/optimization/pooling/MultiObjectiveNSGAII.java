@@ -87,8 +87,8 @@ public class MultiObjectiveNSGAII {
 
     // io paths
     private static String outputFile = "src/main/java/net/bhl/matsim/uam/optimization/pooling/output/";
-    private static double POOLING_TIME_WINDOW = BUFFER_END_TIME - BUFFER_START_TIME;
-    private static String subFolder = POOLING_TIME_WINDOW + "_" + SEARCH_RADIUS_ORIGIN + "_" + SEARCH_RADIUS_DESTINATION + "/";
+    private double POOLING_TIME_WINDOW = BUFFER_END_TIME - BUFFER_START_TIME;
+    private String subFolder = POOLING_TIME_WINDOW + "_" + SEARCH_RADIUS_ORIGIN + "_" + SEARCH_RADIUS_DESTINATION + "/";
     private String outputSubFolder = !outputFile.endsWith("/") ? outputFile + "/" + subFolder : outputFile + subFolder;
     // TODO: Create an initial population of solutions using domain-specific knowledge (in our case is the vehicles which were used to create the initial fleet of the vehicles).
 
