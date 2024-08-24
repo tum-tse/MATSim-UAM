@@ -334,6 +334,9 @@ public class MultiObjectiveNSGAII {
     // Generate a random individual
     private int[] generateIndividual() {
         int[] individual = new int[subTrips.size()];
+        if (individual.length == 0) {
+            log.fatal("Run: Pooling Time Window " + POOLING_TIME_WINDOW + "Origin Search Radius " + SEARCH_RADIUS_ORIGIN + "Destination Search Radius " + SEARCH_RADIUS_DESTINATION + " generated an empty individual. subTrips size: " + subTrips.size());
+        }
         //resetVehicleCapacities(tripVehicleMap); // Reset the vehicle capacity since capacity of vehicles will be updated during each individual generation
         //resetVehicleOccupancy(vehicleOccupancyMap);
         for (int i = 0; i < individual.length; i++) {
