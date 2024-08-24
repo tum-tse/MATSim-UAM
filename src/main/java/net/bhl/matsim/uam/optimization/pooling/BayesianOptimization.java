@@ -244,9 +244,9 @@ public class BayesianOptimization {
 
     public static void main(String[] args) {
         try {
-            ParameterRange poolingTimeWindowRange = new ParameterRange(1, 25);
-            ParameterRange searchRadiusOriginRange = new ParameterRange(1000, 50000);
-            ParameterRange searchRadiusDestinationRange = new ParameterRange(1000, 50000);
+            ParameterRange poolingTimeWindowRange = new ParameterRange(5, 25);
+            ParameterRange searchRadiusOriginRange = new ParameterRange(2000, 50000);
+            ParameterRange searchRadiusDestinationRange = new ParameterRange(2000, 50000);
 
             //MultiObjectiveNSGAII.initialization(args);
             String outputSubFolder = args[4].endsWith("/") ? args[4] + "bayesian_optimization" : args[4] + "/" + "bayesian_optimization";

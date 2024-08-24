@@ -47,8 +47,8 @@ public class GridSearch {
         try {
             // Example loop to optimize parameters
             for (double ptw = 5.0; ptw <= 20.0; ptw += 5.0) {
-                for (double sro = 0; sro <= 20000; sro += 2000) {
-                    for (double srd = 0; srd <= 20000; srd += 2000) {
+                for (double sro = 2000; sro <= 20000; sro += 2000) {
+                    for (double srd = 2000; srd <= 20000; srd += 2000) {
                         final double finalPtw = ptw;
                         final double finalSro = sro;
                         final double finalSrd = srd;
