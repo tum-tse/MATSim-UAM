@@ -594,9 +594,52 @@ public class MultiObjectiveNSGAII {
                 travelTimeChangeMap.put(trip.tripID, tripTimeChange);
 
                 if(isFinalSolutions){
-                    double departureRedirectionRate = ( trip.originNeighborVertiportCandidatesTimeAndDistance.get(originStationOfVehicle).get("distance") - trip.originNeighborVertiportCandidatesTimeAndDistance.get(trip.accessVertiport).get("distance") ) / ( trip.originNeighborVertiportCandidatesTimeAndDistance.get(trip.accessVertiport).get("distance") );
+                    // Calculate departureRedirectionRate
+                    double departureRedirectionRate = 0.0;
+                    try {
+                        double originStationDistance = trip.originNeighborVertiportCandidatesTimeAndDistance.get(originStationOfVehicle).get("distance");
+                        double accessVertiportDistance = trip.originNeighborVertiportCandidatesTimeAndDistance.get(trip.accessVertiport).get("distance");
+
+                        if (accessVertiportDistance != 0) {
+                            departureRedirectionRate = (originStationDistance - accessVertiportDistance) / accessVertiportDistance;
+                        } else {
+                            // Handle the case where accessVertiportDistance is 0
+                            departureRedirectionRate = originStationDistance > 0 ? Double.POSITIVE_INFINITY : 0.0;
+                        }
+                    } catch (NullPointerException e) {
+                        // Handle the case where one of the get() operations returns null
+                        log.warn("Null value encountered when calculating departureRedirectionRate for trip " + trip.tripID);
+                        //departureRedirectionRate = 0.0;
+                    }
+                    // Check if the result is finite
+                    if (!Double.isFinite(departureRedirectionRate)) {
+                        log.warn("Non-finite departureRedirectionRate calculated for trip " + trip.tripID + ": " + departureRedirectionRate);
+                        departureRedirectionRate = 0.0;  // or some other default value
+                    }
                     indicatorData.setDepartureRedirectionRate(trip.tripID, departureRedirectionRate);
-                    double arrivalRedirectionRate = ( trip.destinationNeighborVertiportCandidatesTimeAndDistance.get(destinationStationOfVehicle).get("distance") - trip.destinationNeighborVertiportCandidatesTimeAndDistance.get(trip.egressVertiport).get("distance") ) / ( trip.destinationNeighborVertiportCandidatesTimeAndDistance.get(trip.egressVertiport).get("distance") );
+
+                    // Calculate arrivalRedirectionRate
+                    double arrivalRedirectionRate = 0.0;
+                    try {
+                        double destinationStationDistance = trip.destinationNeighborVertiportCandidatesTimeAndDistance.get(destinationStationOfVehicle).get("distance");
+                        double egressVertiportDistance = trip.destinationNeighborVertiportCandidatesTimeAndDistance.get(trip.egressVertiport).get("distance");
+
+                        if (egressVertiportDistance != 0) {
+                            arrivalRedirectionRate = (destinationStationDistance - egressVertiportDistance) / egressVertiportDistance;
+                        } else {
+                            // Handle the case where egressVertiportDistance is 0
+                            arrivalRedirectionRate = destinationStationDistance > 0 ? Double.POSITIVE_INFINITY : 0.0;
+                        }
+                    } catch (NullPointerException e) {
+                        // Handle the case where one of the get() operations returns null
+                        log.warn("Null value encountered when calculating arrivalRedirectionRate for trip " + trip.tripID);
+                        //arrivalRedirectionRate = 0.0;
+                    }
+                    // Check if the result is finite
+                    if (!Double.isFinite(arrivalRedirectionRate)) {
+                        log.warn("Non-finite arrivalRedirectionRate calculated for trip " + trip.tripID + ": " + arrivalRedirectionRate);
+                        arrivalRedirectionRate = 0.0;  // or some other default value
+                    }
                     indicatorData.setArrivalRedirectionRate(trip.tripID, arrivalRedirectionRate);
 
                     // total travel time for the trip
@@ -654,9 +697,52 @@ public class MultiObjectiveNSGAII {
         travelTimeChangeMap.put(trip.tripID, tripTimeChange);
 
         if(isFinalSolutions){
-            double departureRedirectionRate = ( trip.originNeighborVertiportCandidatesTimeAndDistance.get(originStationOfVehicle).get("distance") - trip.originNeighborVertiportCandidatesTimeAndDistance.get(trip.accessVertiport).get("distance") ) / ( trip.originNeighborVertiportCandidatesTimeAndDistance.get(trip.accessVertiport).get("distance") );
+            // Calculate departureRedirectionRate
+            double departureRedirectionRate = 0.0;
+            try {
+                double originStationDistance = trip.originNeighborVertiportCandidatesTimeAndDistance.get(originStationOfVehicle).get("distance");
+                double accessVertiportDistance = trip.originNeighborVertiportCandidatesTimeAndDistance.get(trip.accessVertiport).get("distance");
+
+                if (accessVertiportDistance != 0) {
+                    departureRedirectionRate = (originStationDistance - accessVertiportDistance) / accessVertiportDistance;
+                } else {
+                    // Handle the case where accessVertiportDistance is 0
+                    departureRedirectionRate = originStationDistance > 0 ? Double.POSITIVE_INFINITY : 0.0;
+                }
+            } catch (NullPointerException e) {
+                // Handle the case where one of the get() operations returns null
+                log.warn("Null value encountered when calculating departureRedirectionRate for trip " + trip.tripID);
+                //departureRedirectionRate = 0.0;
+            }
+            // Check if the result is finite
+            if (!Double.isFinite(departureRedirectionRate)) {
+                log.warn("Non-finite departureRedirectionRate calculated for trip " + trip.tripID + ": " + departureRedirectionRate);
+                departureRedirectionRate = 0.0;  // or some other default value
+            }
             indicatorData.setDepartureRedirectionRate(trip.tripID, departureRedirectionRate);
-            double arrivalRedirectionRate = ( trip.destinationNeighborVertiportCandidatesTimeAndDistance.get(destinationStationOfVehicle).get("distance") - trip.destinationNeighborVertiportCandidatesTimeAndDistance.get(trip.egressVertiport).get("distance") ) / ( trip.destinationNeighborVertiportCandidatesTimeAndDistance.get(trip.egressVertiport).get("distance") );
+
+            // Calculate arrivalRedirectionRate
+            double arrivalRedirectionRate = 0.0;
+            try {
+                double destinationStationDistance = trip.destinationNeighborVertiportCandidatesTimeAndDistance.get(destinationStationOfVehicle).get("distance");
+                double egressVertiportDistance = trip.destinationNeighborVertiportCandidatesTimeAndDistance.get(trip.egressVertiport).get("distance");
+
+                if (egressVertiportDistance != 0) {
+                    arrivalRedirectionRate = (destinationStationDistance - egressVertiportDistance) / egressVertiportDistance;
+                } else {
+                    // Handle the case where egressVertiportDistance is 0
+                    arrivalRedirectionRate = destinationStationDistance > 0 ? Double.POSITIVE_INFINITY : 0.0;
+                }
+            } catch (NullPointerException e) {
+                // Handle the case where one of the get() operations returns null
+                log.warn("Null value encountered when calculating arrivalRedirectionRate for trip " + trip.tripID);
+                //arrivalRedirectionRate = 0.0;
+            }
+            // Check if the result is finite
+            if (!Double.isFinite(arrivalRedirectionRate)) {
+                log.warn("Non-finite arrivalRedirectionRate calculated for trip " + trip.tripID + ": " + arrivalRedirectionRate);
+                arrivalRedirectionRate = 0.0;  // or some other default value
+            }
             indicatorData.setArrivalRedirectionRate(trip.tripID, arrivalRedirectionRate);
 
             // total travel time for the trip
