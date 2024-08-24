@@ -35,8 +35,8 @@ public class MultiObjectiveNSGAII {
     private static final double MUTATION_RATE = 0.05; // Mutation rate
     private static final double CROSSOVER_RATE = 0.7; // Crossover rate
     private static final int TOURNAMENT_SIZE = 5; // Tournament size for selection
-    private static boolean ENABLE_LOCAL_SEARCH = false; // Enable local search after each generation
-    private static boolean ENABLE_PRINT_RESULTS = true; // Enable printing results to the CSVs
+    private boolean ENABLE_LOCAL_SEARCH = false; // Enable local search after each generation
+    private boolean ENABLE_PRINT_RESULTS = true; // Enable printing results to the CSVs
 
     private static final double ALPHA = -2.02 * 0.9101 / 1000; // Weight for changed flight distances
     private static final double BETA = -64.0 / 3600; // Weight for change in travel time
@@ -54,10 +54,10 @@ public class MultiObjectiveNSGAII {
     private static final int VEHICLE_CAPACITY = 4; // Vehicle capacity
 
     // Variables for the UAM problem ===================================================================================
-    private static double BUFFER_START_TIME = 3600*7; // Buffer start time for the first trip
-    private static double BUFFER_END_TIME = 3600*7+420; // Buffer end time for the last trip
-    private static double SEARCH_RADIUS_ORIGIN = 3000; // search radius for origin station
-    private static double SEARCH_RADIUS_DESTINATION = 3000; // search radius for destination station
+    private double BUFFER_START_TIME = 3600*7; // Buffer start time for the first trip
+    private double BUFFER_END_TIME = 3600*7+420; // Buffer end time for the last trip
+    private double SEARCH_RADIUS_ORIGIN = 3000; // search radius for origin station
+    private double SEARCH_RADIUS_DESTINATION = 3000; // search radius for destination station
 
     // Helpers for the UAM problem =====================================================================================
     private static final int SHARED_RIDE_TRAVEL_TIME_CHANGE_THRESHOLD = 700;
