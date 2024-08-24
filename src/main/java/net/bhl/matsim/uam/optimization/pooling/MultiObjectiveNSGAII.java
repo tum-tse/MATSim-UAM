@@ -68,9 +68,9 @@ public class MultiObjectiveNSGAII {
     //private static Map<Id<UAMStation>, UAMStation> stations;
     private HashMap<Integer, Vertiport> vertiportsMap;
     private final Map<Id<Vertiport>, List<UAMVehicle>> originStationVehicleMap = new HashMap<>();
-    private final Map<Id<DvrpVehicle>, Vertiport> vehicleOriginStationMap = new ConcurrentHashMap<>();
-    private final Map<Id<DvrpVehicle>, Vertiport> vehicleDestinationStationMap = new ConcurrentHashMap<>();
-    private Map<String, List<UAMVehicle>> tripVehicleMap = new ConcurrentHashMap<>(); // Update tripVehicleMap to use ConcurrentHashMap
+    private final Map<Id<DvrpVehicle>, Vertiport> vehicleOriginStationMap = new HashMap<>();
+    private final Map<Id<DvrpVehicle>, Vertiport> vehicleDestinationStationMap = new HashMap<>();
+    private Map<String, List<UAMVehicle>> tripVehicleMap = new HashMap<>(); // Update tripVehicleMap to use ConcurrentHashMap
     //private static final Map<UAMVehicle, Integer> vehicleOccupancyMap = new HashMap<>();
 
     // Data container for outputs
@@ -401,7 +401,7 @@ public class MultiObjectiveNSGAII {
         }*/
 
         // synchronize the block that checks for empty vehicle list and adds a new vehicle (i.e., vehicle has capacity) after checking the egress constraint
-        synchronized (tripVehicleMap) {
+        //synchronized (tripVehicleMap) {
             // Add a new vehicle for the trip when there is no available vehicle
             if (vehicleList == null || vehicleList.isEmpty()) {
                 if (vehicleList == null) {
@@ -414,7 +414,7 @@ public class MultiObjectiveNSGAII {
 
                 // Update tripVehicleMap for all relevant trips
                 updateTripVehicleMapForNewVehicle(newVehicle);
-            }
+            //}
         }
 
         if (!vehicleList.isEmpty()) {
