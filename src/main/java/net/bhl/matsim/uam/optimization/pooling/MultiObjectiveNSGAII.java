@@ -17,7 +17,6 @@ import net.bhl.matsim.uam.infrastructure.UAMVehicleType;
 import org.apache.log4j.Logger;
 import org.matsim.core.network.NetworkUtils;
 import org.matsim.core.network.io.MatsimNetworkReader;
-import org.matsim.utils.MemoryObserver;
 
 import java.io.File;
 import java.io.IOException;
@@ -189,15 +188,17 @@ public class MultiObjectiveNSGAII {
 
         log.info("Scheduler started...");
         List<TripItemForOptimization> trips = dataInitializer.tripItems;
+        log.info("The number of UAM trips before filtering: " + trips.size());
+
+        vertiportsMap = dataInitializer.clusteredVertiportCandidatesMap;
+        log.info("The number of Vertiports: " + dataInitializer.clusteredVertiportCandidatesMap.size());
         // Randomly select a share of trips from the list of subTrips
         subTrips = trips.stream()
                 .filter(trip -> trip.departureTime >= BUFFER_START_TIME && trip.departureTime < BUFFER_END_TIME) // Add the filter
-                .filter(trip -> rand.nextDouble() <= 1)
+                .filter(trip -> calculateEuclideanDistance(findEuclideanNearestStation(trip, vertiportsMap, true).coord, trip.origin) <= SEARCH_RADIUS_ORIGIN)
+                .filter(trip -> calculateEuclideanDistance(findEuclideanNearestStation(trip, vertiportsMap, false).coord, trip.destination) <= SEARCH_RADIUS_DESTINATION)
                 .collect(Collectors.toCollection(ArrayList::new));
-
-        log.info("The number of UAM trips: " + subTrips.size());
-        vertiportsMap = dataInitializer.clusteredVertiportCandidatesMap;
-        log.info("The number of Vertiports: " + dataInitializer.clusteredVertiportCandidatesMap.size());
+        log.info("The number of UAM trips after filtering: " + subTrips.size());
 
         // Initialize the origin station and destination station for each trip
         for (TripItemForOptimization uamTrip : subTrips) {
@@ -1565,6 +1566,30 @@ public class MultiObjectiveNSGAII {
                 if (trip.destinationNeighborVertiportCandidatesTimeAndDistance.containsKey(station)) {
                     distance = trip.destinationNeighborVertiportCandidatesTimeAndDistance.get(station).get("distance");
                 }
+            }
+            if (distance < shortestDistance) {
+                nearestStation = station;
+                shortestDistance = distance;
+            }
+        }
+        if (nearestStation == null) {
+            log.warn("No nearest station found for trip: " + trip.tripID);
+        }
+        return nearestStation;
+    }
+    private static Vertiport findEuclideanNearestStation(TripItemForOptimization trip, HashMap<Integer, Vertiport> vertiportsMap, boolean accessLeg) {
+        Vertiport nearestStation = null;
+        double shortestDistance = Double.MAX_VALUE;
+        for (Vertiport station : vertiportsMap.values()) {
+            if (station == null) {
+                log.error("Encountered null station in stations map");
+                continue; // Skip null stations
+            }
+            double distance = Double.MAX_VALUE;
+            if (accessLeg) {
+                    distance = calculateEuclideanDistance(trip.origin, station.coord);
+            } else {
+                distance = calculateEuclideanDistance(trip.destination, station.coord);
             }
             if (distance < shortestDistance) {
                 nearestStation = station;
