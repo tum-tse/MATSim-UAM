@@ -253,7 +253,7 @@ public class MultiObjectiveNSGAII {
                 System.out.println("Failed to create output directory: " + outputFolder.getAbsolutePath());
             }
         } else {
-            System.out.println("Output directory already exists: " + outputFolder.getAbsolutePath());
+            log.info("Output directory already exists: " + outputFolder.getAbsolutePath());
         }
     }
 
@@ -335,7 +335,7 @@ public class MultiObjectiveNSGAII {
     private int[] generateIndividual() {
         int[] individual = new int[subTrips.size()];
         if (individual.length == 0) {
-            log.fatal("Run: Pooling Time Window " + POOLING_TIME_WINDOW + "Origin Search Radius " + SEARCH_RADIUS_ORIGIN + "Destination Search Radius " + SEARCH_RADIUS_DESTINATION + " generated an empty individual. subTrips size: " + subTrips.size());
+            //log.fatal("Run: Pooling Time Window " + POOLING_TIME_WINDOW + "Origin Search Radius " + SEARCH_RADIUS_ORIGIN + "Destination Search Radius " + SEARCH_RADIUS_DESTINATION + " generated an empty individual. subTrips size: " + subTrips.size());
         }
         //resetVehicleCapacities(tripVehicleMap); // Reset the vehicle capacity since capacity of vehicles will be updated during each individual generation
         //resetVehicleOccupancy(vehicleOccupancyMap);
@@ -401,7 +401,6 @@ public class MultiObjectiveNSGAII {
         }*/
 
         // synchronize the block that checks for empty vehicle list and adds a new vehicle (i.e., vehicle has capacity) after checking the egress constraint
-        //synchronized (tripVehicleMap) {
             // Add a new vehicle for the trip when there is no available vehicle
             if (vehicleList == null || vehicleList.isEmpty()) {
                 if (vehicleList == null) {
@@ -414,7 +413,6 @@ public class MultiObjectiveNSGAII {
 
                 // Update tripVehicleMap for all relevant trips
                 updateTripVehicleMapForNewVehicle(newVehicle);
-            //}
         }
 
         if (!vehicleList.isEmpty()) {
@@ -1102,7 +1100,7 @@ public class MultiObjectiveNSGAII {
             }
         }
         if(isPrintCapacityViolation){
-            System.out.println("Number of vehicles with capacity violation: " + vehicleCapacityViolated);
+            log.info("Number of vehicles with capacity violation: " + vehicleCapacityViolated);
         }
         return isFeasible;
     }
