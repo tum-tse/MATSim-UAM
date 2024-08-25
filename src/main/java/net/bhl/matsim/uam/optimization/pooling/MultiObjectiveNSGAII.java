@@ -42,6 +42,7 @@ public class MultiObjectiveNSGAII {
     private static final double BETA = -64.0 / 3600; // Weight for change in travel time
     //private static final double BETA_CRUCIAL_TIME_ChANGE = - 0.1; //TODO: need to reconsider the value
     private static final double PENALTY_FOR_VEHICLE_CAPACITY_VIOLATION = -10000;
+    private static final double REVERT_SIGN = -1.0;
 
     private final long SEED = 4711; // MATSim default Random Seed
     private final Random rand = new Random(SEED);
@@ -661,7 +662,7 @@ public class MultiObjectiveNSGAII {
                 totalViolationPenalty += PENALTY_FOR_VEHICLE_CAPACITY_VIOLATION * (trips.size() - VEHICLE_CAPACITY);
             }
         }
-        return new double[]{totalFitness, -totalDistanceChange, -totalTimeChange, totalViolationPenalty};
+        return new double[]{totalFitness, REVERT_SIGN*totalDistanceChange, REVERT_SIGN*totalTimeChange, totalViolationPenalty};
     }
     private double getFitnessForNonPooledOrBaseTrip(TripItemForOptimization trip, Vertiport originStationOfVehicle, Vertiport destinationStationOfVehicle, double totalFitness, boolean isFinalSolutions, Map<String, Double> travelTimeChangeMap, SolutionIndicatorData indicatorData) {
         double tripTimeChange = 0.0;
@@ -1535,7 +1536,7 @@ public class MultiObjectiveNSGAII {
             // Write data for each solution
             for (SolutionIndicatorData data : indicatorDataList) {
                 writer.append(String.format("%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f\n",
-                        data.getFitness()[0], data.getFitness()[1], data.getFitness()[2], data.getFitness()[3],
+                        data.getFitness()[0], REVERT_SIGN * data.getFitness()[1], REVERT_SIGN * data.getFitness()[2]*-1, data.getFitness()[3],
                         data.getPoolingRate(),
                         data.getVehicleCapacityRates().getOrDefault(0, 0.0),
                         data.getVehicleCapacityRates().getOrDefault(1, 0.0),

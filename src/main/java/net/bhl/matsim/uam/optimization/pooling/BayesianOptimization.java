@@ -198,8 +198,8 @@ public class BayesianOptimization {
                 String.valueOf(poolingTimeWindow),
                 String.valueOf(searchRadiusOrigin),
                 String.valueOf(searchRadiusDestination),
-                String.valueOf(false),
-                String.valueOf(true),
+                String.valueOf(true), // ENABLE_LOCAL_SEARCH
+                String.valueOf(true), // ENABLE_PRINT_RESULTS
                 String.valueOf(poolingTimeWindow + "_" + searchRadiusOrigin + "_" + searchRadiusDestination + "/") // OUTPUT_SUB_DIRECTORY
         };
         double[] actualPerformance = MultiObjectiveNSGAII.callAlgorithm(multiObjectiveArgs);
