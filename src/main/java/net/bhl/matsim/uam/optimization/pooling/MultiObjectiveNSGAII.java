@@ -60,9 +60,6 @@ public class MultiObjectiveNSGAII {
     private double SEARCH_RADIUS_ORIGIN = 3000; // search radius for origin station
     private double SEARCH_RADIUS_DESTINATION = 3000; // search radius for destination station
 
-    // Helpers for the UAM problem =====================================================================================
-    private static final int SHARED_RIDE_TRAVEL_TIME_CHANGE_THRESHOLD = 700;
-
     // Data container for the UAM problem ==============================================================================
     //private static List<UAMTrip> trips;
     private List<TripItemForOptimization> subTrips;
@@ -92,6 +89,8 @@ public class MultiObjectiveNSGAII {
     private String subFolder = POOLING_TIME_WINDOW + "_" + SEARCH_RADIUS_ORIGIN + "_" + SEARCH_RADIUS_DESTINATION + "/";
     private String outputSubFolder = !outputFile.endsWith("/") ? outputFile + "/" + subFolder : outputFile + subFolder;
     // TODO: Create an initial population of solutions using domain-specific knowledge (in our case is the vehicles which were used to create the initial fleet of the vehicles).
+
+    private final double SHARED_RIDE_TRAVEL_TIME_CHANGE_THRESHOLD = POOLING_TIME_WINDOW; // Threshold for shared ride travel time change
 
     // For travel time calculator
     private static String tripItemFile;
@@ -1263,7 +1262,7 @@ public class MultiObjectiveNSGAII {
         double shareExceedingThreshold = totalSharedRides == 0 ? 0 : (double) sharedRidesExceedingThreshold / totalSharedRides;
         log.info("Share of shared rides with travel time changes exceeding" + SHARED_RIDE_TRAVEL_TIME_CHANGE_THRESHOLD + ": " + shareExceedingThreshold);
         double totalShareExceedingThreshold = subTrips.isEmpty() ? 0 : (double) sharedRidesExceedingThreshold / subTrips.size();
-       log.info("Total share of shared rides with travel time changes exceeding" + SHARED_RIDE_TRAVEL_TIME_CHANGE_THRESHOLD + ": " + totalShareExceedingThreshold);
+        log.info("Total share of shared rides with travel time changes exceeding" + SHARED_RIDE_TRAVEL_TIME_CHANGE_THRESHOLD + ": " + totalShareExceedingThreshold);
 
         List<Double> sortedTravelTimeChanges = new ArrayList<>(sharedTravelTimeChanges);
         Collections.sort(sortedTravelTimeChanges);
