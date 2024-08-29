@@ -23,15 +23,15 @@ import java.io.IOException;
 import java.util.*;
 import java.util.stream.Collectors;
 import java.io.FileWriter;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.IntStream;
 
 public class MultiObjectiveNSGAII {
     private static final Logger log = Logger.getLogger(MultiObjectiveNSGAII.class);
 
     // Genetic Algorithm parameters ====================================================================================
-    private static final int MAX_GENERATIONS = 100; // Max number of generations
+    private static final int MAX_GENERATIONS = 10000; // Max number of generations
     //private static final int CROSSOVER_DISABLE_AFTER = 100; // New field to control when to stop crossover
-    private static final int POP_SIZE = 50; // Population size
+    private static final int POP_SIZE = 200; // Population size
     private static final double MUTATION_RATE = 0.05; // Mutation rate
     private static final double CROSSOVER_RATE = 0.7; // Crossover rate
     private static final int TOURNAMENT_SIZE = 5; // Tournament size for selection
@@ -107,6 +107,15 @@ public class MultiObjectiveNSGAII {
         scenarioConfigurations = scenarioConfigurationsPath;
         outputFile = outputFilePath;
     }
+
+    // Constants for the GA solver =====================================================================================
+    private static final int STABILITY_THRESHOLD = 10;
+    private static final double PARETO_CHANGE_THRESHOLD = 0.01;
+
+    private List<SolutionFitnessPair> previousParetoFront = new ArrayList<>();
+    private int stableGenerations = 0;
+    // Constants for the localSearch solver ============================================================================
+    private static final int MAX_ITERATIONS_WITHOUT_IMPROVEMENT = 5;
 
 /*    // Static initializer block
     static {
@@ -214,8 +223,14 @@ public class MultiObjectiveNSGAII {
             // Find the best solution in the current population
             SolutionFitnessPair bestSolution = Collections.max(population, Comparator.comparingDouble(p -> p.getFitness()[0]));
             log.info("Generation " + gen + ": Best fitness = " + Arrays.toString(bestSolution.getFitness()));
+
+            if (stableGenerations >= STABILITY_THRESHOLD) {
+                log.info("Terminating: Pareto front stable for " + STABILITY_THRESHOLD + " generations");
+                break;
+            }
+
             if (gen == MAX_GENERATIONS - 1) {
-                if(ENABLE_PRINT_RESULTS) {
+                if (ENABLE_PRINT_RESULTS) {
                     calculatePopulationIndicators(population);
                 }
             }
@@ -264,10 +279,10 @@ public class MultiObjectiveNSGAII {
             population = localSearch(population, currentGeneration);
         }
 
-        List<SolutionFitnessPair> newPop = new ArrayList<>();
+        List<SolutionFitnessPair> offspring = new ArrayList<>();
 
-        // Generate new offspring by crossover and mutation
-        while (newPop.size() < POP_SIZE) {
+        // Generate new offspring
+        while (offspring.size() < POP_SIZE) {
             int[] parent1 = selectParent(population);
             int[] parent2 = selectParent(population);
             int[] child;
@@ -275,25 +290,25 @@ public class MultiObjectiveNSGAII {
             if (rand.nextDouble() < CROSSOVER_RATE) {
                 child = crossover(parent1, parent2);
             } else {
-                child = rand.nextBoolean() ? parent1 : parent2; // Skip crossover, use parent directly
+                child = rand.nextBoolean() ? parent1.clone() : parent2.clone(); // Skip crossover, use parent directly
             }
 
-            child = mutate(child); // Mutation is always applied
+            child = mutate(child);
             SolutionFitnessPair solution = calculateFitness(child, null, false);
-            newPop.add(solution);
+            offspring.add(solution);
         }
 
         // Combine the old population and the new population
         List<SolutionFitnessPair> combinedPop = new ArrayList<>(population);
-        combinedPop.addAll(newPop);
+        combinedPop.addAll(offspring);
 
         // Apply local search to improve the combined population
         //combinedPop = localSearch(combinedPop);
 
-        // Perform non-dominated sorting on the improved population
+        // Perform non-dominated sorting
         List<List<SolutionFitnessPair>> fronts = nonDominatedSort(combinedPop);
 
-        // Select the next generation from the sorted fronts
+        // Select the next generation
         List<SolutionFitnessPair> nextGeneration = new ArrayList<>();
         for (List<SolutionFitnessPair> front : fronts) {
             calculateCrowdingDistance(front);
@@ -307,17 +322,49 @@ public class MultiObjectiveNSGAII {
             }
         }
 
-        // Update the best solutions queue
-        for (SolutionFitnessPair solution : nextGeneration) {
-            if (bestSolutionsAcrossGenerations.size() < MAX_BEST_SOLUTIONS) {
-                bestSolutionsAcrossGenerations.offer(solution);
-            } else if (solution.getFitness()[0] > bestSolutionsAcrossGenerations.peek().getFitness()[0]) {
-                bestSolutionsAcrossGenerations.poll(); // Remove the lowest fitness solution
-                bestSolutionsAcrossGenerations.offer(solution);
-            }
+        // Check for Pareto front stability
+        List<SolutionFitnessPair> currentParetoFront = getNonDominatedSolutions(nextGeneration);
+        double paretoChange = calculateParetoFrontChange(previousParetoFront, currentParetoFront);
+
+        if (paretoChange < PARETO_CHANGE_THRESHOLD) {
+            stableGenerations++;
+        } else {
+            stableGenerations = 0;
         }
 
+        previousParetoFront = currentParetoFront;
+
         return nextGeneration;
+    }
+    private List<SolutionFitnessPair> getNonDominatedSolutions(List<SolutionFitnessPair> population) {
+        return population.stream()
+                .filter(solution -> solution.getRank() == 0)
+                .collect(Collectors.toList());
+    }
+
+    private double calculateParetoFrontChange(List<SolutionFitnessPair> previous, List<SolutionFitnessPair> current) {
+        if (previous.isEmpty()) {
+            return 1.0;  // Maximum change if there was no previous front
+        }
+
+        double totalChange = 0.0;
+        for (SolutionFitnessPair currentSolution : current) {
+            double minDistance = previous.stream()
+                    .mapToDouble(previousSolution -> calculateDistance(currentSolution, previousSolution))
+                    .min()
+                    .orElse(Double.MAX_VALUE);
+            totalChange += minDistance;
+        }
+
+        return totalChange / current.size();
+    }
+
+    private double calculateDistance(SolutionFitnessPair solution1, SolutionFitnessPair solution2) {
+        double[] fitness1 = solution1.getFitness();
+        double[] fitness2 = solution2.getFitness();
+        return Math.sqrt(IntStream.range(0, fitness1.length)
+                .mapToDouble(i -> Math.pow(fitness1[i] - fitness2[i], 2))
+                .sum());
     }
 
     // Initialize population with random assignments
@@ -511,6 +558,13 @@ public class MultiObjectiveNSGAII {
 
             // Store fitness in indicatorData
             indicatorData.setFitness(fitness);
+
+            // Calculate the number of UAM vehicles used
+            Set<Integer> uniqueVehicles = new HashSet<>();
+            for (int vehicleId : individual) {
+                uniqueVehicles.add(vehicleId);
+            }
+            indicatorData.setNumberOfUAMVehiclesUsed(uniqueVehicles.size());
         }
 
         // Store vehicleLoadCount and travelTimeChangeMap in the solution pair
@@ -562,8 +616,8 @@ public class MultiObjectiveNSGAII {
 
                 // calculate change in flight distance
                 double flightDistanceChange = getFlightDistanceChange(trip, originStationOfVehicle, destinationStationOfVehicle);
-                totalFitness += ALPHA * flightDistanceChange;
-                tripFlightDistanceChange += flightDistanceChange;
+                //totalFitness += ALPHA * flightDistanceChange;
+                //tripFlightDistanceChange += flightDistanceChange;
                 // calculate saved flight distance
                 double savedFlightDistance = calculateFlightDistance(trip.accessVertiport, trip.egressVertiport);
                 totalFitness += ALPHA * (-1) * savedFlightDistance;
@@ -666,6 +720,12 @@ public class MultiObjectiveNSGAII {
     private double getFitnessForNonPooledOrBaseTrip(TripItemForOptimization trip, Vertiport originStationOfVehicle, Vertiport destinationStationOfVehicle, double totalFitness, boolean isFinalSolutions, Map<String, Double> travelTimeChangeMap, SolutionIndicatorData indicatorData) {
         double tripTimeChange = 0.0;
         double tripFlightDistanceChange = 0.0;
+
+        if(isFinalSolutions) {
+            // Calculate UAM vehicle kilometer (passenger kilometer for non-pooled or base trip)
+            double uamVehicleMeter = calculateFlightDistance(originStationOfVehicle, destinationStationOfVehicle) /*/ 1000.0*/; // Convert meters to kilometers
+            indicatorData.setUamVehicleMeter(indicatorData.getUamVehicleMeter() + uamVehicleMeter);
+        }
 
         // calculate change in flight distance
         double flightDistanceChange = getFlightDistanceChange(trip, originStationOfVehicle, destinationStationOfVehicle);
@@ -951,7 +1011,7 @@ public class MultiObjectiveNSGAII {
     }*/
     // Targeted Ruin - Focus on trips that are likely to improve the solution
     private int[] targetedRuin(SolutionFitnessPair solutionPair, int currentGeneration, int maxGenerations) {
-        int[] ruinedSolution = solutionPair.getSolution();
+        int[] ruinedSolution = Arrays.copyOf(solutionPair.getSolution(), solutionPair.getSolution().length);
 
         // Reset the vehicle load count and travel time change map
         Map<Integer, Integer> vehicleLoadCount = solutionPair.getVehicleLoadCount();
@@ -962,7 +1022,12 @@ public class MultiObjectiveNSGAII {
         for (int i = 0; i < ruinedSolution.length; i++) {
             int vehicleId = ruinedSolution[i];
 
-            if ((vehicleLoadCount.containsKey(vehicleId) && vehicleLoadCount.get(vehicleId) > VEHICLE_CAPACITY) || travelTimeChangeMap.get(subTrips.get(i).tripID) > SHARED_RIDE_TRAVEL_TIME_CHANGE_THRESHOLD) {
+            boolean isOverCapacity = /*vehicleLoadCount.containsKey(vehicleId) &&*/ vehicleLoadCount.get(vehicleId) > VEHICLE_CAPACITY;
+            boolean isSignificantTimeChange = /*vehicleLoadCount.containsKey(vehicleId) &&*/ vehicleLoadCount.get(vehicleId) > 1 &&
+                    /*travelTimeChangeMap.containsKey(subTrips.get(i).tripID) &&*/
+                    travelTimeChangeMap.get(subTrips.get(i).tripID) > SHARED_RIDE_TRAVEL_TIME_CHANGE_THRESHOLD;
+
+            if (isOverCapacity || isSignificantTimeChange) {
                 targetTrips.add(i);
             }
         }
@@ -990,23 +1055,39 @@ public class MultiObjectiveNSGAII {
         return recreatedSolution;
     }
     private List<SolutionFitnessPair> localSearch(List<SolutionFitnessPair> population, int currentGeneration) {
-        int maxGenerations = 100;
-
         List<SolutionFitnessPair> improvedPopulation = new ArrayList<>();
+        long startTime = System.currentTimeMillis();
+        int maxIterations = 100; // Adjust as needed
+        long maxRuntime = 1000; // 60 seconds, adjust as needed
 
         for (SolutionFitnessPair solutionPair : population) {
+            SolutionFitnessPair bestSolution = solutionPair;
+            int iterationsWithoutImprovement = 0;
+            int iteration = 0;
 
-            for (int i = 0; i < maxGenerations; i++) { // Number of iterations for local search
-                int[] ruinedSolution = targetedRuin(solutionPair, currentGeneration, maxGenerations);
+            while (iterationsWithoutImprovement < MAX_ITERATIONS_WITHOUT_IMPROVEMENT
+                    && iteration < maxIterations
+                    && (System.currentTimeMillis() - startTime) < maxRuntime) {
+
+                int[] ruinedSolution = targetedRuin(bestSolution, currentGeneration, MAX_GENERATIONS);
                 int[] recreatedSolution = recreateSolution(ruinedSolution);
                 SolutionFitnessPair newSolution = calculateFitness(recreatedSolution, null, false);
 
-                if (!dominates(newSolution, solutionPair)) {
-                    solutionPair = newSolution;
+                if (!dominates(newSolution, bestSolution) && !dominates(bestSolution, newSolution)) {
+                    // If solutions are non-dominated, consider it an improvement
+                    bestSolution = newSolution;
+                    iterationsWithoutImprovement = 0;
+                } else if (dominates(newSolution, bestSolution)) {
+                    bestSolution = newSolution;
+                    iterationsWithoutImprovement = 0;
+                } else {
+                    iterationsWithoutImprovement++;
                 }
+
+                iteration++;
             }
 
-            improvedPopulation.add(solutionPair);
+            improvedPopulation.add(bestSolution);
         }
 
         return improvedPopulation;
@@ -1108,9 +1189,9 @@ public class MultiObjectiveNSGAII {
     public int[] guaranteeFeasibleSolution(int[] solution) {
         boolean isSolutionFeasible = false;
         int iterationCount = 0;
-        final int MAX_ITERATIONS = 1000000; // A very high number, but not infinite
+        //final int MAX_ITERATIONS = 1000000; // A very high number, but not infinite
 
-        while (!isSolutionFeasible && iterationCount < MAX_ITERATIONS) {
+        while (!isSolutionFeasible /*&& iterationCount < MAX_ITERATIONS*/) {
             Map<Integer, List<Integer>> vehicleAssignments = new HashMap<>();
 
             // Group trips by assigned vehicle
@@ -1176,9 +1257,9 @@ public class MultiObjectiveNSGAII {
             iterationCount++;
         }
 
-        if (!isSolutionFeasible) {
+/*        if (!isSolutionFeasible) {
             throw new IllegalArgumentException("Error: Could not find a feasible solution after " + MAX_ITERATIONS + " iterations.");
-        }
+        }*/
         return solution;
     }
 
@@ -1393,6 +1474,9 @@ public class MultiObjectiveNSGAII {
         private double percentile5thTotalTravelTime;
         private double percentile95thTotalTravelTime;
 
+        private double uamVehicleMeter;
+        private int numberOfUAMVehiclesUsed;
+
         public SolutionIndicatorData(int[] solution) {
             this.solution = solution;
         }
@@ -1470,6 +1554,11 @@ public class MultiObjectiveNSGAII {
         public void setAssignedEgressStation(String tripId, String assignedEgressStations) {
             this.assignedEgressStations.put(tripId, assignedEgressStations);
         }
+
+        public double getUamVehicleMeter() { return uamVehicleMeter; }
+        public void setUamVehicleMeter(double uamVehicleKilometer) { this.uamVehicleMeter = uamVehicleKilometer; }
+        public int getNumberOfUAMVehiclesUsed() { return numberOfUAMVehiclesUsed; }
+        public void setNumberOfUAMVehiclesUsed(int numberOfUAMVehiclesUsed) { this.numberOfUAMVehiclesUsed = numberOfUAMVehiclesUsed; }
     }
     private void calculatePopulationIndicators(List<SolutionFitnessPair> population) {
         List<SolutionIndicatorData> indicatorDataList = new ArrayList<>();
@@ -1530,11 +1619,11 @@ public class MultiObjectiveNSGAII {
     private void writeIndicatorsToCsv(List<SolutionIndicatorData> indicatorDataList, String fileName) {
         try (FileWriter writer = new FileWriter(fileName)) {
             // Write header
-            writer.append("TotalFitness,TotalFlightDistanceChange,TotalTravelTimeChange,TotalCapacityViolationPenalty,PoolingRate,Capacity0Rate,Capacity1Rate,Capacity2Rate,Capacity3Rate,Capacity4Rate,SharedRidesExceedingThresholdRate,TotalSharedRidesExceedingThresholdRate,AvgTravelTimeChange,5thPercentileTravelTimeChange,95thPercentileTravelTimeChange,AvgFlightDistanceChange,5thPercentileFlightDistanceChange,95thPercentileFlightDistanceChange,AvgDepartureRedirectionRate,5thPercentileDepartureRedirectionRate,95thPercentileDepartureRedirectionRate,AvgArrivalRedirectionRate,5thPercentileArrivalRedirectionRate,95thPercentileArrivalRedirectionRate,AvgTotalTravelTime,5thPercentileTotalTravelTime,95thPercentileTotalTravelTime\n");
+            writer.append("TotalFitness,TotalFlightDistanceChange,TotalTravelTimeChange,TotalCapacityViolationPenalty,PoolingRate,Capacity0Rate,Capacity1Rate,Capacity2Rate,Capacity3Rate,Capacity4Rate,SharedRidesExceedingThresholdRate,TotalSharedRidesExceedingThresholdRate,AvgTravelTimeChange,5thPercentileTravelTimeChange,95thPercentileTravelTimeChange,AvgFlightDistanceChange,5thPercentileFlightDistanceChange,95thPercentileFlightDistanceChange,AvgDepartureRedirectionRate,5thPercentileDepartureRedirectionRate,95thPercentileDepartureRedirectionRate,AvgArrivalRedirectionRate,5thPercentileArrivalRedirectionRate,95thPercentileArrivalRedirectionRate,AvgTotalTravelTime,5thPercentileTotalTravelTime,95thPercentileTotalTravelTime,TotalVehicleMeter,NumberOfVehiclesUsed\n");
 
             // Write data for each solution
             for (SolutionIndicatorData data : indicatorDataList) {
-                writer.append(String.format("%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f\n",
+                writer.append(String.format("%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%d\n",
                         data.getFitness()[0], REVERT_SIGN * data.getFitness()[1], REVERT_SIGN * data.getFitness()[2]*-1, data.getFitness()[3],
                         data.getPoolingRate(),
                         data.getVehicleCapacityRates().getOrDefault(0, 0.0),
@@ -1558,7 +1647,9 @@ public class MultiObjectiveNSGAII {
                         data.getPercentile95thArrivalRedirectionRate(),
                         data.getAverageTotalTravelTime(),
                         data.getPercentile5thTotalTravelTime(),
-                        data.getPercentile95thTotalTravelTime()
+                        data.getPercentile95thTotalTravelTime(),
+                        data.getUamVehicleMeter(),
+                        data.getNumberOfUAMVehiclesUsed()
                 ));
             }
         } catch (IOException e) {
