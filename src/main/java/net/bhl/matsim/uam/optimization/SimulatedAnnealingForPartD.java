@@ -187,9 +187,9 @@ if (NUM_OF_SELECTED_CLUSTERED_VERTIPORTS>0) {
 
         List<List<Integer>> newSolutionList;
         if (incrementalSiting) {
-            newSolutionList = generateNewSolution(random, currentSolutionID, dataInitializer.clusteredVertiportCandidatesMap, dataInitializer.clusteredExistingVertiportsMap);
+            newSolutionList = generateNewSolution(random, currentSolutionID, dataInitializer.clusteredVertiportCandidatesMap, dataInitializer.clusteredExistingVertiportsMap, 1-1/Math.log(1 + currentTemperature));
         } else {
-            newSolutionList = generateNewSolution(random, currentSolutionID, dataInitializer.clusteredVertiportCandidatesMap);
+            newSolutionList = generateNewSolution(random, currentSolutionID, dataInitializer.clusteredVertiportCandidatesMap,1-1/Math.log(1 + currentTemperature));
         }
         List<Integer> newSolutionID = newSolutionList.get(0);
 
@@ -205,8 +205,9 @@ if (NUM_OF_SELECTED_CLUSTERED_VERTIPORTS>0) {
             newEnergy = calculateFitness(newSolutionID, dataInitializer.clusteredVertiportCandidatesMap, dataInitializer.tripItems, dataInitializer.clusterResults, random, dataInitializer.scenarioSpecific);
         }
         double deltaEnergy = newEnergy - currentEnergey;
+        double probability = Math.exp(deltaEnergy / currentTemperature);
 
-        if (deltaEnergy > 0 || Math.exp(deltaEnergy / currentTemperature) > random.nextDouble()) {
+        if (deltaEnergy > 0 || random.nextDouble() < probability) {
             currentSolutionID = new ArrayList<>(newSolutionID);
             currentEnergey = newEnergy;
             saturatedVertiportCount = 0;
@@ -970,7 +971,7 @@ else {
         }
         writer.close();
     }
-    public static List<List<Integer>> generateNewSolution(Random random, List<Integer> currentSolutionID, HashMap<Integer,Vertiport> clusteredVertiportsCandidatesMap) {
+    public static List<List<Integer>> generateNewSolution(Random random, List<Integer> currentSolutionID, HashMap<Integer,Vertiport> clusteredVertiportsCandidatesMap, double probability) {
         List<Integer> newSolutionID = new ArrayList<>(currentSolutionID);
         List<Integer> differenceID = new ArrayList<>();
         List<Integer> notChosenVertiportID = new ArrayList<>();
@@ -995,23 +996,24 @@ else {
             }
         }
 
-        while (!saturationVertiportsID.isEmpty()) {
-            Integer vertiportWithHighestSaturationRateID = selectHighestSaturationVertiport(saturationVertiportsID, clusteredVertiportsCandidatesMap);
-            List<Integer> neighborsID = getNeighborsID(clusteredVertiportsCandidatesMap.get(vertiportWithHighestSaturationRateID));
+        if(random.nextDouble() < probability) {
+            while (!saturationVertiportsID.isEmpty()) {
+                Integer vertiportWithHighestSaturationRateID = selectHighestSaturationVertiport(saturationVertiportsID, clusteredVertiportsCandidatesMap);
+                List<Integer> neighborsID = getNeighborsID(clusteredVertiportsCandidatesMap.get(vertiportWithHighestSaturationRateID));
 
-            if (!neighborsID.isEmpty() && !currentSolutionID.containsAll(neighborsID) ) { // Check if the neighbors are in the current solution or there is no neighbor
-                Integer newVertiportID = randomSelectExcluding(neighborsID, currentSolutionID, random);
-                Integer removedVertiportID = currentSolutionID.get(random.nextInt(currentSolutionID.size()));
-                newSolutionID.remove(removedVertiportID);
-                newSolutionID.add(newVertiportID);
-                differenceID.add(removedVertiportID);
-                differenceID.add(newVertiportID);
-                break; // exit the loop once a successful replacement has been made
-            } else {
-                saturationVertiportsID.remove(vertiportWithHighestSaturationRateID); // Try next vertiport
+                if (!neighborsID.isEmpty() && !currentSolutionID.containsAll(neighborsID)) { // Check if the neighbors are in the current solution or there is no neighbor
+                    Integer newVertiportID = randomSelectExcluding(neighborsID, currentSolutionID, random);
+                    Integer removedVertiportID = currentSolutionID.get(random.nextInt(currentSolutionID.size()));
+                    newSolutionID.remove(removedVertiportID);
+                    newSolutionID.add(newVertiportID);
+                    differenceID.add(removedVertiportID);
+                    differenceID.add(newVertiportID);
+                    break; // exit the loop once a successful replacement has been made
+                } else {
+                    saturationVertiportsID.remove(vertiportWithHighestSaturationRateID); // Try next vertiport
+                }
             }
         }
-
         if (differenceID.isEmpty()) {
             // Fallback if no replacement was done
             Integer newVertiportID = notChosenVertiportID.get(random.nextInt(notChosenVertiportID.size()));
@@ -1026,7 +1028,7 @@ else {
         result.add(differenceID);
         return result;
     }
-    public static List<List<Integer>> generateNewSolution(Random random, List<Integer> currentSolutionID, HashMap<Integer,Vertiport> clusteredVertiportsCandidatesMap,HashMap<Integer,Vertiport> clusteredExistingVertiportsMap) {
+    public static List<List<Integer>> generateNewSolution(Random random, List<Integer> currentSolutionID, HashMap<Integer,Vertiport> clusteredVertiportsCandidatesMap,HashMap<Integer,Vertiport> clusteredExistingVertiportsMap, double probability) {
 
         List<Integer> newSolutionID = new ArrayList<>(currentSolutionID);
         List<Integer> differenceID = new ArrayList<>();
@@ -1052,36 +1054,37 @@ else {
                 notSaturationVertiportsID.add(vertiport.ID); // This should be outside the loop
             }
         }
+        /*
         for (Vertiport vertiport: clusteredExistingVertiportsMap.values()) {
             if (vertiport.maxSaturationRate > 1) {
                 saturationVertiportsID.add(vertiport.ID);
             }
         }
-
+*/
         for (Vertiport vertiport : clusteredVertiportsCandidatesMap.values()) {
             if (!currentSolutionID.contains(vertiport.ID)) {
                 notChosenVertiportID.add(vertiport.ID);
             }
         }
-
-        while (!saturationVertiportsID.isEmpty()) {
-            Integer vertiportWithHighestSaturationRateID = selectHighestSaturationVertiport(saturationVertiportsID, clusteredAllVertiportsMap);
-            List<Integer> neighborsID = getNeighborsID(clusteredAllVertiportsMap.get(vertiportWithHighestSaturationRateID));
-            // Remove the existing vertiports from the neighbors
-            neighborsID.removeAll(clusteredExistingVertiportID);
-            if (!neighborsID.isEmpty() && !new HashSet<>(currentSelectedVertiportID).containsAll(neighborsID)  ) { // Check if the neighbors are in the current solution or there is no neighbor
-                Integer newVertiportID = randomSelectExcluding(neighborsID, currentSelectedVertiportID, random);
-                Integer removedVertiportID = notSaturationVertiportsID.get(random.nextInt(notSaturationVertiportsID.size()));
-                newSolutionID.remove(removedVertiportID);
-                newSolutionID.add(newVertiportID);
-                differenceID.add(removedVertiportID);
-                differenceID.add(newVertiportID);
-                break; // exit the loop once a successful replacement has been made
-            } else {
-                saturationVertiportsID.remove(vertiportWithHighestSaturationRateID); // Try next vertiport
+        if (random.nextDouble() < probability) {
+            while (!saturationVertiportsID.isEmpty()) {
+                Integer vertiportWithHighestSaturationRateID = selectHighestSaturationVertiport(saturationVertiportsID, clusteredAllVertiportsMap);
+                List<Integer> neighborsID = getNeighborsID(clusteredAllVertiportsMap.get(vertiportWithHighestSaturationRateID));
+                // Remove the existing vertiports from the neighbors
+                neighborsID.removeAll(clusteredExistingVertiportID);
+                if (!neighborsID.isEmpty() && !new HashSet<>(currentSelectedVertiportID).containsAll(neighborsID)) { // Check if the neighbors are in the current solution or there is no neighbor
+                    Integer newVertiportID = randomSelectExcluding(neighborsID, currentSelectedVertiportID, random);
+                    Integer removedVertiportID = notSaturationVertiportsID.get(random.nextInt(notSaturationVertiportsID.size()));
+                    newSolutionID.remove(removedVertiportID);
+                    newSolutionID.add(newVertiportID);
+                    differenceID.add(removedVertiportID);
+                    differenceID.add(newVertiportID);
+                    break; // exit the loop once a successful replacement has been made
+                } else {
+                    saturationVertiportsID.remove(vertiportWithHighestSaturationRateID); // Try next vertiport
+                }
             }
         }
-
         if (differenceID.isEmpty()) {
             // Fallback if no replacement was done
             Integer newVertiportID = notChosenVertiportID.get(random.nextInt(notChosenVertiportID.size()));
