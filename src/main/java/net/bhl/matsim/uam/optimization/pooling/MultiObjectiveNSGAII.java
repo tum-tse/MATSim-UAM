@@ -23,7 +23,6 @@ import java.io.IOException;
 import java.util.*;
 import java.util.stream.Collectors;
 import java.io.FileWriter;
-import java.util.stream.IntStream;
 
 public class MultiObjectiveNSGAII {
     private static final Logger log = Logger.getLogger(MultiObjectiveNSGAII.class);
@@ -48,7 +47,7 @@ public class MultiObjectiveNSGAII {
     private final Random rand = new Random(SEED);
 
     // Parameters and constant for the UAM problem =====================================================================
-    private static int FIRST_UAM_VEHICLE_ID = 1;
+    private int FIRST_UAM_VEHICLE_ID = 1;
     private static final int VALUE_FOR_NO_VEHICLE_AVAILABLE = -1; // For example, using -1 as an indicator of no vehicle available for a trip
     private static final double END_SERVICE_TIME_OF_THE_DAY = 3600*36; // End service time of the day
     private static final double VEHICLE_CRUISE_SPEED = 350000.0 / 3600.0; // Vehicle cruise speed in m/s
@@ -109,8 +108,10 @@ public class MultiObjectiveNSGAII {
     }
 
     // Constants for the GA solver =====================================================================================
-    private static final int STABILITY_THRESHOLD = 10;
-    private static final double PARETO_CHANGE_THRESHOLD = 0.01;
+    private int STABILITY_THRESHOLD = 100;
+    private static final int BASE_STABILITY_THRESHOLD = 30;
+    private static final int MAX_STABILITY_THRESHOLD = 200;
+    private static final double PARETO_CHANGE_THRESHOLD = 1.0 / POP_SIZE;
 
     private List<SolutionFitnessPair> previousParetoFront = new ArrayList<>();
     private int stableGenerations = 0;
@@ -219,6 +220,8 @@ public class MultiObjectiveNSGAII {
 
         List<SolutionFitnessPair> population = initializePopulation();
         for (int gen = 0; gen < MAX_GENERATIONS; gen++) {
+            STABILITY_THRESHOLD = Math.min(BASE_STABILITY_THRESHOLD + gen / 10, MAX_STABILITY_THRESHOLD);
+
             population = evolvePopulation(population, gen);
             // Find the best solution in the current population
             SolutionFitnessPair bestSolution = Collections.max(population, Comparator.comparingDouble(p -> p.getFitness()[0]));
@@ -234,6 +237,9 @@ public class MultiObjectiveNSGAII {
                     calculatePopulationIndicators(population);
                 }
             }
+        }
+        if (!ENABLE_LOCAL_SEARCH) {
+            population = localSearch(population, 0);
         }
 
         // Find the best feasible solution at the end of GA execution without altering the original solutions heap
@@ -347,24 +353,23 @@ public class MultiObjectiveNSGAII {
             return 1.0;  // Maximum change if there was no previous front
         }
 
-        double totalChange = 0.0;
+        int dominatingCount = 0;
+
         for (SolutionFitnessPair currentSolution : current) {
-            double minDistance = previous.stream()
-                    .mapToDouble(previousSolution -> calculateDistance(currentSolution, previousSolution))
-                    .min()
-                    .orElse(Double.MAX_VALUE);
-            totalChange += minDistance;
+            boolean dominatesAny = false;
+            for (SolutionFitnessPair previousSolution : previous) {
+                if (dominates(currentSolution, previousSolution)) {
+                    dominatesAny = true;
+                    break;
+                }
+            }
+            if (dominatesAny) {
+                dominatingCount++;
+            }
         }
 
-        return totalChange / current.size();
-    }
-
-    private double calculateDistance(SolutionFitnessPair solution1, SolutionFitnessPair solution2) {
-        double[] fitness1 = solution1.getFitness();
-        double[] fitness2 = solution2.getFitness();
-        return Math.sqrt(IntStream.range(0, fitness1.length)
-                .mapToDouble(i -> Math.pow(fitness1[i] - fitness2[i], 2))
-                .sum());
+        // Calculate the improvement as the proportion of current solutions that dominate any previous solution
+        return (double) dominatingCount / current.size();
     }
 
     // Initialize population with random assignments
@@ -1341,64 +1346,49 @@ public class MultiObjectiveNSGAII {
         // Calculate and print the share of shared rides with travel time changes exceeding threshold
         int totalSharedRides = sharedTravelTimeChanges.size();
         double shareExceedingThreshold = totalSharedRides == 0 ? 0 : (double) sharedRidesExceedingThreshold / totalSharedRides;
-        log.info("Share of shared rides with travel time changes exceeding" + SHARED_RIDE_TRAVEL_TIME_CHANGE_THRESHOLD + ": " + shareExceedingThreshold);
+        log.info("Share of shared rides with travel time changes exceeding " + SHARED_RIDE_TRAVEL_TIME_CHANGE_THRESHOLD + ": " + shareExceedingThreshold);
         double totalShareExceedingThreshold = subTrips.isEmpty() ? 0 : (double) sharedRidesExceedingThreshold / subTrips.size();
-        log.info("Total share of shared rides with travel time changes exceeding" + SHARED_RIDE_TRAVEL_TIME_CHANGE_THRESHOLD + ": " + totalShareExceedingThreshold);
+        log.info("Total share of shared rides with travel time changes exceeding " + SHARED_RIDE_TRAVEL_TIME_CHANGE_THRESHOLD + ": " + totalShareExceedingThreshold);
 
         List<Double> sortedTravelTimeChanges = new ArrayList<>(sharedTravelTimeChanges);
         Collections.sort(sortedTravelTimeChanges);
 
-        double averageTravelTime = sortedTravelTimeChanges.stream()
-                .mapToDouble(Double::doubleValue)
-                .average()
-                .orElse(Double.NaN);
-        double percentile5thTravelTime = sortedTravelTimeChanges.isEmpty() ? Double.NaN : sortedTravelTimeChanges.get((int) (0.05 * sortedTravelTimeChanges.size()));
-        double percentile95thTravelTime = sortedTravelTimeChanges.isEmpty() ? Double.NaN : sortedTravelTimeChanges.get((int) (0.95 * sortedTravelTimeChanges.size()) - 1);
+        double averageTravelTime = calculateAverage(sortedTravelTimeChanges);
+        double percentile5thTravelTime = calculatePercentile(sortedTravelTimeChanges, 5);
+        double percentile95thTravelTime = calculatePercentile(sortedTravelTimeChanges, 95);
 
         log.info("Average travel time change (shared vehicles): " + averageTravelTime);
         log.info("5th percentile of travel time change (shared vehicles): " + percentile5thTravelTime);
         log.info("95th percentile of travel time change (shared vehicles): " + percentile95thTravelTime);
 
-        Collection<Double> flightDistanceChanges = indicatorData.getFlightDistanceChanges().values();
-        List<Double> sortedFlightDistanceChanges = new ArrayList<>(flightDistanceChanges);
+        List<Double> sortedFlightDistanceChanges = new ArrayList<>(indicatorData.getFlightDistanceChanges().values());
         Collections.sort(sortedFlightDistanceChanges);
 
-        double averageFlightDistance = sortedFlightDistanceChanges.stream()
-                .mapToDouble(Double::doubleValue)
-                .average()
-                .orElse(Double.NaN);
-        double percentile5thFlightDistance = sortedFlightDistanceChanges.isEmpty() ? Double.NaN : sortedFlightDistanceChanges.get((int) (0.05 * sortedFlightDistanceChanges.size()));
-        double percentile95thFlightDistance = sortedFlightDistanceChanges.isEmpty() ? Double.NaN : sortedFlightDistanceChanges.get((int) (0.95 * sortedFlightDistanceChanges.size()) - 1);
+        double averageFlightDistance = calculateAverage(sortedFlightDistanceChanges);
+        double percentile5thFlightDistance = calculatePercentile(sortedFlightDistanceChanges, 5);
+        double percentile95thFlightDistance = calculatePercentile(sortedFlightDistanceChanges, 95);
 
         log.info("Average flight distance change: " + averageFlightDistance);
         log.info("5th percentile of flight distance change: " + percentile5thFlightDistance);
         log.info("95th percentile of flight distance change: " + percentile95thFlightDistance);
 
-        Collection<Double> departureRedirectionRates = indicatorData.getDepartureRedirectionRates().values();
-        List<Double> sortedDepartureRedirectionRates = new ArrayList<>(departureRedirectionRates);
+        List<Double> sortedDepartureRedirectionRates = new ArrayList<>(indicatorData.getDepartureRedirectionRates().values());
         Collections.sort(sortedDepartureRedirectionRates);
 
-        double averageDepartureRedirectionRate = sortedDepartureRedirectionRates.stream()
-                .mapToDouble(Double::doubleValue)
-                .average()
-                .orElse(Double.NaN);
-        double percentile5thDepartureRedirectionRate = sortedDepartureRedirectionRates.isEmpty() ? Double.NaN : sortedDepartureRedirectionRates.get((int) (0.05 * sortedDepartureRedirectionRates.size()));
-        double percentile95thDepartureRedirectionRate = sortedDepartureRedirectionRates.isEmpty() ? Double.NaN : sortedDepartureRedirectionRates.get((int) (0.95 * sortedDepartureRedirectionRates.size()) - 1);
+        double averageDepartureRedirectionRate = calculateAverage(sortedDepartureRedirectionRates);
+        double percentile5thDepartureRedirectionRate = calculatePercentile(sortedDepartureRedirectionRates, 5);
+        double percentile95thDepartureRedirectionRate = calculatePercentile(sortedDepartureRedirectionRates, 95);
 
         log.info("Average departure redirection rate: " + averageDepartureRedirectionRate);
         log.info("5th percentile of departure redirection rate: " + percentile5thDepartureRedirectionRate);
         log.info("95th percentile of departure redirection rate: " + percentile95thDepartureRedirectionRate);
 
-        Collection<Double> arrivalRedirectionRates = indicatorData.getArrivalRedirectionRates().values();
-        List<Double> sortedArrivalRedirectionRates = new ArrayList<>(arrivalRedirectionRates);
+        List<Double> sortedArrivalRedirectionRates = new ArrayList<>(indicatorData.getArrivalRedirectionRates().values());
         Collections.sort(sortedArrivalRedirectionRates);
 
-        double averageArrivalRedirectionRate = sortedArrivalRedirectionRates.stream()
-                .mapToDouble(Double::doubleValue)
-                .average()
-                .orElse(Double.NaN);
-        double percentile5thArrivalRedirectionRate = sortedArrivalRedirectionRates.isEmpty() ? Double.NaN : sortedArrivalRedirectionRates.get((int) (0.05 * sortedArrivalRedirectionRates.size()));
-        double percentile95thArrivalRedirectionRate = sortedArrivalRedirectionRates.isEmpty() ? Double.NaN : sortedArrivalRedirectionRates.get((int) (0.95 * sortedArrivalRedirectionRates.size()) - 1);
+        double averageArrivalRedirectionRate = calculateAverage(sortedArrivalRedirectionRates);
+        double percentile5thArrivalRedirectionRate = calculatePercentile(sortedArrivalRedirectionRates, 5);
+        double percentile95thArrivalRedirectionRate = calculatePercentile(sortedArrivalRedirectionRates, 95);
 
         log.info("Average arrival redirection rate: " + averageArrivalRedirectionRate);
         log.info("5th percentile of arrival redirection rate: " + percentile5thArrivalRedirectionRate);
@@ -1607,7 +1597,7 @@ public class MultiObjectiveNSGAII {
         indicatorData.setPercentile95thTotalTravelTime(calculatePercentile(totalTravelTimes, 95));
     }
     private double calculateAverage(List<Double> values) {
-        return values.stream().mapToDouble(Double::doubleValue).average().orElse(Double.NaN);
+        return values.isEmpty() ? Double.NaN : values.stream().mapToDouble(Double::doubleValue).average().orElse(Double.NaN);
     }
     private double calculatePercentile(List<Double> sortedValues, int percentile) {
         if (sortedValues.isEmpty()) {
@@ -1624,7 +1614,7 @@ public class MultiObjectiveNSGAII {
             // Write data for each solution
             for (SolutionIndicatorData data : indicatorDataList) {
                 writer.append(String.format("%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%d\n",
-                        data.getFitness()[0], REVERT_SIGN * data.getFitness()[1], REVERT_SIGN * data.getFitness()[2]*-1, data.getFitness()[3],
+                        data.getFitness()[0], REVERT_SIGN * data.getFitness()[1], REVERT_SIGN * data.getFitness()[2], data.getFitness()[3],
                         data.getPoolingRate(),
                         data.getVehicleCapacityRates().getOrDefault(0, 0.0),
                         data.getVehicleCapacityRates().getOrDefault(1, 0.0),
