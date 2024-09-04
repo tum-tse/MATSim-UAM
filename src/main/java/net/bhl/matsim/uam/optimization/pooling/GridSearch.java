@@ -46,9 +46,9 @@ public class GridSearch {
 
         try {
             // Example loop to optimize parameters
-            for (double ptw = 0; ptw <= 20.0; ptw += 5.0) {
-                for (double sro = 0; sro <= 20000; sro += 2000) {
-                    for (double srd = 0; srd <= 20000; srd += 2000) {
+            for (double ptw = 1; ptw <= 5.0; ptw += 1.0) {
+                for (double sro = 1000; sro <= 10000; sro += 1000) {
+                    for (double srd = 1000; srd <= 10000; srd += 1000) {
                         final double finalPtw = ptw;
                         final double finalSro = sro;
                         final double finalSrd = srd;
@@ -70,7 +70,7 @@ public class GridSearch {
                                             String.valueOf(finalPtw), // BUFFER_END_TIME
                                             String.valueOf(finalSro), // SEARCH_RADIUS_ORIGIN
                                             String.valueOf(finalSrd), // SEARCH_RADIUS_DESTINATION
-                                            String.valueOf(true),  // ENABLE_LOCAL_SEARCH
+                                            String.valueOf(false),  // ENABLE_LOCAL_SEARCH
                                             String.valueOf(true),  // ENABLE_PRINT_RESULTS
                                             String.valueOf(finalPtw + "_" + finalSro + "_" + finalSrd + "/") // OUTPUT_SUB_DIRECTORY
                                     };

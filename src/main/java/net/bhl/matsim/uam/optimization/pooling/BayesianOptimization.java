@@ -198,7 +198,7 @@ public class BayesianOptimization {
                 String.valueOf(poolingTimeWindow),
                 String.valueOf(searchRadiusOrigin),
                 String.valueOf(searchRadiusDestination),
-                String.valueOf(true), // ENABLE_LOCAL_SEARCH
+                String.valueOf(false), // ENABLE_LOCAL_SEARCH
                 String.valueOf(true), // ENABLE_PRINT_RESULTS
                 String.valueOf(poolingTimeWindow + "_" + searchRadiusOrigin + "_" + searchRadiusDestination + "/") // OUTPUT_SUB_DIRECTORY
         };
@@ -244,9 +244,9 @@ public class BayesianOptimization {
 
     public static void main(String[] args) {
         try {
-            ParameterRange poolingTimeWindowRange = new ParameterRange(5, 25);
-            ParameterRange searchRadiusOriginRange = new ParameterRange(2000, 50000);
-            ParameterRange searchRadiusDestinationRange = new ParameterRange(2000, 50000);
+            ParameterRange poolingTimeWindowRange = new ParameterRange(1, 5);
+            ParameterRange searchRadiusOriginRange = new ParameterRange(2000, 10000);
+            ParameterRange searchRadiusDestinationRange = new ParameterRange(2000, 10000);
 
             //MultiObjectiveNSGAII.initialization(args);
             String outputSubFolder = args[4].endsWith("/") ? args[4] + "bayesian_optimization" : args[4] + "/" + "bayesian_optimization";
@@ -256,7 +256,7 @@ public class BayesianOptimization {
             BayesianOptimization optimization = new BayesianOptimization(
                     poolingTimeWindowRange, searchRadiusOriginRange, searchRadiusDestinationRange);
 
-            int[] bestParams = optimization.optimizeParameters(100);
+            int[] bestParams = optimization.optimizeParameters(10);
             System.out.println("Best Parameters: Pooling Time Window = " + bestParams[0] +
                     ", Search Radius Origin = " + bestParams[1] +
                     ", Search Radius Destination = " + bestParams[2]);
