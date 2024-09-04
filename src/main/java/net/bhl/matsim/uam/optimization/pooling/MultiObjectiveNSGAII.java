@@ -238,9 +238,8 @@ public class MultiObjectiveNSGAII {
                 }
             }
         }
-        if (!ENABLE_LOCAL_SEARCH) {
-            population = localSearch(population, 0);
-        }
+        // Fix or improve the final population as best solutions
+        population = localSearch(population, 0);
 
         // Find the best feasible solution at the end of GA execution without altering the original solutions heap
         SolutionFitnessPair bestFeasibleSolutionFitnessPair = findBestFeasibleSolution(population);
@@ -358,7 +357,7 @@ public class MultiObjectiveNSGAII {
         for (SolutionFitnessPair currentSolution : current) {
             boolean dominatesAny = false;
             for (SolutionFitnessPair previousSolution : previous) {
-                if (dominates(currentSolution, previousSolution)) {
+                if (dominated(previousSolution, currentSolution)) {
                     dominatesAny = true;
                     break;
                 }
@@ -845,9 +844,9 @@ public class MultiObjectiveNSGAII {
             dominationMap.put(p, new ArrayList<>());
             dominatedCount.put(p, 0);
             for (SolutionFitnessPair q : population) {
-                if (dominates(p, q)) {
+                if (dominated(p, q)) {
                     dominationMap.get(p).add(q);
-                } else if (dominates(q, p)) {
+                } else if (dominated(q, p)) {
                     dominatedCount.put(p, dominatedCount.get(p) + 1);
                 }
             }
@@ -912,7 +911,7 @@ public class MultiObjectiveNSGAII {
         return tripVehicleMap;
     }
 
-    private static boolean dominates(SolutionFitnessPair p, SolutionFitnessPair q) {
+    private static boolean dominated(SolutionFitnessPair p, SolutionFitnessPair q) {
         boolean betterInAnyObjective = false;
         for (int i = 0; i < p.getFitness().length; i++) {
             if (p.getFitness()[i] < q.getFitness()[i]) {
@@ -1078,11 +1077,11 @@ public class MultiObjectiveNSGAII {
                 int[] recreatedSolution = recreateSolution(ruinedSolution);
                 SolutionFitnessPair newSolution = calculateFitness(recreatedSolution, null, false);
 
-                if (!dominates(newSolution, bestSolution) && !dominates(bestSolution, newSolution)) {
+                if (!dominated(newSolution, bestSolution) && !dominated(bestSolution, newSolution)) {
                     // If solutions are non-dominated, consider it an improvement
                     bestSolution = newSolution;
                     iterationsWithoutImprovement = 0;
-                } else if (dominates(newSolution, bestSolution)) {
+                } else if (dominated(bestSolution, newSolution)) {
                     bestSolution = newSolution;
                     iterationsWithoutImprovement = 0;
                 } else {
