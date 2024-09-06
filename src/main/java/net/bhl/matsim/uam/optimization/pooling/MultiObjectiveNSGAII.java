@@ -116,7 +116,7 @@ public class MultiObjectiveNSGAII {
     private List<SolutionFitnessPair> previousParetoFront = new ArrayList<>();
     private int stableGenerations = 0;
     // Constants for the localSearch solver ============================================================================
-    private static final int MAX_ITERATIONS_WITHOUT_IMPROVEMENT = 5;
+    private static final double MAX_ITERATIONS_SHARE_WITHOUT_IMPROVEMENT = 0.5;
 
 /*    // Static initializer block
     static {
@@ -1072,7 +1072,7 @@ public class MultiObjectiveNSGAII {
             int iterationsWithoutImprovement = 0;
             int iteration = 0;
 
-            while (iterationsWithoutImprovement < MAX_ITERATIONS_WITHOUT_IMPROVEMENT
+            while (iterationsWithoutImprovement < MAX_ITERATIONS_SHARE_WITHOUT_IMPROVEMENT * maxIterations
                     && iteration < maxIterations
                     && (System.currentTimeMillis() - startTime) < maxRuntime) {
 
