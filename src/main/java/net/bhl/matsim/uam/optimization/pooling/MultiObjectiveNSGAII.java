@@ -229,6 +229,9 @@ public class MultiObjectiveNSGAII {
 
             if (stableGenerations >= STABILITY_THRESHOLD) {
                 log.info("Terminating: Pareto front stable for " + STABILITY_THRESHOLD + " generations");
+                if (ENABLE_PRINT_RESULTS) {
+                    calculatePopulationIndicators(population);
+                }
                 break;
             }
 
