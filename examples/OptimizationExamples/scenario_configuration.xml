@@ -151,7 +151,7 @@
        <epsilon>5</epsilon>
        <!-- Minimum points for DBSCAN -->
        <min_pts>10</min_pts>
-        <!-- Neighbor distance for clustering -->
+        <!-- Neighbor distance for DBSCAN -->
         <neighbor_distance>2.0</neighbor_distance>
        <!-- Number of clusters in Kmeans -->
        <num_of_clusters>600</num_of_clusters>
