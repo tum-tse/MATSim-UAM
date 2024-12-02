@@ -118,6 +118,9 @@ public class MultiObjectiveNSGAII {
     // Constants for the localSearch solver ============================================================================
     private static final double MAX_ITERATIONS_SHARE_WITHOUT_IMPROVEMENT = 0.5;
 
+    private static final double INITIAL_LOCAL_SEARCH_PROBABILITY = 0.1;
+    private static final double FINAL_LOCAL_SEARCH_PROBABILITY = 0.5;
+
 /*    // Static initializer block
     static {
         try {
@@ -283,7 +286,7 @@ public class MultiObjectiveNSGAII {
     // GA solver with NSGA-II modifications==============================================================================
     private List<SolutionFitnessPair> evolvePopulation(List<SolutionFitnessPair> population, int currentGeneration) {
         // Apply local search to improve the population after NSGA-II operations, and before offspring generation
-        if (ENABLE_LOCAL_SEARCH) {
+        if (ENABLE_LOCAL_SEARCH && shouldApplyLocalSearch(currentGeneration)) {
             population = localSearch(population, currentGeneration);
         }
 
@@ -966,6 +969,12 @@ public class MultiObjectiveNSGAII {
     // Local search methods ============================================================================================
     // Ruin and recreate solution
 
+    private boolean shouldApplyLocalSearch(int currentGeneration) {
+        double probability = INITIAL_LOCAL_SEARCH_PROBABILITY +
+                (FINAL_LOCAL_SEARCH_PROBABILITY - INITIAL_LOCAL_SEARCH_PROBABILITY) *
+                        (currentGeneration / (double)MAX_GENERATIONS);
+        return rand.nextDouble() < probability;
+    }
     // Adjusted Ruin and Recreate Methods
     // Method to determine the number of trips to ruin based on the current generation
     private int determineRuinDegree(int currentGeneration, int maxGenerations) {
@@ -1065,7 +1074,7 @@ public class MultiObjectiveNSGAII {
         List<SolutionFitnessPair> improvedPopulation = new ArrayList<>();
         long startTime = System.currentTimeMillis();
         int maxIterations = 100; // Adjust as needed
-        long maxRuntime = 1000; // 60 seconds, adjust as needed
+        long maxRuntime = 1000; // 1 second, adjust as needed
 
         for (SolutionFitnessPair solutionPair : population) {
             SolutionFitnessPair bestSolution = solutionPair;

@@ -70,7 +70,7 @@ public class GridSearch {
                                             String.valueOf(finalPtw), // BUFFER_END_TIME
                                             String.valueOf(finalSro), // SEARCH_RADIUS_ORIGIN
                                             String.valueOf(finalSrd), // SEARCH_RADIUS_DESTINATION
-                                            String.valueOf(false),  // ENABLE_LOCAL_SEARCH
+                                            String.valueOf(true),  // ENABLE_LOCAL_SEARCH
                                             String.valueOf(true),  // ENABLE_PRINT_RESULTS
                                             String.valueOf(finalPtw + "_" + finalSro + "_" + finalSrd + "/") // OUTPUT_SUB_DIRECTORY
                                     };
