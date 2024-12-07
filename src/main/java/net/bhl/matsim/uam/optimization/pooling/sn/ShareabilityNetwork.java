@@ -1,5 +1,6 @@
 package net.bhl.matsim.uam.optimization.pooling.sn;
 
+import net.bhl.matsim.uam.infrastructure.UAMVehicle;
 import org.matsim.api.core.v01.Coord;
 
 import java.util.*;
