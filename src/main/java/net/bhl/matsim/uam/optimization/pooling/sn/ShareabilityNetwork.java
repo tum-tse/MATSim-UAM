@@ -9,7 +9,7 @@ import java.util.stream.Collectors;
 public class ShareabilityNetwork {
     private List<UAMTrip> trips;
     private Map<String, Set<String>> adjacencyList;
-    private Map<String, UAMVehicle> vehicleAssignments;
+    //private Map<String, UAMVehicle> vehicleAssignments;
     private int maxConnectionTimeMinutes;
     private double flightSpeedMetersPerSecond;
 
@@ -17,7 +17,7 @@ public class ShareabilityNetwork {
                                double flightSpeedMetersPerSecond) {
         this.trips = new ArrayList<>(trips);
         this.adjacencyList = new HashMap<>();
-        this.vehicleAssignments = new HashMap<>();
+        //this.vehicleAssignments = new HashMap<>();
         this.maxConnectionTimeMinutes = maxConnectionTimeMinutes;
         this.flightSpeedMetersPerSecond = flightSpeedMetersPerSecond;
 
