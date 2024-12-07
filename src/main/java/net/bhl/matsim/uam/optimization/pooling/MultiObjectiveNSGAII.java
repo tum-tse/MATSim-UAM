@@ -51,7 +51,7 @@ public class MultiObjectiveNSGAII {
     private static final int VALUE_FOR_NO_VEHICLE_AVAILABLE = -1; // For example, using -1 as an indicator of no vehicle available for a trip
     private static final double END_SERVICE_TIME_OF_THE_DAY = 3600*36; // End service time of the day
     public static final double VEHICLE_CRUISE_SPEED = 350000.0 / 3600.0; // Vehicle cruise speed in m/s
-    private static final int VEHICLE_CAPACITY = 4; // Vehicle capacity
+    public static final int VEHICLE_CAPACITY = 4; // Vehicle capacity
 
     // Variables for the UAM problem ===================================================================================
     private double BUFFER_START_TIME = 3600*7; // Buffer start time for the first trip
