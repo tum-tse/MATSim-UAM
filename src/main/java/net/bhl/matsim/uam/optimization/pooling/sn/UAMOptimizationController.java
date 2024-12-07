@@ -6,13 +6,13 @@ import java.util.Iterator;
 import java.util.List;
 
 public class UAMOptimizationController {
-    private final List<UAMTrip> originalTrips;
+    private final List<VehicleTrip> originalTrips;
     private final double maxDetourRatio;
     private final int maxPassengersPerVehicle;
     private final int maxConnectionTimeMinutes;
     private final double flightSpeedMetersPerSecond;
 
-    public UAMOptimizationController(List<UAMTrip> trips, double maxDetourRatio,
+    public UAMOptimizationController(List<VehicleTrip> trips, double maxDetourRatio,
                                      int maxPassengersPerVehicle, int maxConnectionTimeMinutes,
                                      double flightSpeedMetersPerSecond) {
         this.originalTrips = new ArrayList<>(trips);
@@ -24,7 +24,7 @@ public class UAMOptimizationController {
 
     public OptimizationResult optimize() {
         // Step 1: Create trip pools
-        List<UAMTrip> pooledTrips = createTripPools();
+        List<VehicleTrip> pooledTrips = createTripPools();
 
         // Step 2: Build shareability network with pooled trips
         ShareabilityNetwork network = new ShareabilityNetwork(
@@ -34,7 +34,7 @@ public class UAMOptimizationController {
         );
 
         // Step 3: Find optimal vehicle assignments
-        List<List<UAMTrip>> vehicleRoutes = network.findOptimalVehicleAssignments();
+        List<List<VehicleTrip>> vehicleRoutes = network.findOptimalVehicleAssignments();
 
         // Step 4: Calculate metrics
         //double totalFlightDistance = network.calculateTotalFlightDistance(vehicleRoutes);
@@ -47,22 +47,22 @@ public class UAMOptimizationController {
                 fleetSize);
     }
 
-    private List<UAMTrip> createTripPools() {
-        List<UAMTrip> result = new ArrayList<>();
-        List<UAMTrip> unassignedTrips = new ArrayList<>(originalTrips);
+    private List<VehicleTrip> createTripPools() {
+        List<VehicleTrip> result = new ArrayList<>();
+        List<VehicleTrip> unassignedTrips = new ArrayList<>(originalTrips);
 
         // Sort trips by departure time
-        unassignedTrips.sort(Comparator.comparingLong(UAMTrip::getDepartureTime));
+        unassignedTrips.sort(Comparator.comparingLong(VehicleTrip::getDepartureTime));
 
         while (!unassignedTrips.isEmpty()) {
-            UAMTrip currentTrip = unassignedTrips.remove(0);
+            VehicleTrip currentTrip = unassignedTrips.remove(0);
             TripPool currentPool = new TripPool(maxPassengersPerVehicle, maxDetourRatio);
             currentPool.addTrip(currentTrip);
 
             // Try to find compatible trips to add to the pool
-            Iterator<UAMTrip> iterator = unassignedTrips.iterator();
+            Iterator<VehicleTrip> iterator = unassignedTrips.iterator();
             while (iterator.hasNext()) {
-                UAMTrip candidate = iterator.next();
+                VehicleTrip candidate = iterator.next();
                 if (currentPool.canAddTrip(candidate)) {
                     currentPool.addTrip(candidate);
                     iterator.remove();
