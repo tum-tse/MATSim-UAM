@@ -1,5 +1,12 @@
 package net.bhl.matsim.uam.optimization.pooling;
 
+import org.matsim.api.core.v01.Coord;
+
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.Iterator;
+import java.util.List;
+
 public class UAMOptimizationController {
     private final List<UAMTrip> originalTrips;
     private final double maxDetourRatio;
@@ -65,74 +72,5 @@ public class UAMOptimizationController {
         }
 
         return result;
-    }
-}
-
-public class OptimizationResult {
-    private final List<List<UAMTrip>> vehicleRoutes;
-    private final double totalFlightDistance;
-    private final int fleetSize;
-
-    public OptimizationResult(List<List<UAMTrip>> vehicleRoutes,
-                              double totalFlightDistance,
-                              int fleetSize) {
-        this.vehicleRoutes = vehicleRoutes;
-        this.totalFlightDistance = totalFlightDistance;
-        this.fleetSize = fleetSize;
-    }
-
-    // Getters
-
-    public void printSummary() {
-        System.out.println("Optimization Results:");
-        System.out.println("Fleet Size: " + fleetSize);
-        System.out.println("Total Flight Distance: " + totalFlightDistance);
-        System.out.println("\nVehicle Routes:");
-
-        for (int i = 0; i < vehicleRoutes.size(); i++) {
-            System.out.println("\nVehicle " + (i + 1) + ":");
-            List<UAMTrip> route = vehicleRoutes.get(i);
-
-            for (UAMTrip trip : route) {
-                if (trip.isPooledTrip()) {
-                    System.out.println("  Pooled Trip " + trip.getId() + ":");
-                    for (UAMTrip pooledTrip : trip.getPooledTrips()) {
-                        System.out.println("    - Trip " + pooledTrip.getId());
-                    }
-                } else {
-                    System.out.println("  Trip " + trip.getId());
-                }
-            }
-        }
-    }
-}
-
-// Example usage
-public class Main {
-    public static void main(String[] args) {
-        // Create sample trips
-        List<UAMTrip> trips = new ArrayList<>();
-        trips.add(new UAMTrip("T1",
-                new Location(0, 0), new Location(10, 10),
-                0, 600, 2));
-        trips.add(new UAMTrip("T2",
-                new Location(1, 1), new Location(11, 11),
-                100, 700, 1));
-        trips.add(new UAMTrip("T3",
-                new Location(20, 20), new Location(30, 30),
-                800, 1400, 2));
-        // Add more trips...
-
-        // Create and run optimizer
-        UAMOptimizationController optimizer = new UAMOptimizationController(
-                trips,
-                0.3, // maxDetourRatio
-                4,   // maxPassengersPerVehicle
-                30,  // maxConnectionTimeMinutes
-                50.0 // flightSpeedMetersPerSecond
-        );
-
-        OptimizationResult result = optimizer.optimize();
-        result.printSummary();
     }
 }

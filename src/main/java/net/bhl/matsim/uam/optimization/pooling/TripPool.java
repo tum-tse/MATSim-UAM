@@ -1,11 +1,18 @@
 package net.bhl.matsim.uam.optimization.pooling;
 
+import org.matsim.api.core.v01.Coord;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
 public class TripPool {
     private List<UAMTrip> trips;
     private final int maxPassengers;
     private final double maxDetourRatio;
-    private Location pooledOrigin;
-    private Location pooledDestination;
+    private Coord pooledOrigin;
+    private Coord pooledDestination;
     private long pooledDepartureTime;
     private long pooledArrivalTime;
 
@@ -27,13 +34,13 @@ public class TripPool {
         }
 
         // Calculate new pooled locations and times
-        Location newOrigin = calculatePooledLocation(
+        Coord newOrigin = calculatePooledLocation(
                 Stream.concat(trips.stream(), Stream.of(trip))
                         .map(UAMTrip::getOrigin)
                         .collect(Collectors.toList())
         );
 
-        Location newDestination = calculatePooledLocation(
+        Coord newDestination = calculatePooledLocation(
                 Stream.concat(trips.stream(), Stream.of(trip))
                         .map(UAMTrip::getDestination)
                         .collect(Collectors.toList())
@@ -91,11 +98,11 @@ public class TripPool {
                 .orElseThrow();
     }
 
-    private Location calculatePooledLocation(List<Location> locations) {
+    private Coord calculatePooledLocation(List<Coord> locations) {
         // Calculate centroid
-        double sumX = locations.stream().mapToDouble(Location::getX).sum();
-        double sumY = locations.stream().mapToDouble(Location::getY).sum();
-        return new Location(sumX / locations.size(), sumY / locations.size());
+        double sumX = locations.stream().mapToDouble(Coord::getX).sum();
+        double sumY = locations.stream().mapToDouble(Coord::getY).sum();
+        return new Coord(sumX / locations.size(), sumY / locations.size());
     }
 
     public UAMTrip toPooledTrip() {
@@ -122,42 +129,9 @@ public class TripPool {
         return trips.stream().mapToInt(UAMTrip::getNumPassengers).sum();
     }
 
-    private double calculateDistance(Location l1, Location l2) {
+    private double calculateDistance(Coord l1, Coord l2) {
         double dx = l1.getX() - l2.getX();
         double dy = l1.getY() - l2.getY();
         return Math.sqrt(dx * dx + dy * dy);
-    }
-}
-
-public class UAMVehicle {
-    private String id;
-    private Location currentLocation;
-    private List<UAMTrip> assignedTrips;
-    private long nextAvailableTime;
-    private final int capacity;
-
-    public UAMVehicle(String id, Location initialLocation, int capacity) {
-        this.id = id;
-        this.currentLocation = initialLocation;
-        this.capacity = capacity;
-        this.assignedTrips = new ArrayList<>();
-        this.nextAvailableTime = 0;
-    }
-
-    // Getters and setters
-
-    public boolean canAssignTrip(UAMTrip trip) {
-        return trip.getTotalPassengers() <= capacity;
-    }
-
-    public void assignTrip(UAMTrip trip) {
-        if (!canAssignTrip(trip)) {
-            throw new IllegalArgumentException("Trip exceeds vehicle capacity");
-        }
-
-        assignedTrips.add(trip);
-        // Update current location and next available time
-        currentLocation = trip.getDestination();
-        nextAvailableTime = trip.getArrivalTime();
     }
 }
