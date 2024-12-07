@@ -70,7 +70,7 @@ public class ShareabilityNetwork {
         Set<String> unassignedTrips = new HashSet<>(adjacencyList.keySet());
 
         while (!unassignedTrips.isEmpty()) {
-            // Find longest possible path starting from earliest unassigned trip
+            // Find the longest possible path starting from the earliest unassigned trip
             List<String> path = findLongestPath(unassignedTrips);
 
             // Convert path to list of trips
@@ -89,7 +89,7 @@ public class ShareabilityNetwork {
     }
 
     private List<String> findLongestPath(Set<String> availableTrips) {
-        // Find earliest unassigned trip
+        // Find the earliest unassigned trip
         String start = availableTrips.stream()
                 .min((id1, id2) -> {
                     UAMTrip t1 = trips.stream().filter(t -> t.getId().equals(id1)).findFirst().orElseThrow();
@@ -98,7 +98,7 @@ public class ShareabilityNetwork {
                 })
                 .orElseThrow();
 
-        // Use DFS to find longest possible path from start
+        // Use DFS to find the longest possible path from start
         List<String> longestPath = new ArrayList<>();
         findLongestPathDFS(start, availableTrips, new ArrayList<>(), longestPath);
         return longestPath;
