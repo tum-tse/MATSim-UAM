@@ -1,4 +1,4 @@
-package net.bhl.matsim.uam.optimization.pooling;
+package net.bhl.matsim.uam.optimization.pooling.sn;
 
 import org.matsim.api.core.v01.Coord;
 

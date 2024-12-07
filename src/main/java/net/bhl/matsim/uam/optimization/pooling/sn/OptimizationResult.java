@@ -1,4 +1,4 @@
-package net.bhl.matsim.uam.optimization.pooling;
+package net.bhl.matsim.uam.optimization.pooling.sn;
 
 import java.util.List;
 

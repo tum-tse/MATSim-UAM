@@ -1,6 +1,4 @@
-package net.bhl.matsim.uam.optimization.pooling;
-
-import org.matsim.api.core.v01.Coord;
+package net.bhl.matsim.uam.optimization.pooling.sn;
 
 import java.util.ArrayList;
 import java.util.Comparator;
