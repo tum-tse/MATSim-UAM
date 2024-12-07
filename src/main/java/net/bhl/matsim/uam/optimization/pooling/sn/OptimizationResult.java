@@ -3,12 +3,12 @@ package net.bhl.matsim.uam.optimization.pooling.sn;
 import java.util.List;
 
 public class OptimizationResult {
-    private final List<List<VehicleTrip>> vehicleRoutes;
+    private final List<List<PassengerTrip>> vehicleRoutes;
     //private final double totalFlightDistance;
     private final double totalDeadheadingFlightDistance;
     private final int fleetSize;
 
-    public OptimizationResult(List<List<VehicleTrip>> vehicleRoutes,
+    public OptimizationResult(List<List<PassengerTrip>> vehicleRoutes,
                               //double totalFlightDistance,
                               double totalDeadheadingFlightDistance,
                               int fleetSize) {
@@ -29,12 +29,12 @@ public class OptimizationResult {
 
         for (int i = 0; i < vehicleRoutes.size(); i++) {
             System.out.println("\nVehicle " + (i + 1) + ":");
-            List<VehicleTrip> route = vehicleRoutes.get(i);
+            List<PassengerTrip> route = vehicleRoutes.get(i);
 
-            for (VehicleTrip trip : route) {
+            for (PassengerTrip trip : route) {
                 if (trip.isPooledTrip()) {
                     System.out.println("  Pooled Trip " + trip.getId() + ":");
-                    for (VehicleTrip pooledTrip : trip.getPooledTrips()) {
+                    for (PassengerTrip pooledTrip : trip.getPooledTrips()) {
                         System.out.println("    - Trip " + pooledTrip.getId());
                     }
                 } else {

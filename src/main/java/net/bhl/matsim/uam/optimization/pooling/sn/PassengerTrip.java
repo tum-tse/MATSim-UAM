@@ -4,17 +4,17 @@ import org.matsim.api.core.v01.Coord;
 
 import java.util.*;
 
-public class VehicleTrip {
+public class PassengerTrip {
     private String id;
     private Coord origin;
     private Coord destination;
     private long departureTime;
     private long arrivalTime;
     private int numPassengers;
-    private List<VehicleTrip> pooledTrips; // If this is a dummy merged trip
+    private List<PassengerTrip> pooledTrips; // If this is a dummy merged trip
 
-    public VehicleTrip(String id, Coord origin, Coord destination,
-                       long departureTime, long arrivalTime, int numPassengers) {
+    public PassengerTrip(String id, Coord origin, Coord destination,
+                         long departureTime, long arrivalTime, int numPassengers) {
         this.id = id;
         this.origin = origin;
         this.destination = destination;
@@ -26,7 +26,7 @@ public class VehicleTrip {
 
     // Getters and setters
 
-    public void addPooledTrip(VehicleTrip trip) {
+    public void addPooledTrip(PassengerTrip trip) {
         pooledTrips.add(trip);
     }
 
@@ -34,13 +34,13 @@ public class VehicleTrip {
         return !pooledTrips.isEmpty();
     }
 
-    public List<VehicleTrip> getPooledTrips() {
+    public List<PassengerTrip> getPooledTrips() {
         return Collections.unmodifiableList(pooledTrips);
     }
 
     public int getTotalPassengers() {
         if (isPooledTrip()) {
-            return pooledTrips.stream().mapToInt(VehicleTrip::getNumPassengers).sum();
+            return pooledTrips.stream().mapToInt(PassengerTrip::getNumPassengers).sum();
         }
         return numPassengers;
     }

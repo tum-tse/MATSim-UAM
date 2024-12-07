@@ -8,7 +8,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public class TripPool {
-    private List<VehicleTrip> trips;
+    private List<PassengerTrip> trips;
     private final int maxPassengers;
     private final double maxDetourRatio;
     private Coord pooledOrigin;
@@ -22,7 +22,7 @@ public class TripPool {
         this.maxDetourRatio = maxDetourRatio;
     }
 
-    public boolean canAddTrip(VehicleTrip trip) {
+    public boolean canAddTrip(PassengerTrip trip) {
         // Check total passengers
         int totalPassengers = getTotalPassengers() + trip.getNumPassengers();
         if (totalPassengers > maxPassengers) {
@@ -36,18 +36,18 @@ public class TripPool {
         // Calculate new pooled locations and times
         Coord newOrigin = calculatePooledLocation(
                 Stream.concat(trips.stream(), Stream.of(trip))
-                        .map(VehicleTrip::getOrigin)
+                        .map(PassengerTrip::getOrigin)
                         .collect(Collectors.toList())
         );
 
         Coord newDestination = calculatePooledLocation(
                 Stream.concat(trips.stream(), Stream.of(trip))
-                        .map(VehicleTrip::getDestination)
+                        .map(PassengerTrip::getDestination)
                         .collect(Collectors.toList())
         );
 
         // Check detour ratio for all trips including new one
-        for (VehicleTrip t : trips) {
+        for (PassengerTrip t : trips) {
             double originalDistance = calculateDistance(t.getOrigin(), t.getDestination());
             double newDistance = calculateDistance(newOrigin, t.getOrigin()) +
                     calculateDistance(newOrigin, newDestination) +
@@ -67,7 +67,7 @@ public class TripPool {
         return newDistance / originalDistance <= (1 + maxDetourRatio);
     }
 
-    public void addTrip(VehicleTrip trip) {
+    public void addTrip(PassengerTrip trip) {
         if (!canAddTrip(trip)) {
             throw new IllegalArgumentException("Cannot add trip to pool");
         }
@@ -79,21 +79,21 @@ public class TripPool {
     private void updatePooledProperties() {
         // Update pooled locations
         pooledOrigin = calculatePooledLocation(
-                trips.stream().map(VehicleTrip::getOrigin).collect(Collectors.toList())
+                trips.stream().map(PassengerTrip::getOrigin).collect(Collectors.toList())
         );
 
         pooledDestination = calculatePooledLocation(
-                trips.stream().map(VehicleTrip::getDestination).collect(Collectors.toList())
+                trips.stream().map(PassengerTrip::getDestination).collect(Collectors.toList())
         );
 
         // Update pooled times
         pooledDepartureTime = trips.stream()
-                .mapToLong(VehicleTrip::getDepartureTime)
+                .mapToLong(PassengerTrip::getDepartureTime)
                 .min()
                 .orElseThrow();
 
         pooledArrivalTime = trips.stream()
-                .mapToLong(VehicleTrip::getArrivalTime)
+                .mapToLong(PassengerTrip::getArrivalTime)
                 .max()
                 .orElseThrow();
     }
@@ -105,13 +105,13 @@ public class TripPool {
         return new Coord(sumX / locations.size(), sumY / locations.size());
     }
 
-    public VehicleTrip toPooledTrip() {
+    public PassengerTrip toPooledTrip() {
         if (trips.isEmpty()) {
             throw new IllegalStateException("No trips in pool");
         }
 
-        VehicleTrip pooledTrip = new VehicleTrip(
-                "POOL_" + trips.stream().map(VehicleTrip::getId).collect(Collectors.joining("_")),
+        PassengerTrip pooledTrip = new PassengerTrip(
+                "POOL_" + trips.stream().map(PassengerTrip::getId).collect(Collectors.joining("_")),
                 pooledOrigin,
                 pooledDestination,
                 pooledDepartureTime,
@@ -126,7 +126,7 @@ public class TripPool {
     }
 
     private int getTotalPassengers() {
-        return trips.stream().mapToInt(VehicleTrip::getNumPassengers).sum();
+        return trips.stream().mapToInt(PassengerTrip::getNumPassengers).sum();
     }
 
     private double calculateDistance(Coord l1, Coord l2) {

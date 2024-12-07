@@ -13,13 +13,13 @@ import java.util.stream.Collectors;
  * The network can be used to find optimal vehicle assignments for the trips.
  */
 public class ShareabilityNetwork {
-    private List<VehicleTrip> trips;
+    private List<PassengerTrip> trips;
     private Map<String, Set<String>> adjacencyList;
     //private Map<String, UAMVehicle> vehicleAssignments;
     private int maxConnectionTimeMinutes;
     private double flightSpeedMetersPerSecond;
 
-    public ShareabilityNetwork(List<VehicleTrip> trips, int maxConnectionTimeMinutes,
+    public ShareabilityNetwork(List<PassengerTrip> trips, int maxConnectionTimeMinutes,
                                double flightSpeedMetersPerSecond) {
         this.trips = new ArrayList<>(trips);
         this.adjacencyList = new HashMap<>();
@@ -32,15 +32,15 @@ public class ShareabilityNetwork {
 
     private void buildNetwork() {
         // Sort trips by departure time
-        trips.sort(Comparator.comparingLong(VehicleTrip::getDepartureTime));
+        trips.sort(Comparator.comparingLong(PassengerTrip::getDepartureTime));
 
         // Build adjacency list - connect trips that can be served sequentially
         for (int i = 0; i < trips.size(); i++) {
-            VehicleTrip t1 = trips.get(i);
+            PassengerTrip t1 = trips.get(i);
             adjacencyList.put(t1.getId(), new HashSet<>());
 
             for (int j = i + 1; j < trips.size(); j++) {
-                VehicleTrip t2 = trips.get(j);
+                PassengerTrip t2 = trips.get(j);
 
                 // Check if t2 can be served after t1
                 if (canServeSequentially(t1, t2)) {
@@ -50,7 +50,7 @@ public class ShareabilityNetwork {
         }
     }
 
-    private boolean canServeSequentially(VehicleTrip t1, VehicleTrip t2) {
+    private boolean canServeSequentially(PassengerTrip t1, PassengerTrip t2) {
         // Calculate flight time between t1's destination and t2's origin
         double distanceMeters = calculateDistance(t1.getDestination(), t2.getOrigin());
         long flightTimeSeconds = (long) (distanceMeters / flightSpeedMetersPerSecond);
@@ -71,8 +71,8 @@ public class ShareabilityNetwork {
         return Math.sqrt(dx * dx + dy * dy);
     }
 
-    public List<List<VehicleTrip>> findOptimalVehicleAssignments() {
-        List<List<VehicleTrip>> vehicleRoutes = new ArrayList<>();
+    public List<List<PassengerTrip>> findOptimalVehicleAssignments() {
+        List<List<PassengerTrip>> vehicleRoutes = new ArrayList<>();
         Set<String> unassignedTrips = new HashSet<>(adjacencyList.keySet());
 
         while (!unassignedTrips.isEmpty()) {
@@ -80,7 +80,7 @@ public class ShareabilityNetwork {
             List<String> path = findLongestPath(unassignedTrips);
 
             // Convert path to list of trips
-            List<VehicleTrip> route = path.stream()
+            List<PassengerTrip> route = path.stream()
                     .map(id -> trips.stream()
                             .filter(t -> t.getId().equals(id))
                             .findFirst()
@@ -98,8 +98,8 @@ public class ShareabilityNetwork {
         // Find the earliest unassigned trip
         String start = availableTrips.stream()
                 .min((id1, id2) -> {
-                    VehicleTrip t1 = trips.stream().filter(t -> t.getId().equals(id1)).findFirst().orElseThrow();
-                    VehicleTrip t2 = trips.stream().filter(t -> t.getId().equals(id2)).findFirst().orElseThrow();
+                    PassengerTrip t1 = trips.stream().filter(t -> t.getId().equals(id1)).findFirst().orElseThrow();
+                    PassengerTrip t2 = trips.stream().filter(t -> t.getId().equals(id2)).findFirst().orElseThrow();
                     return Long.compare(t1.getDepartureTime(), t2.getDepartureTime());
                 })
                 .orElseThrow();
@@ -129,33 +129,33 @@ public class ShareabilityNetwork {
         currentPath.remove(currentPath.size() - 1);
     }
 
-    public double calculateTotalFlightDistance(List<List<VehicleTrip>> vehicleRoutes) {
+    public double calculateTotalFlightDistance(List<List<PassengerTrip>> vehicleRoutes) {
         double totalDistance = 0;
 
-        for (List<VehicleTrip> route : vehicleRoutes) {
+        for (List<PassengerTrip> route : vehicleRoutes) {
             // Add flight distances for trips
-            for (VehicleTrip trip : route) {
+            for (PassengerTrip trip : route) {
                 totalDistance += calculateDistance(trip.getOrigin(), trip.getDestination());
             }
 
             // Add deadheading distances between consecutive trips
             for (int i = 0; i < route.size() - 1; i++) {
-                VehicleTrip t1 = route.get(i);
-                VehicleTrip t2 = route.get(i + 1);
+                PassengerTrip t1 = route.get(i);
+                PassengerTrip t2 = route.get(i + 1);
                 totalDistance += calculateDistance(t1.getDestination(), t2.getOrigin());
             }
         }
 
         return totalDistance;
     }
-    public double calculateTotalDeadheadingFlightDistance(List<List<VehicleTrip>> vehicleRoutes) {
+    public double calculateTotalDeadheadingFlightDistance(List<List<PassengerTrip>> vehicleRoutes) {
         double totalDeadheadingDistance = 0;
 
-        for (List<VehicleTrip> route : vehicleRoutes) {
+        for (List<PassengerTrip> route : vehicleRoutes) {
             // Add deadheading distances between consecutive trips
             for (int i = 0; i < route.size() - 1; i++) {
-                VehicleTrip t1 = route.get(i);
-                VehicleTrip t2 = route.get(i + 1);
+                PassengerTrip t1 = route.get(i);
+                PassengerTrip t2 = route.get(i + 1);
                 totalDeadheadingDistance += calculateDistance(t1.getDestination(), t2.getOrigin());
             }
         }
