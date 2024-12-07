@@ -149,4 +149,18 @@ public class ShareabilityNetwork {
 
         return totalDistance;
     }
+    public double calculateTotalDeadheadingFlightDistance(List<List<UAMTrip>> vehicleRoutes) {
+        double totalDeadheadingDistance = 0;
+
+        for (List<UAMTrip> route : vehicleRoutes) {
+            // Add deadheading distances between consecutive trips
+            for (int i = 0; i < route.size() - 1; i++) {
+                UAMTrip t1 = route.get(i);
+                UAMTrip t2 = route.get(i + 1);
+                totalDeadheadingDistance += calculateDistance(t1.getDestination(), t2.getOrigin());
+            }
+        }
+
+        return totalDeadheadingDistance;
+    }
 }

@@ -4,14 +4,17 @@ import java.util.List;
 
 public class OptimizationResult {
     private final List<List<UAMTrip>> vehicleRoutes;
-    private final double totalFlightDistance;
+    //private final double totalFlightDistance;
+    private final double totalDeadheadingFlightDistance;
     private final int fleetSize;
 
     public OptimizationResult(List<List<UAMTrip>> vehicleRoutes,
-                              double totalFlightDistance,
+                              //double totalFlightDistance,
+                              double totalDeadheadingFlightDistance,
                               int fleetSize) {
         this.vehicleRoutes = vehicleRoutes;
-        this.totalFlightDistance = totalFlightDistance;
+        //this.totalFlightDistance = totalFlightDistance;
+        this.totalDeadheadingFlightDistance = totalDeadheadingFlightDistance;
         this.fleetSize = fleetSize;
     }
 
@@ -20,7 +23,8 @@ public class OptimizationResult {
     public void printSummary() {
         System.out.println("Optimization Results:");
         System.out.println("Fleet Size: " + fleetSize);
-        System.out.println("Total Flight Distance: " + totalFlightDistance);
+        //System.out.println("Total Flight Distance: " + totalFlightDistance);
+        System.out.println("Total Deadheading Flight Distance: " + totalDeadheadingFlightDistance);
         System.out.println("\nVehicle Routes:");
 
         for (int i = 0; i < vehicleRoutes.size(); i++) {

@@ -37,10 +37,14 @@ public class UAMOptimizationController {
         List<List<UAMTrip>> vehicleRoutes = network.findOptimalVehicleAssignments();
 
         // Step 4: Calculate metrics
-        double totalFlightDistance = network.calculateTotalFlightDistance(vehicleRoutes);
+        //double totalFlightDistance = network.calculateTotalFlightDistance(vehicleRoutes);
+        double totalDeadheadingFlightDistance = network.calculateTotalDeadheadingFlightDistance(vehicleRoutes);
         int fleetSize = vehicleRoutes.size();
 
-        return new OptimizationResult(vehicleRoutes, totalFlightDistance, fleetSize);
+        return new OptimizationResult(vehicleRoutes,
+                //totalFlightDistance,
+                totalDeadheadingFlightDistance,
+                fleetSize);
     }
 
     private List<UAMTrip> createTripPools() {
