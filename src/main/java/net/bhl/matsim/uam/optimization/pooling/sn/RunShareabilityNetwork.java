@@ -5,6 +5,8 @@ import org.matsim.api.core.v01.Coord;
 import java.util.ArrayList;
 import java.util.List;
 
+import static net.bhl.matsim.uam.optimization.pooling.MultiObjectiveNSGAII.VEHICLE_CRUISE_SPEED;
+
 // Example usage
 public class RunShareabilityNetwork {
     public static void main(String[] args) {
@@ -72,7 +74,7 @@ public class RunShareabilityNetwork {
                 0.3, // maxDetourRatio
                 4,   // maxPassengersPerVehicle
                 30,  // maxConnectionTimeMinutes
-                50.0 // flightSpeedMetersPerSecond
+                VEHICLE_CRUISE_SPEED // flightSpeedMetersPerSecond
         );
 
         OptimizationResult result = optimizer.optimize();

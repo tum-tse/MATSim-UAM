@@ -1,7 +1,5 @@
 package net.bhl.matsim.uam.optimization.pooling.sn;
 
-// Core classes for UAM shareability network implementation
-
 import org.matsim.api.core.v01.Coord;
 
 import java.util.*;

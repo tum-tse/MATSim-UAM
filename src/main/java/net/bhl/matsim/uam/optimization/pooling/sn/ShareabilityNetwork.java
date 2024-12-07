@@ -6,6 +6,13 @@ import org.matsim.api.core.v01.Coord;
 import java.util.*;
 import java.util.stream.Collectors;
 
+/**
+ * Core classes for UAM shareability network implementation
+ * Represents a shareability network for UAM trips.
+ * The network is represented as an adjacency list, where each trip is a node and an edge between two nodes indicates that the corresponding trips can be served sequentially.
+ * The network is built based on the trips' departure and arrival times, and the maximum connection time.
+ * The network can be used to find optimal vehicle assignments for the trips.
+ */
 public class ShareabilityNetwork {
     private List<UAMTrip> trips;
     private Map<String, Set<String>> adjacencyList;
