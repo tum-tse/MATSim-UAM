@@ -2,6 +2,8 @@ package net.bhl.matsim.uam.optimization.pooling;
 
 import net.bhl.matsim.uam.optimization.SimulatedAnnealingForPartD;
 import net.bhl.matsim.uam.optimization.Vertiport;
+import net.bhl.matsim.uam.optimization.pooling.sn.OptimizationResult;
+import net.bhl.matsim.uam.optimization.pooling.sn.UAMOptimizationController;
 import net.bhl.matsim.uam.optimization.utils.TripItemForOptimization;
 import org.apache.log4j.Level;
 import org.matsim.api.core.v01.Coord;
@@ -529,6 +531,8 @@ public class MultiObjectiveNSGAII {
 
         // Calculate pooling rate and vehicle capacity rates
         if (isFinalSolutions) {
+            indicatorData.setVehicleAssignments(vehicleAssignments);
+
             int pooledTrips = 0;
             int totalVehicles = vehicleAssignments.size();
             Map<Integer, Integer> capacityCount = new HashMap<>();
@@ -1475,8 +1479,11 @@ public class MultiObjectiveNSGAII {
         private double percentile5thTotalTravelTime;
         private double percentile95thTotalTravelTime;
 
-        private double uamVehicleMeter;
         private int numberOfUAMVehiclesUsed;
+        private double uamVehicleMeter;
+
+        private double deadHeadingFlightDistance;
+        private Map<Integer, List<TripItemForOptimization>> vehicleAssignments;
 
         public SolutionIndicatorData(int[] solution) {
             this.solution = solution;
@@ -1560,6 +1567,19 @@ public class MultiObjectiveNSGAII {
         public void setUamVehicleMeter(double uamVehicleKilometer) { this.uamVehicleMeter = uamVehicleKilometer; }
         public int getNumberOfUAMVehiclesUsed() { return numberOfUAMVehiclesUsed; }
         public void setNumberOfUAMVehiclesUsed(int numberOfUAMVehiclesUsed) { this.numberOfUAMVehiclesUsed = numberOfUAMVehiclesUsed; }
+
+        public void setDeadheadingFlightDistance(double deadHeadingDistance) {
+            this.deadHeadingFlightDistance = deadHeadingDistance;
+        }
+        public double getDeadHeadingFlightDistance() {
+            return this.deadHeadingFlightDistance;
+        }
+        public void setVehicleAssignments(Map<Integer, List<TripItemForOptimization>> vehicleAssignments) {
+            this.vehicleAssignments = vehicleAssignments;
+        }
+        public Map<Integer, List<TripItemForOptimization>> getVehicleAssignments() {
+            return this.vehicleAssignments;
+        }
     }
     private void calculatePopulationIndicators(List<SolutionFitnessPair> population) {
         List<SolutionIndicatorData> indicatorDataList = new ArrayList<>();
@@ -1606,6 +1626,18 @@ public class MultiObjectiveNSGAII {
         indicatorData.setPercentile95thArrivalRedirectionRate(calculatePercentile(arrivalRedirectionRates, 95));
         indicatorData.setPercentile5thTotalTravelTime(calculatePercentile(totalTravelTimes, 5));
         indicatorData.setPercentile95thTotalTravelTime(calculatePercentile(totalTravelTimes, 95));
+
+        // Calculate deadheading distance using shareability network
+        UAMOptimizationController optimizer = new UAMOptimizationController(
+                indicatorData.getVehicleAssignments(),  // Your vehicle assignments map
+                0.3,                // maxDetourRatio
+                VEHICLE_CAPACITY,   // maxPassengersPerVehicle
+                30,                 // maxConnectionTimeMinutes
+                VEHICLE_CRUISE_SPEED // flightSpeedMetersPerSecond
+        );
+        OptimizationResult result = optimizer.optimize();
+        double deadheadingDistance = result.getTotalDeadheadingFlightDistance();
+        indicatorData.setDeadheadingFlightDistance(deadheadingDistance);
     }
     private double calculateAverage(List<Double> values) {
         return values.isEmpty() ? Double.NaN : values.stream().mapToDouble(Double::doubleValue).average().orElse(Double.NaN);
@@ -1620,11 +1652,11 @@ public class MultiObjectiveNSGAII {
     private void writeIndicatorsToCsv(List<SolutionIndicatorData> indicatorDataList, String fileName) {
         try (FileWriter writer = new FileWriter(fileName)) {
             // Write header
-            writer.append("TotalFitness,TotalFlightDistanceChange,TotalTravelTimeChange,TotalCapacityViolationPenalty,PoolingRate,Capacity0Rate,Capacity1Rate,Capacity2Rate,Capacity3Rate,Capacity4Rate,SharedRidesExceedingThresholdRate,TotalSharedRidesExceedingThresholdRate,AvgTravelTimeChange,5thPercentileTravelTimeChange,95thPercentileTravelTimeChange,AvgFlightDistanceChange,5thPercentileFlightDistanceChange,95thPercentileFlightDistanceChange,AvgDepartureRedirectionRate,5thPercentileDepartureRedirectionRate,95thPercentileDepartureRedirectionRate,AvgArrivalRedirectionRate,5thPercentileArrivalRedirectionRate,95thPercentileArrivalRedirectionRate,AvgTotalTravelTime,5thPercentileTotalTravelTime,95thPercentileTotalTravelTime,TotalVehicleMeter,NumberOfVehiclesUsed\n");
+            writer.append("TotalFitness,TotalFlightDistanceChange,TotalTravelTimeChange,TotalCapacityViolationPenalty,PoolingRate,Capacity0Rate,Capacity1Rate,Capacity2Rate,Capacity3Rate,Capacity4Rate,SharedRidesExceedingThresholdRate,TotalSharedRidesExceedingThresholdRate,AvgTravelTimeChange,5thPercentileTravelTimeChange,95thPercentileTravelTimeChange,AvgFlightDistanceChange,5thPercentileFlightDistanceChange,95thPercentileFlightDistanceChange,AvgDepartureRedirectionRate,5thPercentileDepartureRedirectionRate,95thPercentileDepartureRedirectionRate,AvgArrivalRedirectionRate,5thPercentileArrivalRedirectionRate,95thPercentileArrivalRedirectionRate,AvgTotalTravelTime,5thPercentileTotalTravelTime,95thPercentileTotalTravelTime,TotalVehicleMeter,NumberOfVehiclesUsed,DeadheadingFlightDistance\n");
 
             // Write data for each solution
             for (SolutionIndicatorData data : indicatorDataList) {
-                writer.append(String.format("%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%d\n",
+                writer.append(String.format("%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%d,%f\n",
                         data.getFitness()[0], REVERT_SIGN * data.getFitness()[1], REVERT_SIGN * data.getFitness()[2], data.getFitness()[3],
                         data.getPoolingRate(),
                         data.getVehicleCapacityRates().getOrDefault(0, 0.0),
@@ -1650,7 +1682,8 @@ public class MultiObjectiveNSGAII {
                         data.getPercentile5thTotalTravelTime(),
                         data.getPercentile95thTotalTravelTime(),
                         data.getUamVehicleMeter(),
-                        data.getNumberOfUAMVehiclesUsed()
+                        data.getNumberOfUAMVehiclesUsed(),
+                        data.getDeadHeadingFlightDistance()
                 ));
             }
         } catch (IOException e) {

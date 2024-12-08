@@ -19,6 +19,9 @@ public class OptimizationResult {
     }
 
     // Getters
+    public double getTotalDeadheadingFlightDistance() {
+        return totalDeadheadingFlightDistance;
+    }
 
     public void printSummary() {
         System.out.println("Optimization Results:");
