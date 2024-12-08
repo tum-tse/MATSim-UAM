@@ -2,8 +2,11 @@ package net.bhl.matsim.uam.optimization.pooling.sn;
 
 import java.util.*;
 
+import net.bhl.matsim.uam.optimization.Vertiport;
 import net.bhl.matsim.uam.optimization.utils.TripItemForOptimization;
 import org.matsim.api.core.v01.Coord;
+import org.matsim.api.core.v01.Id;
+import org.matsim.contrib.dvrp.fleet.DvrpVehicle;
 
 public class UAMOptimizationController {
     private final List<VehicleTrip> vehicleTrips;
@@ -11,6 +14,9 @@ public class UAMOptimizationController {
     private final int maxPassengersPerVehicle;
     private final int maxConnectionTimeMinutes;
     private final double flightSpeedMetersPerSecond;
+
+    private Map<Id<DvrpVehicle>, Vertiport> vehicleOriginStationMap = null;
+    private Map<Id<DvrpVehicle>, Vertiport> vehicleDestinationStationMap = null;
 
     // Constructor for non-pooled trips
     public UAMOptimizationController(List<VehicleTrip> trips, double maxDetourRatio,
@@ -30,7 +36,9 @@ public class UAMOptimizationController {
                                      double maxDetourRatio,
                                      int maxPassengersPerVehicle,
                                      int maxConnectionTimeMinutes,
-                                     double flightSpeedMetersPerSecond) {
+                                     double flightSpeedMetersPerSecond,
+                                     Map<Id<DvrpVehicle>, Vertiport> vehicleOriginStationMap,
+                                     Map<Id<DvrpVehicle>, Vertiport> vehicleDestinationStationMap) {
         this.maxDetourRatio = maxDetourRatio;
         this.maxPassengersPerVehicle = maxPassengersPerVehicle;
         this.maxConnectionTimeMinutes = maxConnectionTimeMinutes;
@@ -38,6 +46,9 @@ public class UAMOptimizationController {
 
         // Convert vehicle assignments directly to vehicle trips
         this.vehicleTrips = convertAssignmentsToTrips(vehicleAssignments);
+
+        this.vehicleOriginStationMap = vehicleOriginStationMap;
+        this.vehicleDestinationStationMap = vehicleDestinationStationMap;
     }
 
     public OptimizationResult optimize() {
@@ -106,12 +117,21 @@ public class UAMOptimizationController {
                     .max()
                     .orElse(0);
 
-            // Use first trip's origin/destination as reference
-            TripItemForOptimization firstTrip = assignedTrips.get(0);
-            Coord origin = new Coord(firstTrip.accessVertiport.coord.getX(),
-                    firstTrip.accessVertiport.coord.getY());
-            Coord destination = new Coord(firstTrip.egressVertiport.coord.getX(),
-                    firstTrip.egressVertiport.coord.getY());
+            Coord origin;
+            Coord destination;
+            if(vehicleOriginStationMap == null && vehicleDestinationStationMap == null) {
+                // Use first trip's origin/destination as reference
+                TripItemForOptimization firstTrip = assignedTrips.get(0);
+                origin = new Coord(firstTrip.accessVertiport.coord.getX(),
+                        firstTrip.accessVertiport.coord.getY());
+                destination = new Coord(firstTrip.egressVertiport.coord.getX(),
+                        firstTrip.egressVertiport.coord.getY());
+            }else{
+                origin = new Coord(vehicleOriginStationMap.get(Id.create(entry.getKey(), DvrpVehicle.class)).coord.getX(),
+                        vehicleOriginStationMap.get(Id.create(entry.getKey(), DvrpVehicle.class)).coord.getY());
+                destination = new Coord(vehicleDestinationStationMap.get(Id.create(entry.getKey(), DvrpVehicle.class)).coord.getX(),
+                        vehicleDestinationStationMap.get(Id.create(entry.getKey(), DvrpVehicle.class)).coord.getY());
+            }
 
             // Calculate arrival time
             double distance = calculateDistance(origin, destination);

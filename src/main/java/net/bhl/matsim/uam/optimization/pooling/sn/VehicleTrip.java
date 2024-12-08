@@ -4,6 +4,10 @@ import org.matsim.api.core.v01.Coord;
 
 import java.util.*;
 
+/**
+ * For testing purposes.
+ */
+
 public class VehicleTrip {
     private String id;
     private Coord origin;

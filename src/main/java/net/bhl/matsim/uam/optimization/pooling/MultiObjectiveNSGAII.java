@@ -191,7 +191,9 @@ public class MultiObjectiveNSGAII {
                 MAX_DETOUR_RATIO,                // maxDetourRatio
                 1,                  // maxPassengersPerVehicle (1 for non-pooled)
                 MAX_CONNECTION_TIME_MINUTES,                 // maxConnectionTimeMinutes
-                VEHICLE_CRUISE_SPEED
+                VEHICLE_CRUISE_SPEED,
+                null,
+                null
         );
 
         OptimizationResult result = optimizer.optimize();
@@ -1677,7 +1679,9 @@ public class MultiObjectiveNSGAII {
                 MAX_DETOUR_RATIO,                // maxDetourRatio
                 VEHICLE_CAPACITY,   // maxPassengersPerVehicle
                 MAX_CONNECTION_TIME_MINUTES,                 // maxConnectionTimeMinutes
-                VEHICLE_CRUISE_SPEED // flightSpeedMetersPerSecond
+                VEHICLE_CRUISE_SPEED, // flightSpeedMetersPerSecond
+                vehicleOriginStationMap,
+                vehicleDestinationStationMap
         );
         OptimizationResult result = optimizer.optimize();
         double deadheadingDistance = result.getTotalDeadheadingFlightDistance();
