@@ -80,6 +80,8 @@ public class MultiObjectiveNSGAII {
     );
     private static final int MAX_BEST_SOLUTIONS = 100;  // Adjust as needed
 
+    private static double nonPooledDeadheadingDistance;
+
     // Parallel computing
     private static final int numProcessors = Runtime.getRuntime().availableProcessors();
     private static final int bufferDivider = 1;
@@ -123,6 +125,10 @@ public class MultiObjectiveNSGAII {
     private static final double INITIAL_LOCAL_SEARCH_PROBABILITY = 0.1;
     private static final double FINAL_LOCAL_SEARCH_PROBABILITY = 0.5;
 
+    // Setting for the shareability network ============================================================================
+    private static final double MAX_DETOUR_RATIO = 0.3;
+    private static final int MAX_CONNECTION_TIME_MINUTES = 30;
+
 /*    // Static initializer block
     static {
         try {
@@ -155,6 +161,44 @@ public class MultiObjectiveNSGAII {
 
         network = NetworkUtils.createNetwork();
         new MatsimNetworkReader(network).readFile("./uam_routed_network.xml.gz");
+
+        MultiObjectiveNSGAII instance = new MultiObjectiveNSGAII();
+        instance.nonPooledDeadheadingDistance = instance.calculateNonPooledDeadheadingDistance();
+    }
+    // Method to calculate the non-pooled deadheading distance
+    private double calculateNonPooledDeadheadingDistance() {
+        // Create a map of vehicle assignments where each trip is served individually
+        Map<Integer, List<TripItemForOptimization>> individualAssignments = new HashMap<>();
+
+        for (int i = 0; i < subTrips.size(); i++) {
+            TripItemForOptimization trip = subTrips.get(i);
+            // Assign each trip to nearest vehicle/station
+            //Vertiport originStation = findNearestStation(trip, vertiportsMap, true);
+            //Vertiport destinationStation = findNearestStation(trip, vertiportsMap, false);
+
+            // Create a single-trip list
+            List<TripItemForOptimization> tripList = new ArrayList<>();
+            tripList.add(trip);
+
+            // Create a new vehicle ID for each trip since we're not pooling
+            int vehicleId = i + 1;  // Simple sequential vehicle IDs
+            individualAssignments.put(vehicleId, tripList);
+        }
+
+        // Use the shareability network to calculate deadheading distance
+        UAMOptimizationController optimizer = new UAMOptimizationController(
+                individualAssignments,
+                MAX_DETOUR_RATIO,                // maxDetourRatio
+                1,                  // maxPassengersPerVehicle (1 for non-pooled)
+                MAX_CONNECTION_TIME_MINUTES,                 // maxConnectionTimeMinutes
+                VEHICLE_CRUISE_SPEED
+        );
+
+        OptimizationResult result = optimizer.optimize();
+        return result.getTotalDeadheadingFlightDistance();
+    }
+    public double getNonPooledDeadheadingDistance() {
+        return nonPooledDeadheadingDistance;
     }
 
     // Constructor
@@ -1630,9 +1674,9 @@ public class MultiObjectiveNSGAII {
         // Calculate deadheading distance using shareability network
         UAMOptimizationController optimizer = new UAMOptimizationController(
                 indicatorData.getVehicleAssignments(),  // Your vehicle assignments map
-                0.3,                // maxDetourRatio
+                MAX_DETOUR_RATIO,                // maxDetourRatio
                 VEHICLE_CAPACITY,   // maxPassengersPerVehicle
-                30,                 // maxConnectionTimeMinutes
+                MAX_CONNECTION_TIME_MINUTES,                 // maxConnectionTimeMinutes
                 VEHICLE_CRUISE_SPEED // flightSpeedMetersPerSecond
         );
         OptimizationResult result = optimizer.optimize();
@@ -1652,7 +1696,7 @@ public class MultiObjectiveNSGAII {
     private void writeIndicatorsToCsv(List<SolutionIndicatorData> indicatorDataList, String fileName) {
         try (FileWriter writer = new FileWriter(fileName)) {
             // Write header
-            writer.append("TotalFitness,TotalFlightDistanceChange,TotalTravelTimeChange,TotalCapacityViolationPenalty,PoolingRate,Capacity0Rate,Capacity1Rate,Capacity2Rate,Capacity3Rate,Capacity4Rate,SharedRidesExceedingThresholdRate,TotalSharedRidesExceedingThresholdRate,AvgTravelTimeChange,5thPercentileTravelTimeChange,95thPercentileTravelTimeChange,AvgFlightDistanceChange,5thPercentileFlightDistanceChange,95thPercentileFlightDistanceChange,AvgDepartureRedirectionRate,5thPercentileDepartureRedirectionRate,95thPercentileDepartureRedirectionRate,AvgArrivalRedirectionRate,5thPercentileArrivalRedirectionRate,95thPercentileArrivalRedirectionRate,AvgTotalTravelTime,5thPercentileTotalTravelTime,95thPercentileTotalTravelTime,TotalVehicleMeter,NumberOfVehiclesUsed,DeadheadingFlightDistance\n");
+            writer.append("TotalFitness,TotalFlightDistanceChange,TotalTravelTimeChange,TotalCapacityViolationPenalty,PoolingRate,Capacity0Rate,Capacity1Rate,Capacity2Rate,Capacity3Rate,Capacity4Rate,SharedRidesExceedingThresholdRate,TotalSharedRidesExceedingThresholdRate,AvgTravelTimeChange,5thPercentileTravelTimeChange,95thPercentileTravelTimeChange,AvgFlightDistanceChange,5thPercentileFlightDistanceChange,95thPercentileFlightDistanceChange,AvgDepartureRedirectionRate,5thPercentileDepartureRedirectionRate,95thPercentileDepartureRedirectionRate,AvgArrivalRedirectionRate,5thPercentileArrivalRedirectionRate,95thPercentileArrivalRedirectionRate,AvgTotalTravelTime,5thPercentileTotalTravelTime,95thPercentileTotalTravelTime,TotalVehicleMeter,NumberOfVehiclesUsed,DeadheadingFlightDistanceChange\n");
 
             // Write data for each solution
             for (SolutionIndicatorData data : indicatorDataList) {
@@ -1683,7 +1727,7 @@ public class MultiObjectiveNSGAII {
                         data.getPercentile95thTotalTravelTime(),
                         data.getUamVehicleMeter(),
                         data.getNumberOfUAMVehiclesUsed(),
-                        data.getDeadHeadingFlightDistance()
+                        data.getDeadHeadingFlightDistance()-getNonPooledDeadheadingDistance()
                 ));
             }
         } catch (IOException e) {
