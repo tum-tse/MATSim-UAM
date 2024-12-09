@@ -57,9 +57,9 @@ public class MultiObjectiveNSGAII {
 
     // Variables for the UAM problem ===================================================================================
     private double BUFFER_START_TIME = 3600*7; // Buffer start time for the first trip
-    private double BUFFER_END_TIME = 3600*7+420; // Buffer end time for the last trip
-    private double SEARCH_RADIUS_ORIGIN = 3000; // search radius for origin station
-    private double SEARCH_RADIUS_DESTINATION = 3000; // search radius for destination station
+    private double BUFFER_END_TIME = 3600*7+600; // Buffer end time for the last trip
+    private double SEARCH_RADIUS_ORIGIN = 10000; // search radius for origin station
+    private double SEARCH_RADIUS_DESTINATION = 10000; // search radius for destination station
 
     // Data container for the UAM problem ==============================================================================
     //private static List<UAMTrip> trips;
@@ -78,7 +78,7 @@ public class MultiObjectiveNSGAII {
     private final PriorityQueue<SolutionFitnessPair> bestSolutionsAcrossGenerations = new PriorityQueue<>(
             (a, b) -> Double.compare(a.getFitness()[0], b.getFitness()[0])  // Min heap
     );
-    private static final int MAX_BEST_SOLUTIONS = 100;  // Adjust as needed
+    private final int MAX_BEST_SOLUTIONS = 100;  // Adjust as needed
 
     private static double nonPooledDeadheadingDistance;
 
@@ -160,47 +160,7 @@ public class MultiObjectiveNSGAII {
         dataInitializer = SimulatedAnnealingForPartD.getDataInitializer(tripItemFile, configFile, vertiportUnitsCandidateFile, scenarioConfigurations);
 
         network = NetworkUtils.createNetwork();
-        new MatsimNetworkReader(network).readFile("./uam_routed_network.xml.gz");
-
-        MultiObjectiveNSGAII instance = new MultiObjectiveNSGAII();
-        instance.nonPooledDeadheadingDistance = instance.calculateNonPooledDeadheadingDistance();
-    }
-    // Method to calculate the non-pooled deadheading distance
-    private double calculateNonPooledDeadheadingDistance() {
-        // Create a map of vehicle assignments where each trip is served individually
-        Map<Integer, List<TripItemForOptimization>> individualAssignments = new HashMap<>();
-
-        for (int i = 0; i < subTrips.size(); i++) {
-            TripItemForOptimization trip = subTrips.get(i);
-            // Assign each trip to nearest vehicle/station
-            //Vertiport originStation = findNearestStation(trip, vertiportsMap, true);
-            //Vertiport destinationStation = findNearestStation(trip, vertiportsMap, false);
-
-            // Create a single-trip list
-            List<TripItemForOptimization> tripList = new ArrayList<>();
-            tripList.add(trip);
-
-            // Create a new vehicle ID for each trip since we're not pooling
-            int vehicleId = i + 1;  // Simple sequential vehicle IDs
-            individualAssignments.put(vehicleId, tripList);
-        }
-
-        // Use the shareability network to calculate deadheading distance
-        UAMOptimizationController optimizer = new UAMOptimizationController(
-                individualAssignments,
-                MAX_DETOUR_RATIO,                // maxDetourRatio
-                1,                  // maxPassengersPerVehicle (1 for non-pooled)
-                MAX_CONNECTION_TIME_MINUTES,                 // maxConnectionTimeMinutes
-                VEHICLE_CRUISE_SPEED,
-                null,
-                null
-        );
-
-        OptimizationResult result = optimizer.optimize();
-        return result.getTotalDeadheadingFlightDistance();
-    }
-    public double getNonPooledDeadheadingDistance() {
-        return nonPooledDeadheadingDistance;
+        new MatsimNetworkReader(network).readFile("examples/uam-test-scenario/uam_routed_network.xml.gz");
     }
 
     // Constructor
@@ -269,6 +229,9 @@ public class MultiObjectiveNSGAII {
         saveStationVehicleNumber(subTrips);
         tripVehicleMap = findNearbyVehiclesToTrips(subTrips);
 
+        // Calculate the total deadheading distance for the non-pooled scenario
+        nonPooledDeadheadingDistance = calculateNonPooledDeadheadingDistance();
+
         List<SolutionFitnessPair> population = initializePopulation();
         for (int gen = 0; gen < MAX_GENERATIONS; gen++) {
             STABILITY_THRESHOLD = Math.min(BASE_STABILITY_THRESHOLD + gen / 10, MAX_STABILITY_THRESHOLD);
@@ -329,6 +292,44 @@ public class MultiObjectiveNSGAII {
         } else {
             log.info("Output directory already exists: " + outputFolder.getAbsolutePath());
         }
+    }
+
+    // Method to calculate the non-pooled deadheading distance
+    private double calculateNonPooledDeadheadingDistance() {
+        // Create a map of vehicle assignments where each trip is served individually
+        Map<Integer, List<TripItemForOptimization>> individualAssignments = new HashMap<>();
+
+        for (int i = 0; i < subTrips.size(); i++) {
+            TripItemForOptimization trip = subTrips.get(i);
+            // Assign each trip to nearest vehicle/station
+            //Vertiport originStation = findNearestStation(trip, vertiportsMap, true);
+            //Vertiport destinationStation = findNearestStation(trip, vertiportsMap, false);
+
+            // Create a single-trip list
+            List<TripItemForOptimization> tripList = new ArrayList<>();
+            tripList.add(trip);
+
+            // Create a new vehicle ID for each trip since we're not pooling
+            int vehicleId = i + 1;  // Simple sequential vehicle IDs
+            individualAssignments.put(vehicleId, tripList);
+        }
+
+        // Use the shareability network to calculate deadheading distance
+        UAMOptimizationController optimizer = new UAMOptimizationController(
+                individualAssignments,
+                MAX_DETOUR_RATIO,                // maxDetourRatio
+                1,                  // maxPassengersPerVehicle (1 for non-pooled)
+                MAX_CONNECTION_TIME_MINUTES,                 // maxConnectionTimeMinutes
+                VEHICLE_CRUISE_SPEED,
+                null,
+                null
+        );
+
+        OptimizationResult result = optimizer.optimize();
+        return result.getTotalDeadheadingFlightDistance();
+    }
+    public double getNonPooledDeadheadingDistance() {
+        return nonPooledDeadheadingDistance;
     }
 
     // GA solver with NSGA-II modifications==============================================================================
