@@ -22,6 +22,7 @@ public class OptimizationResult {
     public double getTotalDeadheadingFlightDistance() {
         return totalDeadheadingFlightDistance;
     }
+    public int getFleetSize() { return fleetSize; }
 
     public void printSummary() {
         System.out.println("Optimization Results:");
