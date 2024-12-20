@@ -9,7 +9,7 @@ import java.util.Random;
 public class UAMModeChoiceModel {
     // Model coefficients from estimation
     private static final double B_COPASSENGER = -0.0901;
-    private static final double B_COST = -0.000815;
+    private static final double B_COST = 0.000815; // With own adjustment
     private static final double B_SHARED_INVEHICLE_TIME = -0.00881;
     private static final double B_SHARED_REDIRECTION_TIME = 0.0316;
     private static final double B_UAM_INVEHICLE_TIME = 0.042;
@@ -105,8 +105,6 @@ public class UAMModeChoiceModel {
         double p4 = 1.0 / (1.0 + Math.exp(-(TAU1 + TAU1_DIFF_MINUS1 + TAU1_DIFF_0 + TAU1_DIFF_1 - utilityDifference))) - (p1 + p2 + p3);
         double p5 = 1.0 - (p1 + p2 + p3 + p4);
 
-        // Conservative approach: only "probably_shared" (p4) and "definitely_shared" (p5)
-        // are considered as acceptance
-        return p4 + p5;
+        return p3 + p4 + p5; // Conservative approach: only "probably_shared" (p4) and "definitely_shared" (p5) are considered as acceptance
     }
 }
