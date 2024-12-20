@@ -23,9 +23,11 @@ public class UAMModeChoiceModel {
     private static final double TAU1_DIFF_1 = 1.34;
 
     private final Random random;
+    private final int numberSimulations;
 
-    public UAMModeChoiceModel(Random random) {
+    public UAMModeChoiceModel(Random random, int numberSimulations) {
         this.random = random;
+        this.numberSimulations = numberSimulations;
     }
 
     /**
@@ -44,11 +46,10 @@ public class UAMModeChoiceModel {
      * Calculates utility for non-shared UAM option
      */
     private double calculateNonSharedUAMUtility(double cost, double inVehicleTime,
-                                                double redirectionTime, double waitingTime) {
+                                                double redirectionTime) {
         return B_COST * cost +
                 B_UAM_INVEHICLE_TIME * inVehicleTime +
-                B_UAM_REDIRECTION_TIME * redirectionTime +
-                B_WAITING_TIME * waitingTime;
+                B_UAM_REDIRECTION_TIME * redirectionTime;
     }
 
     /**
@@ -58,13 +59,11 @@ public class UAMModeChoiceModel {
     public double calculateAcceptanceProbability(
             double sharedCost, double sharedInVehicleTime, double sharedRedirectionTime,
             double sharedWaitingTime, int coPassengers,
-            double nonSharedCost, double nonSharedInVehicleTime, double nonSharedRedirectionTime,
-            double nonSharedWaitingTime,
-            int numSimulations) {
+            double nonSharedCost, double nonSharedInVehicleTime, double nonSharedRedirectionTime) {
 
         int acceptanceCount = 0;
 
-        for (int i = 0; i < numSimulations; i++) {
+        for (int i = 0; i < numberSimulations; i++) {
             // Add Gumbel-distributed error terms
             double epsilon1 = drawGumbel();
             double epsilon2 = drawGumbel();
@@ -74,15 +73,14 @@ public class UAMModeChoiceModel {
                     sharedWaitingTime, coPassengers) + epsilon1;
 
             double nonSharedUtility = calculateNonSharedUAMUtility(
-                    nonSharedCost, nonSharedInVehicleTime, nonSharedRedirectionTime,
-                    nonSharedWaitingTime) + epsilon2;
+                    nonSharedCost, nonSharedInVehicleTime, nonSharedRedirectionTime) + epsilon2;
 
             if (sharedUtility > nonSharedUtility) {
                 acceptanceCount++;
             }
         }
 
-        return (double) acceptanceCount / numSimulations;
+        return (double) acceptanceCount / numberSimulations;
     }
 
     /**
