@@ -8,19 +8,18 @@ import java.util.Random;
  */
 public class UAMModeChoiceModel {
     // Model coefficients from estimation
-    private static final double B_COPASSENGER = -0.0901;
-    private static final double B_COST = 0.000815; // With own adjustment
-    private static final double B_SHARED_INVEHICLE_TIME = -0.00881;
-    private static final double B_SHARED_REDIRECTION_TIME = 0.0316;
-    private static final double B_UAM_INVEHICLE_TIME = 0.042;
-    private static final double B_UAM_REDIRECTION_TIME = 0.0556;
-    private static final double B_WAITING_TIME = -0.0606;
+    // UAM coefficients
+    private static final double B_ASC_UAM = -4.66;
+    private static final double B_UAM_COST = -0.0217;
+    private static final double B_UAM_INVEHICLE_TIME = -0.153;
 
-    // Threshold parameters
-    private static final double TAU1 = -1.68;
-    private static final double TAU1_DIFF_MINUS1 = 1.61;
-    private static final double TAU1_DIFF_0 = 0.522;
-    private static final double TAU1_DIFF_1 = 1.34;
+    private static final double B_OUT_OF_VEHICLE_TIME = -0.0813;
+
+    // shared UAM coefficients
+    private static final double B_SHARED_COST = -0.025;
+    private static final double B_SHARED_INVEHICLE_TIME = -0.177;
+    private static final double B_COPASSENGER = -0.571;
+
 
     private final Random random;
     private final int numberSimulations;
@@ -34,11 +33,10 @@ public class UAMModeChoiceModel {
      * Calculates utility for shared UAM option
      */
     private double calculateSharedUAMUtility(double cost, double inVehicleTime,
-                                             double redirectionTime, double waitingTime, int coPassengers) {
-        return B_COST * cost +
-                B_SHARED_INVEHICLE_TIME * inVehicleTime +
-                B_SHARED_REDIRECTION_TIME * redirectionTime +
-                B_WAITING_TIME * waitingTime +
+                                             double outOfVehicleTime, int coPassengers) {
+        return B_SHARED_COST * cost +
+                B_SHARED_INVEHICLE_TIME * inVehicleTime/60 +
+                B_OUT_OF_VEHICLE_TIME * outOfVehicleTime/60 +
                 B_COPASSENGER * coPassengers;
     }
 
@@ -46,10 +44,11 @@ public class UAMModeChoiceModel {
      * Calculates utility for non-shared UAM option
      */
     private double calculateNonSharedUAMUtility(double cost, double inVehicleTime,
-                                                double redirectionTime) {
-        return B_COST * cost +
-                B_UAM_INVEHICLE_TIME * inVehicleTime +
-                B_UAM_REDIRECTION_TIME * redirectionTime;
+                                                double outOfVehicleTime) {
+        return B_UAM_COST * cost +
+                B_UAM_INVEHICLE_TIME * inVehicleTime/60 +
+                B_OUT_OF_VEHICLE_TIME * outOfVehicleTime/60 +
+                B_ASC_UAM;
     }
 
     /**
@@ -69,8 +68,7 @@ public class UAMModeChoiceModel {
             double epsilon2 = drawGumbel();
 
             double sharedUtility = calculateSharedUAMUtility(
-                    sharedCost, sharedInVehicleTime, sharedRedirectionTime,
-                    sharedWaitingTime, coPassengers) + epsilon1;
+                    sharedCost, sharedInVehicleTime, sharedRedirectionTime+sharedWaitingTime, coPassengers) + epsilon1;
 
             double nonSharedUtility = calculateNonSharedUAMUtility(
                     nonSharedCost, nonSharedInVehicleTime, nonSharedRedirectionTime) + epsilon2;
@@ -89,20 +87,5 @@ public class UAMModeChoiceModel {
     private double drawGumbel() {
         double u = random.nextDouble();
         return -Math.log(-Math.log(u));
-    }
-
-    /**
-     * Converts 5-category decision to binary choice probability
-     * using estimated thresholds
-     */
-    public double convertToBinaryProbability(double utilityDifference) {
-        // Calculate probabilities for each category using ordinal logit formulation
-        double p1 = 1.0 / (1.0 + Math.exp(-(TAU1 - utilityDifference)));
-        double p2 = 1.0 / (1.0 + Math.exp(-(TAU1 + TAU1_DIFF_MINUS1 - utilityDifference))) - p1;
-        double p3 = 1.0 / (1.0 + Math.exp(-(TAU1 + TAU1_DIFF_MINUS1 + TAU1_DIFF_0 - utilityDifference))) - (p1 + p2);
-        double p4 = 1.0 / (1.0 + Math.exp(-(TAU1 + TAU1_DIFF_MINUS1 + TAU1_DIFF_0 + TAU1_DIFF_1 - utilityDifference))) - (p1 + p2 + p3);
-        double p5 = 1.0 - (p1 + p2 + p3 + p4);
-
-        return p3 + p4 + p5; // Conservative approach: only "probably_shared" (p4) and "definitely_shared" (p5) are considered as acceptance
     }
 }
