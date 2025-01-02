@@ -35,8 +35,8 @@ public class SharedUAMCostCalculator {
      */
     public static double calculateSharedUAMCost(double originalPrice, int numCoPassengers, double redirectionTimeInSeconds) {
         // Validate inputs
-        if (numCoPassengers < 0 || numCoPassengers > 4) {
-            throw new IllegalArgumentException("Number of co-passengers must be between 0 and 4");
+        if (numCoPassengers <= 0 ) {
+            throw new IllegalArgumentException("Number of co-passengers must be larger than 0");
         }
 
         double redirectionTimeMinutes = redirectionTimeInSeconds /  60;
