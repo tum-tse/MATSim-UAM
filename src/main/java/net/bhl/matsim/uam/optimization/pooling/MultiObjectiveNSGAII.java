@@ -574,7 +574,7 @@ public class MultiObjectiveNSGAII {
             vehicleLoadCount.put(vehicleId, vehicleLoadCount.getOrDefault(vehicleId, 0) + 1);
         }
 
-        double[] fitness = getFitnessPerVehicle(isFinalSolutions, vehicleAssignments, travelTimeChangeMap, indicatorData, choiceModel);
+        double[] fitness = getFitnessForAllAssignment(isFinalSolutions, vehicleAssignments, travelTimeChangeMap, indicatorData, choiceModel);
 
         // Calculate pooling rate and vehicle capacity rates
         if (isFinalSolutions) {
@@ -598,7 +598,7 @@ public class MultiObjectiveNSGAII {
             for (int scenario = 0; scenario < numScenarios; scenario++) {
                 int scenarioPooledTrips = 0;
                 Map<Integer, Integer> scenarioCapacityCount = new HashMap<>();
-                Set<Integer> scenarioVehicles = new HashSet<>();
+                int scenarioVehicles = 0;
 
                 // Process each vehicle's assignments
                 for (Map.Entry<Integer, List<TripItemForOptimization>> entry : vehicleAssignments.entrySet()) {
@@ -607,10 +607,13 @@ public class MultiObjectiveNSGAII {
 
                     // Count accepted trips for this vehicle in this scenario
                     int acceptedTripsForVehicle = 0;
+                    boolean anyTripAccepted = false;
+
                     for (TripItemForOptimization trip : trips) {
                         Map<Integer, Boolean> tripChoices = allChoices.get(trip.tripID);
                         if (tripChoices != null && tripChoices.get(scenario) != null && tripChoices.get(scenario)) {
                             acceptedTripsForVehicle++;
+                            anyTripAccepted = true;
 
                             // Check if this is a pooled trip
                             if (trips.size() > 1) {
@@ -625,11 +628,17 @@ public class MultiObjectiveNSGAII {
                         }
                     }
 
+                    // If no trips were accepted for pooling, count each trip individually
+                    if (!anyTripAccepted) {
+                        acceptedTripsForVehicle = trips.size();  // Each trip requires its own vehicle
+                        scenarioVehicles+=trips.size();
+                    }
+
                     // Update capacity counts if vehicle is used
                     if (acceptedTripsForVehicle > 0) {
                         scenarioCapacityCount.put(acceptedTripsForVehicle,
                                 scenarioCapacityCount.getOrDefault(acceptedTripsForVehicle, 0) + 1);
-                        scenarioVehicles.add(vehicleId);
+                        scenarioVehicles++;
                     }
                 }
 
@@ -643,7 +652,7 @@ public class MultiObjectiveNSGAII {
                 }
 
                 // Count vehicles used in this scenario
-                vehicleUsageCount.merge(scenarioVehicles.size(), 1.0, Double::sum);
+                vehicleUsageCount.merge(scenarioVehicles, 1.0, Double::sum);
             }
 
             // Calculate final metrics
@@ -672,12 +681,10 @@ public class MultiObjectiveNSGAII {
         }
 
         // Store vehicleLoadCount and travelTimeChangeMap in the solution pair
-        SolutionFitnessPair solutionPair = new SolutionFitnessPair(individual, fitness, vehicleLoadCount, travelTimeChangeMap);
-
-        return solutionPair;
+        return new SolutionFitnessPair(individual, fitness, vehicleLoadCount, travelTimeChangeMap);
     }
-    private double[] getFitnessPerVehicle(boolean isFinalSolutions, Map<Integer, List<TripItemForOptimization>> vehicleAssignments, Map<String, Double> travelTimeChangeMap,
-                                          SolutionIndicatorData indicatorData, UAMModeChoiceModel choiceModel) {
+    private double[] getFitnessForAllAssignment(boolean isFinalSolutions, Map<Integer, List<TripItemForOptimization>> vehicleAssignments, Map<String, Double> travelTimeChangeMap,
+                                                SolutionIndicatorData indicatorData, UAMModeChoiceModel choiceModel) {
         double totalFitness = 0.0;
         double totalFlightDistanceChange = 0.0;
         double totalTimeChange = 0.0;
@@ -696,9 +703,6 @@ public class MultiObjectiveNSGAII {
                 double[] fitnessValue = getFitnessForNonPooledOrBaseTrip(trip, originStationOfVehicle, destinationStationOfVehicle,
                         new double[]{totalFitness, totalFlightDistanceChange, totalTimeChange}, isFinalSolutions, travelTimeChangeMap,
                         indicatorData, null,0);
-                totalFitness += fitnessValue[0];
-                totalFlightDistanceChange += fitnessValue[1];
-                totalTimeChange += fitnessValue[2];
                 continue;
             }
 
@@ -719,9 +723,6 @@ public class MultiObjectiveNSGAII {
                     double[] fitnessValue = getFitnessForNonPooledOrBaseTrip(trip, originStationOfVehicle, destinationStationOfVehicle,
                             new double[]{totalFitness, totalFlightDistanceChange, totalTimeChange}, isFinalSolutions, travelTimeChangeMap,
                             indicatorData, choiceModel, trips.size()-1);
-                    totalFitness += fitnessValue[0];
-                    totalFlightDistanceChange += fitnessValue[1];
-                    totalTimeChange += fitnessValue[2];
                     continue;
                 }
 
