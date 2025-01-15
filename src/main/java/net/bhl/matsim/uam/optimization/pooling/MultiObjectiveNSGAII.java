@@ -703,6 +703,9 @@ public class MultiObjectiveNSGAII {
                 double[] fitnessValue = getFitnessForNonPooledOrBaseTrip(trip, originStationOfVehicle, destinationStationOfVehicle,
                         new double[]{totalFitness, totalFlightDistanceChange, totalTimeChange}, isFinalSolutions, travelTimeChangeMap,
                         indicatorData, null,0);
+                totalFitness = fitnessValue[0];
+                totalFlightDistanceChange = fitnessValue[1];
+                totalTimeChange = fitnessValue[2];
                 continue;
             }
 
@@ -723,6 +726,9 @@ public class MultiObjectiveNSGAII {
                     double[] fitnessValue = getFitnessForNonPooledOrBaseTrip(trip, originStationOfVehicle, destinationStationOfVehicle,
                             new double[]{totalFitness, totalFlightDistanceChange, totalTimeChange}, isFinalSolutions, travelTimeChangeMap,
                             indicatorData, choiceModel, trips.size()-1);
+                    totalFitness = fitnessValue[0];
+                    totalFlightDistanceChange = fitnessValue[1];
+                    totalTimeChange = fitnessValue[2];
                     continue;
                 }
 
@@ -885,6 +891,7 @@ public class MultiObjectiveNSGAII {
                 assignmentViolationPenalty /= scenarioChoices.size();
             }
             totalViolationPenalty += assignmentViolationPenalty;
+            totalFitness += assignmentViolationPenalty;
 
         }
         return new double[]{totalFitness, REVERT_SIGN*totalFlightDistanceChange, REVERT_SIGN*totalTimeChange, totalViolationPenalty};
