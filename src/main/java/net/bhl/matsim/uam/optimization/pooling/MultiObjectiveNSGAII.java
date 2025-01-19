@@ -305,7 +305,7 @@ public class MultiObjectiveNSGAII {
             tripList.add(trip);
 
             // Create a new vehicle ID for each trip since we're not pooling
-            int vehicleId = i + 1;  // Simple sequential vehicle IDs
+            int vehicleId = i;  // Simple sequential vehicle IDs
             individualAssignments.put(vehicleId, tripList);
         }
 
@@ -630,8 +630,9 @@ public class MultiObjectiveNSGAII {
 
                     // If no trips were accepted for pooling, count each trip individually
                     if (!anyTripAccepted) {
-                        acceptedTripsForVehicle = trips.size();  // Each trip requires its own vehicle
-                        scenarioVehicles+=trips.size();
+                        scenarioCapacityCount.put(1,
+                                scenarioCapacityCount.getOrDefault(1, 0) + 1);
+                        scenarioVehicles+=trips.size(); // Each trip requires its own vehicle
                     }
 
                     // Update capacity counts if vehicle is used
