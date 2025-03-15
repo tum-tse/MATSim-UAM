@@ -39,9 +39,9 @@ public class MultiObjectiveNSGAII {
     private boolean ENABLE_LOCAL_SEARCH = false; // Enable local search after each generation
     private boolean ENABLE_PRINT_RESULTS = true; // Enable printing results to the CSVs
 
-    private static final double ALPHA = -2.02 * 0.9101 / 1000; // Weight for changed flight distances
-    private static final double BETA = -64.0 / 3600; // Weight for change in travel time
-    //private static final double BETA_CRUCIAL_TIME_ChANGE = - 0.1; //TODO: need to reconsider the value
+    private final double ALPHA = -2.02 * 0.9101 / 1000; // Weight for changed flight distances
+    private final double BETA = -64.0 / 3600; // Weight for change in travel time
+    //private final double BETA_CRUCIAL_TIME_ChANGE = - 0.1; //TODO: need to reconsider the value
     private static final double PENALTY_FOR_VEHICLE_CAPACITY_VIOLATION = -10000;
     private static final double REVERT_SIGN = -1.0;
 
@@ -80,12 +80,12 @@ public class MultiObjectiveNSGAII {
     );
     private final int MAX_BEST_SOLUTIONS = 100;  // Adjust as needed
 
-    private static double nonPooledDeadheadingDistance;
-    private static int nonPooledFleetSize;
+    private double nonPooledDeadheadingDistance;
+    private int nonPooledFleetSize;
 
     // Parallel computing
-    private static final int numProcessors = Runtime.getRuntime().availableProcessors();
-    private static final int bufferDivider = 1;
+    private final int numProcessors = Runtime.getRuntime().availableProcessors();
+    private final int bufferDivider = 1;
 
     // io paths
     private static String outputFile = "src/main/java/net/bhl/matsim/uam/optimization/pooling/output/";
