@@ -23,6 +23,7 @@ public class VertiportCollector implements Runnable {
     private double PT_TRIP_COST;
     private HashMap<Integer,Vertiport> vertiportsCandidatesMap;
     private String accessEgressChoiceCriteria;
+    private boolean atLeastOneVertiport;
     public VertiportCollector(TripItemForOptimization trip, Network networkCar ,Network networkPt, List<Vertiport> vertiportsCandidates, ThreadCounter threadCounter, ArrayBlockingQueue<LeastCostPathCalculator> carRouters, ArrayBlockingQueue<TransitRouter> ptRouters,ScenarioSpecific scenarioSpecific) {
         this.vertiportsCandidates = vertiportsCandidates;
         this.trip = trip;
@@ -37,6 +38,7 @@ public class VertiportCollector implements Runnable {
         this.searchRadius = scenarioSpecific.search_radius;
         this.PT_TRIP_COST = scenarioSpecific.pt_cost;
         this.accessEgressChoiceCriteria = scenarioSpecific.accessEgressChoiceCriteria;
+        this.atLeastOneVertiport = scenarioSpecific.atLeastOneVertiport;
     }
 
     public VertiportCollector(TripItemForOptimization trip, Network networkCar , List<Vertiport> vertiportsCandidates) {
@@ -72,14 +74,32 @@ public class VertiportCollector implements Runnable {
     public void neighbourVertiportCandidateIdentifier(){
         // iterate all vertiports candidates in the vertiports list
         Iterator<Vertiport> vertiportsIterator = this.vertiportsCandidates.iterator();
+        HashMap<Vertiport,Double> originNeighbourCandidateVertiportsDistance = new HashMap<>();
+        HashMap<Vertiport,Double> destinationNeighbourCandidateVertiportsDistance = new HashMap<>();
         while (vertiportsIterator.hasNext()) {
             Vertiport currentVertiport=vertiportsIterator.next();
             Double accessEuclideanDistance=calculateEuciDistance(this.trip.origin,currentVertiport.coord);
             Double egressEuclideanDistance=calculateEuciDistance(this.trip.destination,currentVertiport.coord);
+            originNeighbourCandidateVertiportsDistance.put(currentVertiport,accessEuclideanDistance);
+            destinationNeighbourCandidateVertiportsDistance.put(currentVertiport,egressEuclideanDistance);
             if (accessEuclideanDistance<searchRadius){
                 this.trip.originNeighborVertiportCandidates.add(currentVertiport);}
             if (egressEuclideanDistance<searchRadius){
                 this.trip.destinationNeighborVertiportCandidates.add(currentVertiport);
+            }
+        }
+        if (this.atLeastOneVertiport) {
+            if (this.trip.originNeighborVertiportCandidates.isEmpty()) {
+                originNeighbourCandidateVertiportsDistance.entrySet()
+                        .stream()
+                        .min(Map.Entry.comparingByValue())
+                        .map(Map.Entry::getKey).ifPresent(minDistanceVertiport -> this.trip.originNeighborVertiportCandidates.add(minDistanceVertiport));
+            }
+            if (this.trip.destinationNeighborVertiportCandidates.isEmpty()) {
+                destinationNeighbourCandidateVertiportsDistance.entrySet()
+                        .stream()
+                        .min(Map.Entry.comparingByValue())
+                        .map(Map.Entry::getKey).ifPresent(minDistanceVertiport -> this.trip.destinationNeighborVertiportCandidates.add(minDistanceVertiport));
             }
         }
     }

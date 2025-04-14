@@ -53,7 +53,7 @@ public class ScenarioSpecific {
     public double wait_area_demand_factor;
     public int threshold_GRD_Unit_Selection;
     public String accessEgressChoiceCriteria; // possible values: time, distance, generalizedCost, cost
-
+    public boolean atLeastOneVertiport;
 
     public void buildScenario() {
         try {
@@ -108,6 +108,7 @@ public class ScenarioSpecific {
             this.wait_area_demand_factor = Double.parseDouble(getTagValue("wait_area_demand_factor", scenarioSpecific));
             this.threshold_GRD_Unit_Selection = Integer.parseInt(getTagValue("threshold_GRD_Unit_Selection", scenarioSpecific));
             this.accessEgressChoiceCriteria = getTagValue("access_egress_choice_criteria", scenarioSpecific);
+            this.atLeastOneVertiport = Boolean.parseBoolean(getTagValue("at_least_one_vertiport", scenarioSpecific));
         } catch (Exception e) {
             e.printStackTrace();
         }

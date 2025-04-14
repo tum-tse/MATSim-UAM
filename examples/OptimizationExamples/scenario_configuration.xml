@@ -18,6 +18,9 @@
 
        <!-- Search Radius in meter  -->
        <search_radius>5000</search_radius>
+
+       <!-- At least one nearest vertiports: if true, each trip will be assigned with at least one vertiport even if no vertiport within its searching radius.  -->
+       <at_least_one_vertiport>True</at_least_one_vertiport>
         
        <!-- Within what distance can two vertiports be considered neighboring? Unit: meter   -->
        <neighbouring_distance>5000</neighbouring_distance>
