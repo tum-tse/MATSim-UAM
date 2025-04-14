@@ -224,6 +224,7 @@ public class MultiObjectiveNSGAII {
                 .filter(trip -> trip.departureTime >= BUFFER_START_TIME && trip.departureTime < BUFFER_END_TIME) // Add the filter
                 .filter(trip -> calculateEuclideanDistance(findEuclideanNearestStation(trip, vertiportsMap, true).coord, trip.origin) <= SEARCH_RADIUS_ORIGIN)
                 .filter(trip -> calculateEuclideanDistance(findEuclideanNearestStation(trip, vertiportsMap, false).coord, trip.destination) <= SEARCH_RADIUS_DESTINATION)
+                .filter(trip -> !nonUamTripIdentifier(trip))
                 .collect(Collectors.toCollection(ArrayList::new));
         log.info("The number of UAM trips after filtering: " + subTrips.size());
 
@@ -1964,6 +1965,9 @@ public class MultiObjectiveNSGAII {
             log.warn("No nearest station found for trip: " + trip.tripID);
         }
         return nearestStation;
+    }
+    private boolean nonUamTripIdentifier(TripItemForOptimization trip) {
+        return (trip.originNeighborVertiportCandidates.get(0).equals(trip.destinationNeighborVertiportCandidates.get(0)));
     }
     private static Vertiport findEuclideanNearestStation(TripItemForOptimization trip, HashMap<Integer, Vertiport> vertiportsMap, boolean accessLeg) {
         Vertiport nearestStation = null;
