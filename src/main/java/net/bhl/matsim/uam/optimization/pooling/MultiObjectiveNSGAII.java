@@ -1117,7 +1117,7 @@ public class MultiObjectiveNSGAII {
 
     private static boolean dominated(SolutionFitnessPair p, SolutionFitnessPair q) {
         boolean betterInAnyObjective = false;
-        for (int i = 0; i < p.getFitness().length; i++) {
+        for (int i = 1; i < p.getFitness().length; i++) {
             if (p.getFitness()[i] < q.getFitness()[i]) {
                 betterInAnyObjective = true;
             } else if (p.getFitness()[i] > q.getFitness()[i]) {
@@ -1129,20 +1129,34 @@ public class MultiObjectiveNSGAII {
 
     private static void calculateCrowdingDistance(List<SolutionFitnessPair> front) {
         int n = front.size();
-        if (n == 0) return;
+        if (n <= 1) return; // Nothing to calculate for 0 or 1 solution
 
         for (SolutionFitnessPair p : front) {
             p.crowdingDistance = 0;
         }
 
+        // For 2 solutions, just assign both infinite distance
+        if (n == 2) {
+            front.get(0).crowdingDistance = Double.POSITIVE_INFINITY;
+            front.get(1).crowdingDistance = Double.POSITIVE_INFINITY;
+            return;
+        }
+
         int m = front.get(0).getFitness().length;
-        for (int i = 0; i < m; i++) {
+        for (int i = 1; i < m; i++) {
             final int objIndex = i;
             front.sort(Comparator.comparingDouble(p -> p.getFitness()[objIndex]));
             front.get(0).crowdingDistance = Double.POSITIVE_INFINITY;
             front.get(n - 1).crowdingDistance = Double.POSITIVE_INFINITY;
             double minValue = front.get(0).getFitness()[objIndex];
             double maxValue = front.get(n - 1).getFitness()[objIndex];
+
+            // Check if all solutions have the same value for this objective
+            if (Math.abs(maxValue - minValue) < 1e-10) {
+                // Skip this objective or assign a small constant
+                continue;
+            }
+
             for (int j = 1; j < n - 1; j++) {
                 front.get(j).crowdingDistance += (front.get(j + 1).getFitness()[objIndex] - front.get(j - 1).getFitness()[objIndex]) / (maxValue - minValue);
             }
