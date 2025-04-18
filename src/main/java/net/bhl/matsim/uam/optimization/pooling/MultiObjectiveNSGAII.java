@@ -896,7 +896,7 @@ public class MultiObjectiveNSGAII {
             totalFitness += assignmentViolationPenalty;
 
         }
-        return new double[]{totalFitness, REVERT_SIGN*totalFlightDistanceChange, REVERT_SIGN*totalTimeChange, totalViolationPenalty};
+        return new double[]{totalFitness, REVERT_SIGN*totalFlightDistanceChange, REVERT_SIGN*totalTimeChange, REVERT_SIGN*totalViolationPenalty};
     }
     private double[] getFitnessForNonPooledOrBaseTrip(TripItemForOptimization trip, Vertiport originStationOfVehicle, Vertiport destinationStationOfVehicle, double[] fitnessValues,
                                                     boolean isFinalSolutions, Map<String, Double> travelTimeChangeMap, SolutionIndicatorData indicatorData, UAMModeChoiceModel choiceModel,
@@ -1869,7 +1869,7 @@ public class MultiObjectiveNSGAII {
             // Write data for each solution
             for (SolutionIndicatorData data : indicatorDataList) {
                 writer.append(String.format("%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%d,%f,%d\n",
-                        data.getFitness()[0], REVERT_SIGN * data.getFitness()[1], REVERT_SIGN * data.getFitness()[2], data.getFitness()[3],
+                        data.getFitness()[0], REVERT_SIGN * data.getFitness()[1], REVERT_SIGN * data.getFitness()[2], REVERT_SIGN * data.getFitness()[3],
                         data.getPoolingRate(),
                         data.getVehicleCapacityRates().getOrDefault(0, 0.0),
                         data.getVehicleCapacityRates().getOrDefault(1, 0.0),
