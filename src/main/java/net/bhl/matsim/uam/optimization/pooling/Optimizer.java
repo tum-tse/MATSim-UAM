@@ -7,6 +7,6 @@ public class Optimizer {
 
         // 2. Run the optimization
         GridSearch.main(args);
-        //BayesianOptimization.main(args);
+        BayesianOptimization.main(args);
     }
 }
