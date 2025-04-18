@@ -1247,28 +1247,50 @@ public class MultiObjectiveNSGAII {
         Map<Integer, Integer> vehicleLoadCount = solutionPair.getVehicleLoadCount();
         Map<String, Double> travelTimeChangeMap = solutionPair.getTravelTimeChangeMap();
 
-        List<Integer> targetTrips = new ArrayList<>();
+        // Identify overloaded vehicles and prioritize them
+        Set<Integer> overloadedVehicles = new HashSet<>();
+        for (Map.Entry<Integer, Integer> entry : vehicleLoadCount.entrySet()) {
+            if (entry.getValue() > VEHICLE_CAPACITY) {
+                overloadedVehicles.add(entry.getKey());
+            }
+        }
+
+        // Prioritize ruining trips from overloaded vehicles
+        List<Integer> priorityTrips = new ArrayList<>();
+        List<Integer> secondaryTrips = new ArrayList<>();
 
         for (int i = 0; i < ruinedSolution.length; i++) {
             int vehicleId = ruinedSolution[i];
 
-            boolean isOverCapacity = /*vehicleLoadCount.containsKey(vehicleId) &&*/ vehicleLoadCount.get(vehicleId) > VEHICLE_CAPACITY;
-            boolean isSignificantTimeChange = /*vehicleLoadCount.containsKey(vehicleId) &&*/ vehicleLoadCount.get(vehicleId) > 1 &&
-                    /*travelTimeChangeMap.containsKey(subTrips.get(i).tripID) &&*/
-                    travelTimeChangeMap.get(subTrips.get(i).tripID) > SHARED_RIDE_TRAVEL_TIME_CHANGE_THRESHOLD;
-
-            if (isOverCapacity || isSignificantTimeChange) {
-                targetTrips.add(i);
+            if (overloadedVehicles.contains(vehicleId)) {
+                priorityTrips.add(i);
+            } else if (vehicleLoadCount.get(vehicleId) > 1 &&
+                    travelTimeChangeMap.get(subTrips.get(i).tripID) > SHARED_RIDE_TRAVEL_TIME_CHANGE_THRESHOLD) {
+                secondaryTrips.add(i);
             }
         }
 
-        // Randomly select trips to ruin from the targeted trips
-        int numTripsToRuin = Math.min(targetTrips.size(), determineRuinDegree(currentGeneration, maxGenerations));  // Adjust as needed
-        Collections.shuffle(targetTrips);
+        // Determine how many trips to ruin
+        int numTripsToRuin = determineRuinDegree(currentGeneration, maxGenerations);
 
-        for (int i = 0; i < numTripsToRuin; i++) {
-            int tripIndex = targetTrips.get(i);
+        // Ruin all priority trips if possible
+        Collections.shuffle(priorityTrips, rand);
+        int priorityTripsToRuin = Math.min(numTripsToRuin, priorityTrips.size());
+
+        for (int i = 0; i < priorityTripsToRuin; i++) {
+            int tripIndex = priorityTrips.get(i);
             ruinedSolution[tripIndex] = VALUE_FOR_NO_VEHICLE_AVAILABLE; // Mark the trip as unassigned
+        }
+
+        // If we still have capacity for more ruins, use secondary trips
+        if (priorityTripsToRuin < numTripsToRuin) {
+            Collections.shuffle(secondaryTrips, rand);
+            int secondaryTripsToRuin = Math.min(numTripsToRuin - priorityTripsToRuin, secondaryTrips.size());
+
+            for (int i = 0; i < secondaryTripsToRuin; i++) {
+                int tripIndex = secondaryTrips.get(i);
+                ruinedSolution[tripIndex] = VALUE_FOR_NO_VEHICLE_AVAILABLE;
+            }
         }
 
         return ruinedSolution;
