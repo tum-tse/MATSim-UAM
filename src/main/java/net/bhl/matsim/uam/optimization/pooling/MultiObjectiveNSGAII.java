@@ -55,6 +55,10 @@ public class MultiObjectiveNSGAII {
     public static final double VEHICLE_CRUISE_SPEED = 350000.0 / 3600.0; // Vehicle cruise speed in m/s
     public static final int VEHICLE_CAPACITY = 4; // Vehicle capacity
 
+    // Add constants for vertical flight calculations and access/egress costs
+    public static final double EVTOL_ALTITUDE = 600.0; // VTOL altitude in meters
+    public static final double PRIVATE_CAR_COST_PER_KM = 0.91; // Cost per km for private car (gasoline)
+
     // Variables for the UAM problem ===================================================================================
     private double BUFFER_START_TIME = 3600*7; // Buffer start time for the first trip
     private double BUFFER_END_TIME = 3600*7+600; // Buffer end time for the last trip
@@ -596,10 +600,19 @@ public class MultiObjectiveNSGAII {
 
             // For each Monte Carlo scenario
             int numScenarios = NUM_SIMULATIONS;
+
+            // Maps to store horizontal and vertical distances per scenario
+            Map<Integer, Double> horizontalDistancesByScenario = new HashMap<>();
+            Map<Integer, Double> verticalDistancesByScenario = new HashMap<>();
+
             for (int scenario = 0; scenario < numScenarios; scenario++) {
                 int scenarioPooledTrips = 0;
                 Map<Integer, Integer> scenarioCapacityCount = new HashMap<>();
                 int scenarioVehicles = 0;
+
+                // Initialize distances for this scenario
+                horizontalDistancesByScenario.put(scenario, 0.0);
+                verticalDistancesByScenario.put(scenario, 0.0);
 
                 // Process each vehicle's assignments
                 for (Map.Entry<Integer, List<TripItemForOptimization>> entry : vehicleAssignments.entrySet()) {
@@ -634,13 +647,22 @@ public class MultiObjectiveNSGAII {
                         scenarioCapacityCount.put(1,
                                 scenarioCapacityCount.getOrDefault(1, 0) + 1);
                         scenarioVehicles+=trips.size(); // Each trip requires its own vehicle
-                    }
-
-                    // Update capacity counts if vehicle is used
-                    if (acceptedTripsForVehicle > 0) {
+                    } else if (acceptedTripsForVehicle > 0) {// If any trips are accepted, calculate vehicle occupancy and distances for this scenario
                         scenarioCapacityCount.put(acceptedTripsForVehicle,
                                 scenarioCapacityCount.getOrDefault(acceptedTripsForVehicle, 0) + 1);
                         scenarioVehicles++;
+
+                        // Get the vehicle's origin and destination stations
+                        Vertiport originStationOfVehicle = vehicleOriginStationMap.get(Id.create(vehicleId, DvrpVehicle.class));
+                        Vertiport destinationStationOfVehicle = vehicleDestinationStationMap.get(Id.create(vehicleId, DvrpVehicle.class));
+
+                        // Calculate vertical and horizontal components
+                        double horizontalDistance = calculateFlightDistance(originStationOfVehicle, destinationStationOfVehicle);
+                        double verticalDistance = 2 * EVTOL_ALTITUDE;
+
+                        // Update the distance maps for this scenario
+                        horizontalDistancesByScenario.put(scenario, horizontalDistancesByScenario.get(scenario) + horizontalDistance);
+                        verticalDistancesByScenario.put(scenario, verticalDistancesByScenario.get(scenario) + verticalDistance);
                     }
                 }
 
@@ -680,6 +702,17 @@ public class MultiObjectiveNSGAII {
                     .mapToDouble(e -> e.getKey() * (e.getValue() / numScenarios))
                     .sum();
             indicatorData.setNumberOfUAMVehiclesUsed((int)Math.round(averageVehiclesUsed));
+
+            // Calculate average horizontal and vertical flight distances across scenarios
+            double totalHorizontalDistance = horizontalDistancesByScenario.values().stream().mapToDouble(Double::doubleValue).sum();
+            double totalVerticalDistance = verticalDistancesByScenario.values().stream().mapToDouble(Double::doubleValue).sum();
+
+            // Average across number of scenarios
+            double averageHorizontalDistance = totalHorizontalDistance / numScenarios;
+            double averageVerticalDistance = totalVerticalDistance / numScenarios;
+
+            indicatorData.setHorizontalFlightDistance(averageHorizontalDistance);
+            indicatorData.setVerticalFlightDistance(averageVerticalDistance);
         }
 
         // Store vehicleLoadCount and travelTimeChangeMap in the solution pair
@@ -691,6 +724,12 @@ public class MultiObjectiveNSGAII {
         double totalFlightDistanceChange = 0.0;
         double totalTimeChange = 0.0;
         double totalViolationPenalty = 0.0;
+
+        // Initialize ticket revenue, travel cost for final solutions
+        if (isFinalSolutions) {
+            indicatorData.setUamTicketRevenue(0.0);
+            indicatorData.setTravelMonetaryCost(0.0);
+        }
 
         // Calculate fitness per vehicle
         for (Map.Entry<Integer, List<TripItemForOptimization>> entry : vehicleAssignments.entrySet()) {
@@ -784,6 +823,27 @@ public class MultiObjectiveNSGAII {
                     double sharedCost = SharedUAMCostCalculator.calculateSharedUAMCost(nonSharedCost, coPassengers, accessTimeOfPooledTrip);
                     acceptanceProbability = choiceModel.calculateAcceptanceProbability(trip.tripID, sharedCost, sharedInVehicleTime, accessTimeOfPooledTrip, sharedWaitingTime, coPassengers,
                             nonSharedCost, nonSharedInVehicleTime, originalAccessTimeForThePooledTrip);
+
+                    // Calculate UAM ticket revenue and travel monetary cost for final solutions
+                    if (isFinalSolutions) {
+                        // Calculate UAM ticket revenue
+                        double ticketRevenue = acceptanceProbability * sharedCost + (1-acceptanceProbability) * nonSharedCost;
+                        indicatorData.addUamTicketRevenue(ticketRevenue);
+
+                        // Calculate travel monetary cost (UAM ticket + access/egress cost)
+                        double accessDistance = trip.originNeighborVertiportCandidatesTimeAndDistance.get(originStationOfVehicle).get("distance");
+                        double egressDistance = trip.destinationNeighborVertiportCandidatesTimeAndDistance.get(destinationStationOfVehicle).get("distance");
+                        double accessPoolingDistance = trip.originNeighborVertiportCandidatesTimeAndDistance.get(trip.accessVertiport).get("distance");
+                        double egressPoolingDistance = trip.destinationNeighborVertiportCandidatesTimeAndDistance.get(trip.egressVertiport).get("distance");
+
+                        double accessCost = (accessDistance / 1000.0) * PRIVATE_CAR_COST_PER_KM; // Convert meters to kilometers
+                        double egressCost = (egressDistance / 1000.0) * PRIVATE_CAR_COST_PER_KM; // Convert meters to kilometers
+                        double accessPoolingCost = (accessPoolingDistance / 1000.0) * PRIVATE_CAR_COST_PER_KM; // Convert meters to kilometers
+                        double egressPoolingCost = (egressPoolingDistance / 1000.0) * PRIVATE_CAR_COST_PER_KM; // Convert meters to kilometers
+
+                        double totalTravelCost = acceptanceProbability * (sharedCost + accessCost + egressCost) + (1-acceptanceProbability) * (nonSharedCost + accessPoolingCost + egressPoolingCost);
+                        indicatorData.addTravelMonetaryCost(totalTravelCost);
+                    }
                 }
                 totalFitness += acceptanceProbability * tripTotalFitness;
                 totalFlightDistanceChange += acceptanceProbability * tripFlightDistanceChange;
@@ -947,6 +1007,27 @@ public class MultiObjectiveNSGAII {
                 double sharedCost = SharedUAMCostCalculator.calculateSharedUAMCost(nonSharedCost, coPassengers, accessTimeOfPooledTrip);
                 acceptanceProbability = choiceModel.calculateAcceptanceProbability(trip.tripID, sharedCost, sharedInVehicleTime, accessTimeOfPooledTrip, sharedWaitingTime, coPassengers,
                         nonSharedCost, nonSharedInVehicleTime, originalAccessTimeForThePooledTrip);
+
+                // Calculate UAM ticket revenue and travel monetary cost for final solutions
+                if (isFinalSolutions) {
+                    // Calculate UAM ticket revenue
+                    double ticketRevenue = acceptanceProbability * sharedCost + (1-acceptanceProbability) * nonSharedCost;
+                    indicatorData.addUamTicketRevenue(ticketRevenue);
+
+                    // Calculate travel monetary cost (UAM ticket + access/egress cost)
+                    double accessDistance = trip.originNeighborVertiportCandidatesTimeAndDistance.get(originStationOfVehicle).get("distance");
+                    double egressDistance = trip.destinationNeighborVertiportCandidatesTimeAndDistance.get(destinationStationOfVehicle).get("distance");
+                    double accessPoolingDistance = trip.originNeighborVertiportCandidatesTimeAndDistance.get(trip.accessVertiport).get("distance");
+                    double egressPoolingDistance = trip.destinationNeighborVertiportCandidatesTimeAndDistance.get(trip.egressVertiport).get("distance");
+
+                    double accessCost = (accessDistance / 1000.0) * PRIVATE_CAR_COST_PER_KM; // Convert meters to kilometers
+                    double egressCost = (egressDistance / 1000.0) * PRIVATE_CAR_COST_PER_KM; // Convert meters to kilometers
+                    double accessPoolingCost = (accessPoolingDistance / 1000.0) * PRIVATE_CAR_COST_PER_KM; // Convert meters to kilometers
+                    double egressPoolingCost = (egressPoolingDistance / 1000.0) * PRIVATE_CAR_COST_PER_KM; // Convert meters to kilometers
+
+                    double totalTravelCost = acceptanceProbability * (sharedCost + accessCost + egressCost) + (1-acceptanceProbability) * (nonSharedCost + accessPoolingCost + egressPoolingCost);
+                    indicatorData.addTravelMonetaryCost(totalTravelCost);
+                }
             }
         }
         fitnessValues[0] += acceptanceProbability * tripTotalFitness;
@@ -1602,6 +1683,13 @@ public class MultiObjectiveNSGAII {
         // Print deadheading and fleet size changes
         log.info("Deadheading flight distance change: " + (indicatorData.getDeadHeadingFlightDistance() - getNonPooledDeadheadingDistance()));
         log.info("Fleet size change: " + (indicatorData.getFleetSize() - getNonPooledFleetSize()));
+
+        // Print new indicators
+        log.info("UAM ticket revenue: " + indicatorData.getUamTicketRevenue());
+        log.info("Horizontal flight distance: " + indicatorData.getHorizontalFlightDistance());
+        log.info("Vertical flight distance: " + indicatorData.getVerticalFlightDistance());
+        log.info("Travel monetary cost: " + indicatorData.getTravelMonetaryCost());
+        log.info("VTOL operations: " + indicatorData.getVtolOperations());
     }
     // Method to print statistics to a CSV file
     private void printStatisticsToCsv(int[] solution, SolutionIndicatorData indicatorData, String fileName) {
@@ -1675,8 +1763,19 @@ public class MultiObjectiveNSGAII {
         private int fleetSize;
         private Map<Integer, List<TripItemForOptimization>> vehicleAssignments;
 
+        private double uamTicketRevenue;
+        private double horizontalFlightDistance;
+        private double verticalFlightDistance;
+        private double travelMonetaryCost;
+        private int vtolOperations;
+
         public SolutionIndicatorData(int[] solution) {
             this.solution = solution;
+            this.uamTicketRevenue = 0.0;
+            this.horizontalFlightDistance = 0.0;
+            this.verticalFlightDistance = 0.0;
+            this.travelMonetaryCost = 0.0;
+            this.vtolOperations = 0;
         }
 
         // Getters and setters for all fields
@@ -1776,6 +1875,26 @@ public class MultiObjectiveNSGAII {
         public Map<Integer, List<TripItemForOptimization>> getVehicleAssignments() {
             return this.vehicleAssignments;
         }
+
+        public double getUamTicketRevenue() { return uamTicketRevenue; }
+        public void setUamTicketRevenue(double uamTicketRevenue) { this.uamTicketRevenue = uamTicketRevenue; }
+        public void addUamTicketRevenue(double additionalRevenue) { this.uamTicketRevenue += additionalRevenue; }
+
+        public double getHorizontalFlightDistance() { return horizontalFlightDistance; }
+        public void setHorizontalFlightDistance(double horizontalFlightDistance) { this.horizontalFlightDistance = horizontalFlightDistance; }
+        public void addHorizontalFlightDistance(double additionalDistance) { this.horizontalFlightDistance += additionalDistance; }
+
+        public double getVerticalFlightDistance() { return verticalFlightDistance; }
+        public void setVerticalFlightDistance(double verticalFlightDistance) { this.verticalFlightDistance = verticalFlightDistance; }
+        public void addVerticalFlightDistance(double additionalDistance) { this.verticalFlightDistance += additionalDistance; }
+
+        public double getTravelMonetaryCost() { return travelMonetaryCost; }
+        public void setTravelMonetaryCost(double travelMonetaryCost) { this.travelMonetaryCost = travelMonetaryCost; }
+        public void addTravelMonetaryCost(double additionalCost) { this.travelMonetaryCost += additionalCost; }
+
+        public int getVtolOperations() { return vtolOperations; }
+        public void setVtolOperations(int vtolOperations) { this.vtolOperations = vtolOperations; }
+        public void addVtolOperations(int additionalOperations) { this.vtolOperations += additionalOperations; }
     }
     private SolutionFitnessPair calculatePopulationIndicators(List<SolutionFitnessPair> population) {
         List<SolutionIndicatorData> indicatorDataList = new ArrayList<>();
@@ -1850,6 +1969,10 @@ public class MultiObjectiveNSGAII {
         double deadheadingDistance = result.getTotalDeadheadingFlightDistance();
         indicatorData.setDeadheadingFlightDistance(deadheadingDistance);
         indicatorData.setFleetSize(result.getFleetSize());
+
+        // Calculate VTOL operations
+        int totalVtolOperations = result.getVtolOperations();
+        indicatorData.setVtolOperations(totalVtolOperations);
     }
     private double calculateAverage(List<Double> values) {
         return values.isEmpty() ? Double.NaN : values.stream().mapToDouble(Double::doubleValue).average().orElse(Double.NaN);
@@ -1864,11 +1987,11 @@ public class MultiObjectiveNSGAII {
     private void writeIndicatorsToCsv(List<SolutionIndicatorData> indicatorDataList, String fileName) {
         try (FileWriter writer = new FileWriter(fileName)) {
             // Write header
-            writer.append("TotalFitness,TotalFlightDistanceChange,TotalTravelTimeChange,TotalCapacityViolationPenalty,PoolingRate,Capacity0Rate,Capacity1Rate,Capacity2Rate,Capacity3Rate,Capacity4Rate,SharedRidesExceedingThresholdRate,TotalSharedRidesExceedingThresholdRate,AvgTravelTimeChange,5thPercentileTravelTimeChange,95thPercentileTravelTimeChange,AvgFlightDistanceChange,5thPercentileFlightDistanceChange,95thPercentileFlightDistanceChange,AvgDepartureRedirectionRate,5thPercentileDepartureRedirectionRate,95thPercentileDepartureRedirectionRate,AvgArrivalRedirectionRate,5thPercentileArrivalRedirectionRate,95thPercentileArrivalRedirectionRate,AvgTotalTravelTime,5thPercentileTotalTravelTime,95thPercentileTotalTravelTime,TotalVehicleMeter,NumberOfVehiclesUsed,DeadheadingFlightDistanceChange,FleetSizeChange\n");
+            writer.append("TotalFitness,TotalFlightDistanceChange,TotalTravelTimeChange,TotalCapacityViolationPenalty,PoolingRate,Capacity0Rate,Capacity1Rate,Capacity2Rate,Capacity3Rate,Capacity4Rate,SharedRidesExceedingThresholdRate,TotalSharedRidesExceedingThresholdRate,AvgTravelTimeChange,5thPercentileTravelTimeChange,95thPercentileTravelTimeChange,AvgFlightDistanceChange,5thPercentileFlightDistanceChange,95thPercentileFlightDistanceChange,AvgDepartureRedirectionRate,5thPercentileDepartureRedirectionRate,95thPercentileDepartureRedirectionRate,AvgArrivalRedirectionRate,5thPercentileArrivalRedirectionRate,95thPercentileArrivalRedirectionRate,AvgTotalTravelTime,5thPercentileTotalTravelTime,95thPercentileTotalTravelTime,TotalVehicleMeter,NumberOfVehiclesUsed,DeadheadingFlightDistanceChange,FleetSizeChange,UamTicketRevenue,HorizontalFlightDistance,VerticalFlightDistance,TravelMonetaryCost,VtolOperations\n");
 
             // Write data for each solution
             for (SolutionIndicatorData data : indicatorDataList) {
-                writer.append(String.format("%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%d,%f,%d\n",
+                writer.append(String.format("%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%d,%f,%d,%f,%f,%f,%f,%d\n",
                         data.getFitness()[0], REVERT_SIGN * data.getFitness()[1], REVERT_SIGN * data.getFitness()[2], REVERT_SIGN * data.getFitness()[3],
                         data.getPoolingRate(),
                         data.getVehicleCapacityRates().getOrDefault(0, 0.0),
@@ -1896,7 +2019,12 @@ public class MultiObjectiveNSGAII {
                         data.getUamVehicleMeter(),
                         data.getNumberOfUAMVehiclesUsed(), // This is actually the number of UAM vehicle-operations
                         data.getDeadHeadingFlightDistance()-getNonPooledDeadheadingDistance(),
-                        data.getFleetSize() - getNonPooledFleetSize()
+                        data.getFleetSize() - getNonPooledFleetSize(),
+                        data.getUamTicketRevenue(),
+                        data.getHorizontalFlightDistance(),
+                        data.getVerticalFlightDistance(),
+                        data.getTravelMonetaryCost(),
+                        data.getVtolOperations()
                 ));
             }
         } catch (IOException e) {

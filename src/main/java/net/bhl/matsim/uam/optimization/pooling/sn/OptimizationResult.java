@@ -7,15 +7,18 @@ public class OptimizationResult {
     //private final double totalFlightDistance;
     private final double totalDeadheadingFlightDistance;
     private final int fleetSize;
+    private final int vtolOperations; // New field for VTOL operations
 
     public OptimizationResult(List<List<VehicleTrip>> vehicleRoutes,
                               //double totalFlightDistance,
                               double totalDeadheadingFlightDistance,
-                              int fleetSize) {
+                              int fleetSize,
+                              int vtolOperations) {
         this.vehicleRoutes = vehicleRoutes;
         //this.totalFlightDistance = totalFlightDistance;
         this.totalDeadheadingFlightDistance = totalDeadheadingFlightDistance;
         this.fleetSize = fleetSize;
+        this.vtolOperations = vtolOperations;
     }
 
     // Getters
@@ -23,12 +26,14 @@ public class OptimizationResult {
         return totalDeadheadingFlightDistance;
     }
     public int getFleetSize() { return fleetSize; }
+    public int getVtolOperations() { return vtolOperations; }
 
     public void printSummary() {
         System.out.println("Optimization Results:");
         System.out.println("Fleet Size: " + fleetSize);
         //System.out.println("Total Flight Distance: " + totalFlightDistance);
         System.out.println("Total Deadheading Flight Distance: " + totalDeadheadingFlightDistance);
+        System.out.println("Total VTOL Operations: " + vtolOperations);
         System.out.println("\nVehicle Routes:");
 
         for (int i = 0; i < vehicleRoutes.size(); i++) {

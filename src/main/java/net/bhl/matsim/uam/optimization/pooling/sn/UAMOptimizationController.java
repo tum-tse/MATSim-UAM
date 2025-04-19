@@ -67,10 +67,34 @@ public class UAMOptimizationController {
         double totalDeadheadingFlightDistance = network.calculateTotalDeadheadingFlightDistance(vehicleRoutes);
         int fleetSize = vehicleRoutes.size();
 
+        // Calculate VTOL operations
+        int vtolOperations = calculateVtolOperations(vehicleRoutes);
+
         return new OptimizationResult(vehicleRoutes,
                 //totalFlightDistance,
                 totalDeadheadingFlightDistance,
-                fleetSize);
+                fleetSize,
+                vtolOperations);
+    }
+
+    // Method to calculate total VTOL operations
+    private int calculateVtolOperations(List<List<VehicleTrip>> vehicleRoutes) {
+        int totalOperations = 0;
+
+        // Each route represents one vehicle
+        for (List<VehicleTrip> route : vehicleRoutes) {
+            if (!route.isEmpty()) {
+                // Each route has at least one takeoff and one landing
+                int operationsForRoute = 2;  // Initial takeoff and final landing
+
+                // Add intermediate takeoff+landing for each connection between consecutive trips
+                operationsForRoute += (route.size() - 1) * 2;
+
+                totalOperations += operationsForRoute;
+            }
+        }
+
+        return totalOperations;
     }
 
     private List<VehicleTrip> createTripPools(List<VehicleTrip> trips) {
