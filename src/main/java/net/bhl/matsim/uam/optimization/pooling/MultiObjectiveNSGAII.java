@@ -258,7 +258,9 @@ public class MultiObjectiveNSGAII {
             }
         }
         // Fix or improve the final population as best solutions
-        population = localSearch(population, 0);
+        if(ENABLE_LOCAL_SEARCH){
+            population = localSearch(population, 0);
+        }
         // Find the best feasible solution at the end of GA execution without altering the original solutions heap //TODO: Find the best feasible solution from all generations
         SolutionFitnessPair bestSolutionFitnessPair = calculatePopulationIndicators(population);
         int[] bestFeasibleSolution = bestSolutionFitnessPair.getSolution();
