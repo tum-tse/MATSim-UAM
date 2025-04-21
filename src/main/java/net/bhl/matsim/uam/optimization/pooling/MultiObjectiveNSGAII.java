@@ -329,7 +329,7 @@ public class MultiObjectiveNSGAII {
 
         OptimizationResult result = optimizer.optimize();
         nonPooledFleetSize = result.getFleetSize();
-        nonPooledDeadheadingDistance = result.getTotalDeadheadingFlightDistance();
+        //nonPooledDeadheadingDistance = result.getTotalDeadheadingFlightDistance();
     }
     public double getNonPooledDeadheadingDistance() {
         return nonPooledDeadheadingDistance;
@@ -1683,7 +1683,7 @@ public class MultiObjectiveNSGAII {
         log.info("Number of UAM vehicles used: " + indicatorData.getNumberOfUAMVehiclesUsed());
 
         // Print deadheading and fleet size changes
-        log.info("Deadheading flight distance change: " + (indicatorData.getDeadHeadingFlightDistance() - getNonPooledDeadheadingDistance()));
+        //log.info("Deadheading flight distance change: " + (indicatorData.getDeadHeadingFlightDistance() - getNonPooledDeadheadingDistance()));
         log.info("Fleet size change: " + (indicatorData.getFleetSize() - getNonPooledFleetSize()));
 
         // Print new indicators
@@ -1968,8 +1968,8 @@ public class MultiObjectiveNSGAII {
                 vehicleDestinationStationMap
         );
         OptimizationResult result = optimizer.optimize();
-        double deadheadingDistance = result.getTotalDeadheadingFlightDistance();
-        indicatorData.setDeadheadingFlightDistance(deadheadingDistance);
+        //double deadheadingDistance = result.getTotalDeadheadingFlightDistance();
+        //indicatorData.setDeadheadingFlightDistance(deadheadingDistance);
         indicatorData.setFleetSize(result.getFleetSize());
 
         // Calculate VTOL operations
@@ -1989,7 +1989,9 @@ public class MultiObjectiveNSGAII {
     private void writeIndicatorsToCsv(List<SolutionIndicatorData> indicatorDataList, String fileName) {
         try (FileWriter writer = new FileWriter(fileName)) {
             // Write header
-            writer.append("TotalFitness,TotalFlightDistanceChange,TotalTravelTimeChange,TotalCapacityViolationPenalty,PoolingRate,Capacity0Rate,Capacity1Rate,Capacity2Rate,Capacity3Rate,Capacity4Rate,SharedRidesExceedingThresholdRate,TotalSharedRidesExceedingThresholdRate,AvgTravelTimeChange,5thPercentileTravelTimeChange,95thPercentileTravelTimeChange,AvgFlightDistanceChange,5thPercentileFlightDistanceChange,95thPercentileFlightDistanceChange,AvgDepartureRedirectionRate,5thPercentileDepartureRedirectionRate,95thPercentileDepartureRedirectionRate,AvgArrivalRedirectionRate,5thPercentileArrivalRedirectionRate,95thPercentileArrivalRedirectionRate,AvgTotalTravelTime,5thPercentileTotalTravelTime,95thPercentileTotalTravelTime,TotalVehicleMeter,NumberOfVehiclesUsed,DeadheadingFlightDistanceChange,FleetSizeChange,UamTicketRevenue,HorizontalFlightDistance,VerticalFlightDistance,TravelMonetaryCost,VtolOperations\n");
+            writer.append("TotalFitness,TotalFlightDistanceChange,TotalTravelTimeChange,TotalCapacityViolationPenalty,PoolingRate,Capacity0Rate,Capacity1Rate,Capacity2Rate,Capacity3Rate,Capacity4Rate,SharedRidesExceedingThresholdRate,TotalSharedRidesExceedingThresholdRate,AvgTravelTimeChange,5thPercentileTravelTimeChange,95thPercentileTravelTimeChange,AvgFlightDistanceChange,5thPercentileFlightDistanceChange,95thPercentileFlightDistanceChange,AvgDepartureRedirectionRate,5thPercentileDepartureRedirectionRate,95thPercentileDepartureRedirectionRate,AvgArrivalRedirectionRate,5thPercentileArrivalRedirectionRate,95thPercentileArrivalRedirectionRate,AvgTotalTravelTime,5thPercentileTotalTravelTime,95thPercentileTotalTravelTime,TotalVehicleMeter,NumberOfVehiclesUsed," +
+                    //"DeadheadingFlightDistanceChange," +
+                    "FleetSizeChange,UamTicketRevenue,HorizontalFlightDistance,VerticalFlightDistance,TravelMonetaryCost,VtolOperations\n");
 
             // Write data for each solution
             for (SolutionIndicatorData data : indicatorDataList) {
@@ -2020,7 +2022,7 @@ public class MultiObjectiveNSGAII {
                         data.getPercentile95thTotalTravelTime(),
                         data.getUamVehicleMeter(),
                         data.getNumberOfUAMVehiclesUsed(), // This is actually the number of UAM vehicle-operations
-                        data.getDeadHeadingFlightDistance()-getNonPooledDeadheadingDistance(),
+                        //data.getDeadHeadingFlightDistance()-getNonPooledDeadheadingDistance(),
                         data.getFleetSize() - getNonPooledFleetSize(),
                         data.getUamTicketRevenue(),
                         data.getHorizontalFlightDistance(),

@@ -5,26 +5,26 @@ import java.util.List;
 public class OptimizationResult {
     private final List<List<VehicleTrip>> vehicleRoutes;
     //private final double totalFlightDistance;
-    private final double totalDeadheadingFlightDistance;
+    //private final double totalDeadheadingFlightDistance;
     private final int fleetSize;
     private final int vtolOperations; // New field for VTOL operations
 
     public OptimizationResult(List<List<VehicleTrip>> vehicleRoutes,
                               //double totalFlightDistance,
-                              double totalDeadheadingFlightDistance,
+                              //double totalDeadheadingFlightDistance,
                               int fleetSize,
                               int vtolOperations) {
         this.vehicleRoutes = vehicleRoutes;
         //this.totalFlightDistance = totalFlightDistance;
-        this.totalDeadheadingFlightDistance = totalDeadheadingFlightDistance;
+        //this.totalDeadheadingFlightDistance = totalDeadheadingFlightDistance;
         this.fleetSize = fleetSize;
         this.vtolOperations = vtolOperations;
     }
 
     // Getters
-    public double getTotalDeadheadingFlightDistance() {
+/*    public double getTotalDeadheadingFlightDistance() {
         return totalDeadheadingFlightDistance;
-    }
+    }*/
     public int getFleetSize() { return fleetSize; }
     public int getVtolOperations() { return vtolOperations; }
 
@@ -32,7 +32,7 @@ public class OptimizationResult {
         System.out.println("Optimization Results:");
         System.out.println("Fleet Size: " + fleetSize);
         //System.out.println("Total Flight Distance: " + totalFlightDistance);
-        System.out.println("Total Deadheading Flight Distance: " + totalDeadheadingFlightDistance);
+        //System.out.println("Total Deadheading Flight Distance: " + totalDeadheadingFlightDistance);
         System.out.println("Total VTOL Operations: " + vtolOperations);
         System.out.println("\nVehicle Routes:");
 

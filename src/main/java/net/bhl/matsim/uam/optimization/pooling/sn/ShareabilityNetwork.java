@@ -148,7 +148,7 @@ public class ShareabilityNetwork {
 
         return totalDistance;
     }
-    public double calculateTotalDeadheadingFlightDistance(List<List<VehicleTrip>> vehicleRoutes) {
+/*    public double calculateTotalDeadheadingFlightDistance(List<List<VehicleTrip>> vehicleRoutes) {
         double totalDeadheadingDistance = 0;
 
         for (List<VehicleTrip> route : vehicleRoutes) {
@@ -161,5 +161,5 @@ public class ShareabilityNetwork {
         }
 
         return totalDeadheadingDistance;
-    }
+    }*/
 }

@@ -64,7 +64,7 @@ public class UAMOptimizationController {
 
         // Calculate metrics
         //double totalFlightDistance = network.calculateTotalFlightDistance(vehicleRoutes);
-        double totalDeadheadingFlightDistance = network.calculateTotalDeadheadingFlightDistance(vehicleRoutes);
+        //double totalDeadheadingFlightDistance = network.calculateTotalDeadheadingFlightDistance(vehicleRoutes);
         int fleetSize = vehicleRoutes.size();
 
         // Calculate VTOL operations
@@ -72,7 +72,7 @@ public class UAMOptimizationController {
 
         return new OptimizationResult(vehicleRoutes,
                 //totalFlightDistance,
-                totalDeadheadingFlightDistance,
+                //totalDeadheadingFlightDistance,
                 fleetSize,
                 vtolOperations);
     }
