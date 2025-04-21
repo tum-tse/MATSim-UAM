@@ -1691,10 +1691,10 @@ public class MultiObjectiveNSGAII {
         log.info("Number of Vtol operations change: " + (indicatorData.getVtolOperations() - getNonPooledVtolOperations()));
 
         // Print new indicators
-        log.info("UAM ticket revenue: " + indicatorData.getUamTicketRevenueChange());
+        log.info("UAM ticket revenue change: " + indicatorData.getUamTicketRevenueChange());
         log.info("Horizontal flight distance: " + indicatorData.getHorizontalFlightDistance());
         log.info("Vertical flight distance: " + indicatorData.getVerticalFlightDistance());
-        log.info("Travel monetary cost: " + indicatorData.getTravelMonetaryCostChange());
+        log.info("Travel monetary cost change: " + indicatorData.getTravelMonetaryCostChange());
         log.info("VTOL operations: " + indicatorData.getVtolOperations());
     }
     // Method to print statistics to a CSV file
@@ -1769,18 +1769,18 @@ public class MultiObjectiveNSGAII {
         private int fleetSize;
         private Map<Integer, List<TripItemForOptimization>> vehicleAssignments;
 
-        private double UamTicketRevenueChange;
+        private double uamTicketRevenueChange;
         private double horizontalFlightDistance;
         private double verticalFlightDistance;
-        private double TravelMonetaryCostChange;
+        private double travelMonetaryCostChange;
         private int vtolOperations;
 
         public SolutionIndicatorData(int[] solution) {
             this.solution = solution;
-            this.UamTicketRevenueChange = 0.0;
+            this.uamTicketRevenueChange = 0.0;
             this.horizontalFlightDistance = 0.0;
             this.verticalFlightDistance = 0.0;
-            this.TravelMonetaryCostChange = 0.0;
+            this.travelMonetaryCostChange = 0.0;
             this.vtolOperations = 0;
         }
 
@@ -1882,9 +1882,9 @@ public class MultiObjectiveNSGAII {
             return this.vehicleAssignments;
         }
 
-        public double getUamTicketRevenueChange() { return UamTicketRevenueChange; }
-        public void setUamTicketRevenueChange(double UamTicketRevenueChange) { this.UamTicketRevenueChange = UamTicketRevenueChange; }
-        public void addUamTicketRevenueChange(double additionalRevenue) { this.UamTicketRevenueChange += additionalRevenue; }
+        public double getUamTicketRevenueChange() { return uamTicketRevenueChange; }
+        public void setUamTicketRevenueChange(double UamTicketRevenueChange) { this.uamTicketRevenueChange = UamTicketRevenueChange; }
+        public void addUamTicketRevenueChange(double additionalRevenue) { this.uamTicketRevenueChange += additionalRevenue; }
 
         public double getHorizontalFlightDistance() { return horizontalFlightDistance; }
         public void setHorizontalFlightDistance(double horizontalFlightDistance) { this.horizontalFlightDistance = horizontalFlightDistance; }
@@ -1894,9 +1894,9 @@ public class MultiObjectiveNSGAII {
         public void setVerticalFlightDistance(double verticalFlightDistance) { this.verticalFlightDistance = verticalFlightDistance; }
         public void addVerticalFlightDistance(double additionalDistance) { this.verticalFlightDistance += additionalDistance; }
 
-        public double getTravelMonetaryCostChange() { return TravelMonetaryCostChange; }
-        public void setTravelMonetaryCostChange(double TravelMonetaryCostChange) { this.TravelMonetaryCostChange = TravelMonetaryCostChange; }
-        public void addTravelMonetaryCostChange(double additionalCost) { this.TravelMonetaryCostChange += additionalCost; }
+        public double getTravelMonetaryCostChange() { return travelMonetaryCostChange; }
+        public void setTravelMonetaryCostChange(double TravelMonetaryCostChange) { this.travelMonetaryCostChange = TravelMonetaryCostChange; }
+        public void addTravelMonetaryCostChange(double additionalCost) { this.travelMonetaryCostChange += additionalCost; }
 
         public int getVtolOperations() { return vtolOperations; }
         public void setVtolOperations(int vtolOperations) { this.vtolOperations = vtolOperations; }
