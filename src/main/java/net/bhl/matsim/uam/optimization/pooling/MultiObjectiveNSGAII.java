@@ -86,6 +86,7 @@ public class MultiObjectiveNSGAII {
 
     private double nonPooledDeadheadingDistance;
     private int nonPooledFleetSize;
+    private int nonPooledVtolOperations;
 
     // Parallel computing
     private final int numProcessors = Runtime.getRuntime().availableProcessors();
@@ -329,12 +330,14 @@ public class MultiObjectiveNSGAII {
 
         OptimizationResult result = optimizer.optimize();
         nonPooledFleetSize = result.getFleetSize();
+        nonPooledVtolOperations = result.getVtolOperations();
         //nonPooledDeadheadingDistance = result.getTotalDeadheadingFlightDistance();
     }
     public double getNonPooledDeadheadingDistance() {
         return nonPooledDeadheadingDistance;
     }
     public int getNonPooledFleetSize() { return nonPooledFleetSize; }
+    public int getNonPooledVtolOperations() { return nonPooledVtolOperations; }
 
     // GA solver with NSGA-II modifications==============================================================================
     private List<SolutionFitnessPair> evolvePopulation(List<SolutionFitnessPair> population, int currentGeneration) {
@@ -729,8 +732,8 @@ public class MultiObjectiveNSGAII {
 
         // Initialize ticket revenue, travel cost for final solutions
         if (isFinalSolutions) {
-            indicatorData.setUamTicketRevenue(0.0);
-            indicatorData.setTravelMonetaryCost(0.0);
+            indicatorData.setUamTicketRevenueChange(0.0);
+            indicatorData.setTravelMonetaryCostChange(0.0);
         }
 
         // Calculate fitness per vehicle
@@ -829,8 +832,8 @@ public class MultiObjectiveNSGAII {
                     // Calculate UAM ticket revenue and travel monetary cost for final solutions
                     if (isFinalSolutions) {
                         // Calculate UAM ticket revenue
-                        double ticketRevenue = acceptanceProbability * sharedCost + (1-acceptanceProbability) * nonSharedCost;
-                        indicatorData.addUamTicketRevenue(ticketRevenue);
+                        double ticketRevenueChange = acceptanceProbability * sharedCost + (1-acceptanceProbability-1) * nonSharedCost;
+                        indicatorData.addUamTicketRevenueChange(ticketRevenueChange);
 
                         // Calculate travel monetary cost (UAM ticket + access/egress cost)
                         double accessDistance = trip.originNeighborVertiportCandidatesTimeAndDistance.get(originStationOfVehicle).get("distance");
@@ -843,8 +846,8 @@ public class MultiObjectiveNSGAII {
                         double accessPoolingCost = (accessPoolingDistance / 1000.0) * PRIVATE_CAR_COST_PER_KM; // Convert meters to kilometers
                         double egressPoolingCost = (egressPoolingDistance / 1000.0) * PRIVATE_CAR_COST_PER_KM; // Convert meters to kilometers
 
-                        double totalTravelCost = acceptanceProbability * (sharedCost + accessCost + egressCost) + (1-acceptanceProbability) * (nonSharedCost + accessPoolingCost + egressPoolingCost);
-                        indicatorData.addTravelMonetaryCost(totalTravelCost);
+                        double totalTravelCostChange = acceptanceProbability * (sharedCost + accessCost + egressCost) + (1-acceptanceProbability-1) * (nonSharedCost + accessPoolingCost + egressPoolingCost);
+                        indicatorData.addTravelMonetaryCostChange(totalTravelCostChange);
                     }
                 }
                 totalFitness += acceptanceProbability * tripTotalFitness;
@@ -1013,8 +1016,8 @@ public class MultiObjectiveNSGAII {
                 // Calculate UAM ticket revenue and travel monetary cost for final solutions
                 if (isFinalSolutions) {
                     // Calculate UAM ticket revenue
-                    double ticketRevenue = acceptanceProbability * sharedCost + (1-acceptanceProbability) * nonSharedCost;
-                    indicatorData.addUamTicketRevenue(ticketRevenue);
+                    double ticketRevenueChange = acceptanceProbability * sharedCost + (1-acceptanceProbability-1) * nonSharedCost;
+                    indicatorData.addUamTicketRevenueChange(ticketRevenueChange);
 
                     // Calculate travel monetary cost (UAM ticket + access/egress cost)
                     double accessDistance = trip.originNeighborVertiportCandidatesTimeAndDistance.get(originStationOfVehicle).get("distance");
@@ -1027,8 +1030,8 @@ public class MultiObjectiveNSGAII {
                     double accessPoolingCost = (accessPoolingDistance / 1000.0) * PRIVATE_CAR_COST_PER_KM; // Convert meters to kilometers
                     double egressPoolingCost = (egressPoolingDistance / 1000.0) * PRIVATE_CAR_COST_PER_KM; // Convert meters to kilometers
 
-                    double totalTravelCost = acceptanceProbability * (sharedCost + accessCost + egressCost) + (1-acceptanceProbability) * (nonSharedCost + accessPoolingCost + egressPoolingCost);
-                    indicatorData.addTravelMonetaryCost(totalTravelCost);
+                    double totalTravelCostChange = acceptanceProbability * (sharedCost + accessCost + egressCost) + (1-acceptanceProbability-1) * (nonSharedCost + accessPoolingCost + egressPoolingCost);
+                    indicatorData.addTravelMonetaryCostChange(totalTravelCostChange);
                 }
             }
         }
@@ -1685,12 +1688,13 @@ public class MultiObjectiveNSGAII {
         // Print deadheading and fleet size changes
         //log.info("Deadheading flight distance change: " + (indicatorData.getDeadHeadingFlightDistance() - getNonPooledDeadheadingDistance()));
         log.info("Fleet size change: " + (indicatorData.getFleetSize() - getNonPooledFleetSize()));
+        log.info("Number of Vtol operations change: " + (indicatorData.getVtolOperations() - getNonPooledVtolOperations()));
 
         // Print new indicators
-        log.info("UAM ticket revenue: " + indicatorData.getUamTicketRevenue());
+        log.info("UAM ticket revenue: " + indicatorData.getUamTicketRevenueChange());
         log.info("Horizontal flight distance: " + indicatorData.getHorizontalFlightDistance());
         log.info("Vertical flight distance: " + indicatorData.getVerticalFlightDistance());
-        log.info("Travel monetary cost: " + indicatorData.getTravelMonetaryCost());
+        log.info("Travel monetary cost: " + indicatorData.getTravelMonetaryCostChange());
         log.info("VTOL operations: " + indicatorData.getVtolOperations());
     }
     // Method to print statistics to a CSV file
@@ -1765,18 +1769,18 @@ public class MultiObjectiveNSGAII {
         private int fleetSize;
         private Map<Integer, List<TripItemForOptimization>> vehicleAssignments;
 
-        private double uamTicketRevenue;
+        private double UamTicketRevenueChange;
         private double horizontalFlightDistance;
         private double verticalFlightDistance;
-        private double travelMonetaryCost;
+        private double TravelMonetaryCostChange;
         private int vtolOperations;
 
         public SolutionIndicatorData(int[] solution) {
             this.solution = solution;
-            this.uamTicketRevenue = 0.0;
+            this.UamTicketRevenueChange = 0.0;
             this.horizontalFlightDistance = 0.0;
             this.verticalFlightDistance = 0.0;
-            this.travelMonetaryCost = 0.0;
+            this.TravelMonetaryCostChange = 0.0;
             this.vtolOperations = 0;
         }
 
@@ -1878,9 +1882,9 @@ public class MultiObjectiveNSGAII {
             return this.vehicleAssignments;
         }
 
-        public double getUamTicketRevenue() { return uamTicketRevenue; }
-        public void setUamTicketRevenue(double uamTicketRevenue) { this.uamTicketRevenue = uamTicketRevenue; }
-        public void addUamTicketRevenue(double additionalRevenue) { this.uamTicketRevenue += additionalRevenue; }
+        public double getUamTicketRevenueChange() { return UamTicketRevenueChange; }
+        public void setUamTicketRevenueChange(double UamTicketRevenueChange) { this.UamTicketRevenueChange = UamTicketRevenueChange; }
+        public void addUamTicketRevenueChange(double additionalRevenue) { this.UamTicketRevenueChange += additionalRevenue; }
 
         public double getHorizontalFlightDistance() { return horizontalFlightDistance; }
         public void setHorizontalFlightDistance(double horizontalFlightDistance) { this.horizontalFlightDistance = horizontalFlightDistance; }
@@ -1890,9 +1894,9 @@ public class MultiObjectiveNSGAII {
         public void setVerticalFlightDistance(double verticalFlightDistance) { this.verticalFlightDistance = verticalFlightDistance; }
         public void addVerticalFlightDistance(double additionalDistance) { this.verticalFlightDistance += additionalDistance; }
 
-        public double getTravelMonetaryCost() { return travelMonetaryCost; }
-        public void setTravelMonetaryCost(double travelMonetaryCost) { this.travelMonetaryCost = travelMonetaryCost; }
-        public void addTravelMonetaryCost(double additionalCost) { this.travelMonetaryCost += additionalCost; }
+        public double getTravelMonetaryCostChange() { return TravelMonetaryCostChange; }
+        public void setTravelMonetaryCostChange(double TravelMonetaryCostChange) { this.TravelMonetaryCostChange = TravelMonetaryCostChange; }
+        public void addTravelMonetaryCostChange(double additionalCost) { this.TravelMonetaryCostChange += additionalCost; }
 
         public int getVtolOperations() { return vtolOperations; }
         public void setVtolOperations(int vtolOperations) { this.vtolOperations = vtolOperations; }
@@ -1991,7 +1995,7 @@ public class MultiObjectiveNSGAII {
             // Write header
             writer.append("TotalFitness,TotalFlightDistanceChange,TotalTravelTimeChange,TotalCapacityViolationPenalty,PoolingRate,Capacity0Rate,Capacity1Rate,Capacity2Rate,Capacity3Rate,Capacity4Rate,SharedRidesExceedingThresholdRate,TotalSharedRidesExceedingThresholdRate,AvgTravelTimeChange,5thPercentileTravelTimeChange,95thPercentileTravelTimeChange,AvgFlightDistanceChange,5thPercentileFlightDistanceChange,95thPercentileFlightDistanceChange,AvgDepartureRedirectionRate,5thPercentileDepartureRedirectionRate,95thPercentileDepartureRedirectionRate,AvgArrivalRedirectionRate,5thPercentileArrivalRedirectionRate,95thPercentileArrivalRedirectionRate,AvgTotalTravelTime,5thPercentileTotalTravelTime,95thPercentileTotalTravelTime,TotalVehicleMeter,NumberOfVehiclesUsed," +
                     //"DeadheadingFlightDistanceChange," +
-                    "FleetSizeChange,UamTicketRevenue,HorizontalFlightDistance,VerticalFlightDistance,TravelMonetaryCost,VtolOperations\n");
+                    "FleetSizeChange,UamTicketRevenueChange,HorizontalFlightDistance,VerticalFlightDistance,TravelMonetaryCostChange,VtolOperationsChange\n");
 
             // Write data for each solution
             for (SolutionIndicatorData data : indicatorDataList) {
@@ -2024,11 +2028,11 @@ public class MultiObjectiveNSGAII {
                         data.getNumberOfUAMVehiclesUsed(), // This is actually the number of UAM vehicle-operations
                         //data.getDeadHeadingFlightDistance()-getNonPooledDeadheadingDistance(),
                         data.getFleetSize() - getNonPooledFleetSize(),
-                        data.getUamTicketRevenue(),
+                        data.getUamTicketRevenueChange(),
                         data.getHorizontalFlightDistance(),
                         data.getVerticalFlightDistance(),
-                        data.getTravelMonetaryCost(),
-                        data.getVtolOperations()
+                        data.getTravelMonetaryCostChange(),
+                        data.getVtolOperations() - getNonPooledVtolOperations()
                 ));
             }
         } catch (IOException e) {
