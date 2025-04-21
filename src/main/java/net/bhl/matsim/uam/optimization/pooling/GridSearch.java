@@ -1,8 +1,6 @@
 package net.bhl.matsim.uam.optimization.pooling;
 
 import net.bhl.matsim.uam.analysis.traveltimes.utils.ThreadCounter;
-import weka.classifiers.Evaluation;
-import weka.classifiers.functions.SimpleLinearRegression;
 import weka.core.DenseInstance;
 import weka.core.Instances;
 import weka.core.Attribute;
@@ -97,7 +95,7 @@ public class GridSearch {
             // Collect results and add to dataset
             for (Future<double[]> future : futures) {
                 try {
-                    double[] fitnessScore = future.get(6000, TimeUnit.MINUTES);
+                    double[] fitnessScore = future.get(TIMEOUT_MINUTES, TimeUnit.MINUTES);
                     if (fitnessScore != null) {
                         // Add the instance to the dataset
                         // Note: You'll need to keep track of which parameters correspond to which future
