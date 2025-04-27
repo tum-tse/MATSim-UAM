@@ -126,7 +126,7 @@ public class MultiObjectiveNSGAII {
     private List<SolutionFitnessPair> previousParetoFront = new ArrayList<>();
     private int stableGenerations = 0;
     // Constants for the localSearch solver ============================================================================
-    private static final double MAX_ITERATIONS_SHARE_WITHOUT_IMPROVEMENT = 0.5;
+    private static final double MAX_ITERATIONS_WITHOUT_IMPROVEMENT = 10;
 
     private static final double INITIAL_LOCAL_SEARCH_PROBABILITY = 0.1;
     private static final double FINAL_LOCAL_SEARCH_PROBABILITY = 0.5;
@@ -342,9 +342,9 @@ public class MultiObjectiveNSGAII {
     // GA solver with NSGA-II modifications==============================================================================
     private List<SolutionFitnessPair> evolvePopulation(List<SolutionFitnessPair> population, int currentGeneration) {
         // Apply local search to improve the population after NSGA-II operations, and before offspring generation
-        if (ENABLE_LOCAL_SEARCH && shouldApplyLocalSearch(currentGeneration)) {
-            population = localSearch(population, currentGeneration);
-        }
+//        if (ENABLE_LOCAL_SEARCH && shouldApplyLocalSearch(currentGeneration)) {
+//            population = localSearch(population, currentGeneration);
+//        }
 
         List<SolutionFitnessPair> offspring = new ArrayList<>();
 
@@ -1395,16 +1395,13 @@ public class MultiObjectiveNSGAII {
     private List<SolutionFitnessPair> localSearch(List<SolutionFitnessPair> population, int currentGeneration) {
         List<SolutionFitnessPair> improvedPopulation = new ArrayList<>();
         long startTime = System.currentTimeMillis();
-        int maxIterations = 100; // Adjust as needed
-        long maxRuntime = 1000; // 1 second, adjust as needed
+        long maxRuntime = 3600; // 1 second, adjust as needed
 
         for (SolutionFitnessPair solutionPair : population) {
             SolutionFitnessPair bestSolution = solutionPair;
             int iterationsWithoutImprovement = 0;
-            int iteration = 0;
 
-            while (iterationsWithoutImprovement < MAX_ITERATIONS_SHARE_WITHOUT_IMPROVEMENT * maxIterations
-                    && iteration < maxIterations
+            while (iterationsWithoutImprovement < MAX_ITERATIONS_WITHOUT_IMPROVEMENT
                     && (System.currentTimeMillis() - startTime) < maxRuntime) {
 
                 int[] ruinedSolution = targetedRuin(bestSolution, currentGeneration, MAX_GENERATIONS);
@@ -1421,8 +1418,6 @@ public class MultiObjectiveNSGAII {
                 } else {
                     iterationsWithoutImprovement++;
                 }
-
-                iteration++;
             }
 
             improvedPopulation.add(bestSolution);
