@@ -1912,9 +1912,9 @@ public class MultiObjectiveNSGAII {
             indicatorDataList.add(indicatorData);
 
             // Track the best solution based on the first fitness objective
-            if (bestSolution == null || solutionPair.getFitness()[0] > bestFitness) {
+            if (bestSolution == null || solutionPair.getFitness()[1] > bestFitness) {
                 bestSolution = solutionPair;
-                bestFitness = solutionPair.getFitness()[0];
+                bestFitness = solutionPair.getFitness()[1];
             }
         }
 
