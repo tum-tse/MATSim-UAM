@@ -192,7 +192,7 @@ public class MultiObjectiveNSGAII {
         return instance.runAlgorithm(args);
     }
 
-    // Main method to run the the specified algorithm ==================================================================
+    // Main method to run the specified algorithm ==================================================================
     public static void initialization(String[] args) throws IOException, InterruptedException {
         if (args.length < 5) {
             System.out.println("Necessary: <Trip_Item> <Config> <Vertiport_Unit_Candidate> <Scenario_Configuration> <Result_Output> Optional: <BUFFER_END_TIME> <SEARCH_RADIUS_ORIGIN> <SEARCH_RADIUS_DESTINATION> <ENABLE_LOCAL_SEARCH> <ENABLE_PRINT_RESULTS>");
