@@ -25,6 +25,7 @@ import java.io.IOException;
 import java.util.*;
 import java.util.stream.Collectors;
 import java.io.FileWriter;
+import java.util.stream.IntStream;
 
 public class MultiObjectiveNSGAII {
     private static final Logger log = Logger.getLogger(MultiObjectiveNSGAII.class);
@@ -434,7 +435,7 @@ public class MultiObjectiveNSGAII {
     }
 
     // Initialize population with random assignments
-    private List<SolutionFitnessPair> initializePopulation() {
+    private List<SolutionFitnessPair> initializePopulationTrash() {
         List<SolutionFitnessPair> population = new ArrayList<>();
         for (int i = 0; i < MultiObjectiveNSGAII.POP_SIZE; i++) {
             int[] individual = generateIndividual();
@@ -443,7 +444,408 @@ public class MultiObjectiveNSGAII {
         }
         return population;
     }
+    /**
+     * Enhanced initialization of population using multiple guided strategies
+     */
+    private List<SolutionFitnessPair> initializePopulation() {
+        List<SolutionFitnessPair> population = new ArrayList<>();
 
+        // Use different initialization strategies
+        int timeBasedCount = POP_SIZE / 4;
+        int spatialCount = POP_SIZE / 4;
+        int greedyCount = POP_SIZE / 4;
+        int randomCount = POP_SIZE - timeBasedCount - spatialCount - greedyCount;
+
+        // Generate time-based individuals (trips with similar departure times)
+        for (int i = 0; i < timeBasedCount; i++) {
+            int[] individual = generateTimeBasedIndividual(i);
+            SolutionFitnessPair solution = calculateFitness(individual, null, false);
+            population.add(solution);
+        }
+
+        // Generate spatially clustered individuals (trips with nearby origins/destinations)
+        for (int i = 0; i < spatialCount; i++) {
+            int[] individual = generateSpatialClusteredIndividual(i);
+            SolutionFitnessPair solution = calculateFitness(individual, null, false);
+            population.add(solution);
+        }
+
+        // Generate greedy individuals (maximize vehicle occupancy)
+        for (int i = 0; i < greedyCount; i++) {
+            int[] individual = generateGreedyIndividual(i);
+            SolutionFitnessPair solution = calculateFitness(individual, null, false);
+            population.add(solution);
+        }
+
+        // Generate random individuals for diversity
+        for (int i = 0; i < randomCount; i++) {
+            int[] individual = generateRandomIndividual();
+            SolutionFitnessPair solution = calculateFitness(individual, null, false);
+            population.add(solution);
+        }
+
+        return population;
+    }
+
+    /**
+     * Generates an individual using time-based clustering
+     * Groups trips by similar departure times and attempts to pool them
+     */
+    private int[] generateTimeBasedIndividual(int seedVariation) {
+        int[] individual = new int[subTrips.size()];
+        Arrays.fill(individual, VALUE_FOR_NO_VEHICLE_AVAILABLE);
+
+        // Sort trips by departure time
+        List<Integer> tripIndices = IntStream.range(0, subTrips.size()).boxed().collect(Collectors.toList());
+        tripIndices.sort(Comparator.comparingDouble(i -> subTrips.get(i).departureTime));
+
+        // Add some randomness based on seedVariation
+        if (seedVariation > 0) {
+            Collections.shuffle(tripIndices.subList(0, Math.min(seedVariation * 10, tripIndices.size())), rand);
+        }
+
+        // Create time windows and assign vehicles
+        int currentVehicleId = FIRST_UAM_VEHICLE_ID;
+        Map<Integer, Integer> vehiclePassengerCount = new HashMap<>();
+        Map<Integer, Double> vehicleDepartureTime = new HashMap<>();
+
+        // Group trips into time windows (e.g., 15-minute intervals)
+        double timeWindowSize = 60/2; // 15 minutes in seconds
+        Map<Integer, List<Integer>> timeWindows = new HashMap<>();
+
+        for (int tripIndex : tripIndices) {
+            TripItemForOptimization trip = subTrips.get(tripIndex);
+            int windowKey = (int)(trip.departureTime / timeWindowSize);
+            timeWindows.computeIfAbsent(windowKey, k -> new ArrayList<>()).add(tripIndex);
+        }
+
+        // Process each time window
+        for (List<Integer> windowTrips : timeWindows.values()) {
+            // Sort by proximity of origin/destination
+            windowTrips.sort((i1, i2) -> {
+                TripItemForOptimization t1 = subTrips.get(i1);
+                TripItemForOptimization t2 = subTrips.get(i2);
+                double dist = calculateEuclideanDistance(t1.origin, t2.origin) +
+                        calculateEuclideanDistance(t1.destination, t2.destination);
+                return Double.compare(dist, 0);
+            });
+
+            // Try to assign trips to existing vehicles or create new ones
+            for (int tripIndex : windowTrips) {
+                TripItemForOptimization trip = subTrips.get(tripIndex);
+
+                // Try to find an existing compatible vehicle
+                boolean assigned = false;
+                for (Map.Entry<Integer, Integer> entry : vehiclePassengerCount.entrySet()) {
+                    int vehicleId = entry.getKey();
+                    int passengerCount = entry.getValue();
+                    double vehDepTime = vehicleDepartureTime.get(vehicleId);
+
+                    // Check if compatible (capacity, proximity, time constraints)
+                    if (passengerCount < VEHICLE_CAPACITY &&
+                            Math.abs(trip.departureTime - vehDepTime) < timeWindowSize &&
+                            isCompatibleWithVehicle(trip, vehicleId)) {
+
+                        individual[tripIndex] = vehicleId;
+                        vehiclePassengerCount.put(vehicleId, passengerCount + 1);
+                        assigned = true;
+                        break;
+                    }
+                }
+
+                // If not assigned, create a new vehicle
+                if (!assigned) {
+                    UAMVehicle newVehicle = feedDataForVehicleCreation(trip, false);
+                    int newVehicleId = Integer.parseInt(newVehicle.getId().toString());
+                    individual[tripIndex] = newVehicleId;
+                    vehiclePassengerCount.put(newVehicleId, 1);
+                    vehicleDepartureTime.put(newVehicleId, trip.departureTime);
+
+                    // Update tripVehicleMap for all relevant trips
+                    updateTripVehicleMapForNewVehicle(newVehicle);
+                }
+            }
+        }
+
+        return individual;
+    }
+    /**
+     * Checks if a trip is compatible with a vehicle based on origin/destination proximity
+     */
+    private boolean isCompatibleWithVehicle(TripItemForOptimization trip, int vehicleId) {
+        // Get the vehicle's origin and destination stations
+        Vertiport originStationOfVehicle = vehicleOriginStationMap.get(Id.create(String.valueOf(vehicleId), DvrpVehicle.class));
+        Vertiport destinationStationOfVehicle = vehicleDestinationStationMap.get(Id.create(String.valueOf(vehicleId), DvrpVehicle.class));
+
+        // Check if the trip's origin and destination are close enough to the vehicle's stations
+        if (originStationOfVehicle != null && destinationStationOfVehicle != null) {
+            // Check if trip's originNeighborVertiportCandidatesTimeAndDistance and destinationNeighborVertiportCandidatesTimeAndDistance contain the vehicle's stations
+            return trip.originNeighborVertiportCandidatesTimeAndDistance.containsKey(originStationOfVehicle) &&
+                    trip.destinationNeighborVertiportCandidatesTimeAndDistance.containsKey(destinationStationOfVehicle);
+        }
+        return false;
+    }
+
+    /**
+     * Generates an individual using spatial clustering
+     * Groups trips by proximity of origins and destinations
+     */
+    private int[] generateSpatialClusteredIndividual(int seedVariation) {
+        int[] individual = new int[subTrips.size()];
+        Arrays.fill(individual, VALUE_FOR_NO_VEHICLE_AVAILABLE);
+
+        // Create spatial clusters
+        List<List<Integer>> clusters = createSpatialClusters(seedVariation);
+
+        // Assign vehicles to each cluster
+        for (List<Integer> cluster : clusters) {
+            if (cluster.isEmpty()) continue;
+
+            // Get first trip in cluster to create a vehicle
+            int firstTripIndex = cluster.get(0);
+            TripItemForOptimization firstTrip = subTrips.get(firstTripIndex);
+            UAMVehicle vehicle = feedDataForVehicleCreation(firstTrip, false);
+            int vehicleId = Integer.parseInt(vehicle.getId().toString());
+
+            // Update tripVehicleMap for all relevant trips
+            updateTripVehicleMapForNewVehicle(vehicle);
+            individual[firstTripIndex] = vehicleId;
+            int assignedCount = 1;
+
+            // Assign vehicle to compatible trips in the cluster (up to capacity)
+            for (int i = 1; i < cluster.size(); i++) {
+                int tripIndex = cluster.get(i);
+                TripItemForOptimization trip = subTrips.get(tripIndex);
+
+                // Check if trip is compatible with the current vehicle
+                if (assignedCount < VEHICLE_CAPACITY && isCompatibleWithVehicle(trip, vehicleId)) {
+                    individual[tripIndex] = vehicleId;
+                    assignedCount++;
+                } else {
+                    // Create a new vehicle for incompatible or if capacity reached
+                    UAMVehicle newVehicle = feedDataForVehicleCreation(trip, false);
+                    int newVehicleId = Integer.parseInt(newVehicle.getId().toString());
+                    individual[tripIndex] = newVehicleId;
+                    updateTripVehicleMapForNewVehicle(newVehicle);
+
+                    // Start a new assignment count with this new vehicle
+                    vehicleId = newVehicleId;
+                    assignedCount = 1;
+                }
+            }
+        }
+
+        return individual;
+    }
+    /**
+     * Creates spatial clusters of trips based on origin and destination proximity
+     */
+    private List<List<Integer>> createSpatialClusters(int seedVariation) {
+        // Parameters for clustering
+        int numClusters = Math.max(5, subTrips.size() / (VEHICLE_CAPACITY * 2)); // Adjust based on problem size
+        double maxClusterRadius = SEARCH_RADIUS_ORIGIN / (1 + seedVariation * 0.2); // Vary radius based on seedVariation
+
+        // Initialize clusters with random centroids
+        List<Coord> originCentroids = new ArrayList<>();
+        List<Coord> destCentroids = new ArrayList<>();
+        List<List<Integer>> clusters = new ArrayList<>();
+
+        for (int i = 0; i < numClusters; i++) {
+            // Select random trips as initial centroids
+            int randomIndex = rand.nextInt(subTrips.size());
+            TripItemForOptimization randomTrip = subTrips.get(randomIndex);
+            originCentroids.add(randomTrip.origin);
+            destCentroids.add(randomTrip.destination);
+            clusters.add(new ArrayList<>());
+        }
+
+        // Assign trips to nearest cluster
+        for (int i = 0; i < subTrips.size(); i++) {
+            TripItemForOptimization trip = subTrips.get(i);
+
+            // Find nearest cluster
+            int nearestCluster = -1;
+            double minDistance = Double.MAX_VALUE;
+
+            for (int j = 0; j < numClusters; j++) {
+                double originDist = calculateEuclideanDistance(trip.origin, originCentroids.get(j));
+                double destDist = calculateEuclideanDistance(trip.destination, destCentroids.get(j));
+                double totalDist = originDist + destDist;
+
+                if (totalDist < minDistance && totalDist < maxClusterRadius) {
+                    minDistance = totalDist;
+                    nearestCluster = j;
+                }
+            }
+
+            // Assign to nearest cluster or create a singleton cluster
+            if (nearestCluster >= 0) {
+                clusters.get(nearestCluster).add(i);
+            } else {
+                // Create a new singleton cluster if no suitable cluster found
+                List<Integer> newCluster = new ArrayList<>();
+                newCluster.add(i);
+                clusters.add(newCluster);
+                originCentroids.add(trip.origin);
+                destCentroids.add(trip.destination);
+            }
+        }
+
+        // Remove empty clusters
+        for (int i = clusters.size() - 1; i >= 0; i--) {
+            if (clusters.get(i).isEmpty()) {
+                clusters.remove(i);
+            }
+        }
+
+        return clusters;
+    }
+
+    /**
+     * Generates an individual using a greedy approach to maximize vehicle utilization
+     */
+    private int[] generateGreedyIndividual(int seedVariation) {
+        int[] individual = new int[subTrips.size()];
+        Arrays.fill(individual, VALUE_FOR_NO_VEHICLE_AVAILABLE);
+
+        // Create a list of trip indices
+        List<Integer> unassignedTrips = IntStream.range(0, subTrips.size()).boxed().collect(Collectors.toList());
+
+        // Shuffle the list slightly based on seedVariation for diversity
+        Random seededRand = new Random(SEED + seedVariation);
+        for (int i = 0; i < seedVariation * 5 && i < unassignedTrips.size(); i++) {
+            int idx1 = seededRand.nextInt(unassignedTrips.size());
+            int idx2 = seededRand.nextInt(unassignedTrips.size());
+            Collections.swap(unassignedTrips, idx1, idx2);
+        }
+
+        // Map to track vehicle assignments and passenger counts
+        Map<Integer, List<Integer>> vehicleAssignments = new HashMap<>();
+        Map<Integer, Integer> vehiclePassengerCount = new HashMap<>();
+
+        // Process trips in order
+        while (!unassignedTrips.isEmpty()) {
+            int tripIndex = unassignedTrips.remove(0);
+            TripItemForOptimization trip = subTrips.get(tripIndex);
+
+            // Find best vehicle to assign this trip to
+            int bestVehicleId = -1;
+            double bestCompatibilityScore = Double.NEGATIVE_INFINITY;
+
+            for (Map.Entry<Integer, List<Integer>> entry : vehicleAssignments.entrySet()) {
+                int vehicleId = entry.getKey();
+                List<Integer> assignedTrips = entry.getValue();
+                int passengerCount = vehiclePassengerCount.get(vehicleId);
+
+                // Skip vehicles at capacity
+                if (passengerCount >= VEHICLE_CAPACITY) continue;
+
+                // Check compatibility
+                if (!isCompatibleWithVehicle(trip, vehicleId)) continue;
+
+                // Calculate compatibility score (lower is better)
+                double score = calculateCompatibilityScore(trip, vehicleId, assignedTrips);
+
+                if (score > bestCompatibilityScore) {
+                    bestCompatibilityScore = score;
+                    bestVehicleId = vehicleId;
+                }
+            }
+
+            // Assign to best vehicle or create a new one
+            if (bestVehicleId != -1 && bestCompatibilityScore > -1000) {
+                individual[tripIndex] = bestVehicleId;
+                vehicleAssignments.get(bestVehicleId).add(tripIndex);
+                vehiclePassengerCount.put(bestVehicleId, vehiclePassengerCount.get(bestVehicleId) + 1);
+            } else {
+                // Create a new vehicle
+                UAMVehicle newVehicle = feedDataForVehicleCreation(trip, false);
+                int newVehicleId = Integer.parseInt(newVehicle.getId().toString());
+
+                individual[tripIndex] = newVehicleId;
+                List<Integer> newAssignments = new ArrayList<>();
+                newAssignments.add(tripIndex);
+                vehicleAssignments.put(newVehicleId, newAssignments);
+                vehiclePassengerCount.put(newVehicleId, 1);
+
+                // Update tripVehicleMap for all relevant trips
+                updateTripVehicleMapForNewVehicle(newVehicle);
+            }
+        }
+
+        return individual;
+    }
+    /**
+     * Calculate compatibility score between a trip and a vehicle
+     * Higher score means better compatibility
+     */
+    private double calculateCompatibilityScore(TripItemForOptimization trip, int vehicleId, List<Integer> assignedTrips) {
+        // Get vehicle's origin and destination stations
+        Vertiport originStationOfVehicle = vehicleOriginStationMap.get(Id.create(String.valueOf(vehicleId), DvrpVehicle.class));
+        Vertiport destinationStationOfVehicle = vehicleDestinationStationMap.get(Id.create(String.valueOf(vehicleId), DvrpVehicle.class));
+
+        // Score factors
+        double timeCompatibility = 0;
+        double spatialCompatibility = 0;
+
+        // Time compatibility - based on departure time similarity
+        if (!assignedTrips.isEmpty()) {
+            // Find latest departure time among assigned trips
+            double latestDepartureTime = assignedTrips.stream()
+                    .mapToDouble(idx -> subTrips.get(idx).departureTime)
+                    .max().orElse(0);
+
+            // Time difference penalty
+            double timeDiff = Math.abs(trip.departureTime - latestDepartureTime);
+            timeCompatibility = Math.max(-1000, -0.1 * timeDiff);
+        }
+
+        // Spatial compatibility - based on origin/destination proximity
+        double originDistanceScore = 0;
+        double destDistanceScore = 0;
+
+        if (trip.originNeighborVertiportCandidatesTimeAndDistance.containsKey(originStationOfVehicle)) {
+            double distance = trip.originNeighborVertiportCandidatesTimeAndDistance.get(originStationOfVehicle).get("distance");
+            originDistanceScore = Math.max(-1000, 1000 - 0.2 * distance);
+        } else {
+            return Double.NEGATIVE_INFINITY; // Not compatible
+        }
+
+        if (trip.destinationNeighborVertiportCandidatesTimeAndDistance.containsKey(destinationStationOfVehicle)) {
+            double distance = trip.destinationNeighborVertiportCandidatesTimeAndDistance.get(destinationStationOfVehicle).get("distance");
+            destDistanceScore = Math.max(-1000, 1000 - 0.2 * distance);
+        } else {
+            return Double.NEGATIVE_INFINITY; // Not compatible
+        }
+
+        spatialCompatibility = (originDistanceScore + destDistanceScore) / 2;
+
+        // Combined score (weight time and spatial factors)
+        return timeCompatibility * 0.4 + spatialCompatibility * 0.6;
+    }
+
+    /**
+     * Generates a random individual for diversity in the initial population
+     */
+    private int[] generateRandomIndividual() {
+        int[] individual = new int[subTrips.size()];
+        if (individual.length == 0) {
+            log.info("Run: Pooling Time Window " + POOLING_TIME_WINDOW +
+                    "Origin Search Radius " + SEARCH_RADIUS_ORIGIN +
+                    "Destination Search Radius " + SEARCH_RADIUS_DESTINATION +
+                    " generated an empty individual. subTrips size: " + subTrips.size());
+        }
+
+        // Apply a small amount of randomness to assignment order
+        List<Integer> indices = IntStream.range(0, individual.length).boxed().collect(Collectors.toList());
+        Collections.shuffle(indices, rand);
+
+        for (int idx : indices) {
+            assignAvailableVehicle(idx, individual);
+        }
+
+        return individual;
+    }
     // Generate a random individual
     private int[] generateIndividual() {
         int[] individual = new int[subTrips.size()];
@@ -600,7 +1002,7 @@ public class MultiObjectiveNSGAII {
             double totalPooledTrips = 0;
             Map<Integer, Double> averageCapacityCount = new HashMap<>();
             int sharedRidesExceedingThreshold = 0;
-            double totalAcceptedTrips = 0;
+            double totalTrips = 0;
             Map<Integer, Double> vehicleUsageCount = new HashMap<>();
 
             // For each Monte Carlo scenario
@@ -612,6 +1014,7 @@ public class MultiObjectiveNSGAII {
 
             for (int scenario = 0; scenario < numScenarios; scenario++) {
                 int scenarioPooledTrips = 0;
+                int scenarioTrips = 0;
                 Map<Integer, Integer> scenarioCapacityCount = new HashMap<>();
                 int scenarioVehicles = 0;
 
@@ -632,6 +1035,7 @@ public class MultiObjectiveNSGAII {
                         Map<Integer, Boolean> tripChoices = allChoices.get(trip.tripID);
                         if (tripChoices != null && tripChoices.get(scenario) != null && tripChoices.get(scenario)) {
                             acceptedTripsForVehicle++;
+                            scenarioTrips++; // Increment total trips for this scenario
                             anyTripAccepted = true;
 
                             // Check if this is a pooled trip
@@ -673,6 +1077,7 @@ public class MultiObjectiveNSGAII {
 
                 // Accumulate results for this scenario
                 totalPooledTrips += scenarioPooledTrips;
+                totalTrips += scenarioTrips; // Accumulate total trips
 
                 // Update average capacity counts
                 for (Map.Entry<Integer, Integer> entry : scenarioCapacityCount.entrySet()) {
@@ -687,6 +1092,11 @@ public class MultiObjectiveNSGAII {
             // Calculate final metrics
             double averagePoolingRate = totalPooledTrips / (numScenarios * subTrips.size());
             indicatorData.setPoolingRate(averagePoolingRate);
+            // Calculate average pooled trips and average trips
+            double averagePooledTrips = totalPooledTrips / numScenarios;
+            double averageTrips = totalTrips / numScenarios;
+            indicatorData.setAveragePooledTrips(averagePooledTrips);
+            indicatorData.setAverageTrips(averageTrips);
 
             // Set vehicle capacity rates
             int totalVehicles = vehicleAssignments.size();
@@ -1737,6 +2147,8 @@ public class MultiObjectiveNSGAII {
 
         private double[] fitness;
         private double poolingRate;
+        private double averagePooledTrips;
+        private double averageTrips;
         private Map<Integer, Double> vehicleCapacityRates = new HashMap<>();
         private double sharedRidesExceedingThresholdRate;
         private double totalSharedRidesExceedingThresholdRate;
@@ -1792,6 +2204,10 @@ public class MultiObjectiveNSGAII {
         public void setFitness(double[] fitness) { this.fitness = fitness; }
         public double getPoolingRate() { return poolingRate; }
         public void setPoolingRate(double poolingRate) { this.poolingRate = poolingRate; }
+        public double getAveragePooledTrips() { return averagePooledTrips; }
+        public void setAveragePooledTrips(double averagePooledTrips) { this.averagePooledTrips = averagePooledTrips; }
+        public double getAverageTrips() { return averageTrips; }
+        public void setAverageTrips(double averageTrips) { this.averageTrips = averageTrips; }
         public Map<Integer, Double> getVehicleCapacityRates() { return vehicleCapacityRates; }
         //public void setVehicleCapacityRates(Map<Integer, Double> vehicleCapacityRates) { this.vehicleCapacityRates = vehicleCapacityRates; }
         public double getSharedRidesExceedingThresholdRate() { return sharedRidesExceedingThresholdRate; }
@@ -1990,13 +2406,13 @@ public class MultiObjectiveNSGAII {
             // Write header
             writer.append("TotalFitness,TotalFlightDistanceChange,TotalTravelTimeChange,TotalCapacityViolationPenalty,PoolingRate,Capacity0Rate,Capacity1Rate,Capacity2Rate,Capacity3Rate,Capacity4Rate,SharedRidesExceedingThresholdRate,TotalSharedRidesExceedingThresholdRate,AvgTravelTimeChange,5thPercentileTravelTimeChange,95thPercentileTravelTimeChange,AvgFlightDistanceChange,5thPercentileFlightDistanceChange,95thPercentileFlightDistanceChange,AvgDepartureRedirectionRate,5thPercentileDepartureRedirectionRate,95thPercentileDepartureRedirectionRate,AvgArrivalRedirectionRate,5thPercentileArrivalRedirectionRate,95thPercentileArrivalRedirectionRate,AvgTotalTravelTime,5thPercentileTotalTravelTime,95thPercentileTotalTravelTime,TotalVehicleMeter,NumberOfVehiclesUsed," +
                     //"DeadheadingFlightDistanceChange," +
-                    "FleetSizeChange,UamTicketRevenueChange,HorizontalFlightDistance,VerticalFlightDistance,TravelMonetaryCostChange,VtolOperationsChange\n");
+                    "FleetSizeChange,UamTicketRevenueChange,HorizontalFlightDistance,VerticalFlightDistance,TravelMonetaryCostChange,VtolOperationsChange,AveragePooledTrips,ToTalTrips\n");
 
             // Write data for each solution
             for (SolutionIndicatorData data : indicatorDataList) {
                 writer.append(String.format("%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%d," +
-//                                "%f," +
-                                "%d,%f,%f,%f,%f,%d\n",
+//                              "%f," +
+                                "%d,%f,%f,%f,%f,%d,%f,%d\n",
                         data.getFitness()[0], REVERT_SIGN * data.getFitness()[1], REVERT_SIGN * data.getFitness()[2], REVERT_SIGN * data.getFitness()[3],
                         data.getPoolingRate(),
                         data.getVehicleCapacityRates().getOrDefault(0, 0.0),
@@ -2029,7 +2445,9 @@ public class MultiObjectiveNSGAII {
                         data.getHorizontalFlightDistance(),
                         data.getVerticalFlightDistance(),
                         data.getTravelMonetaryCostChange(),
-                        data.getVtolOperations() - getNonPooledVtolOperations()
+                        data.getVtolOperations() - getNonPooledVtolOperations(),
+                        data.getAveragePooledTrips(),
+                        data.getAverageTrips()
                 ));
             }
         } catch (IOException e) {
