@@ -23,6 +23,7 @@
 	</distributionManagement>
 
 	<build>
+		<finalName>matsim-uam-3.0.0</finalName>
 		<plugins>
 			<plugin>
 				<artifactId>maven-assembly-plugin</artifactId>
