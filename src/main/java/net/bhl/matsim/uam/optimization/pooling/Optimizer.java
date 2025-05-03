@@ -12,9 +12,9 @@ public class Optimizer {
 
         File directory = new File(outputDir);
         if (directory.exists() && directory.isDirectory()) {
-            File outputClusteredCandidatesFile = new File(directory, "output_clustered_candidates.csv");
-            if (outputClusteredCandidatesFile.exists()) {
-                System.out.println("Output directory " + outputDir + " already contains 'output_clustered_candidates.csv'. Terminating to avoid overwriting data.");
+            File gridSearchDir = new File(directory, "grid_search");
+            if (gridSearchDir.exists() && gridSearchDir.isDirectory()) {
+                System.out.println("Output directory " + outputDir + " already contains 'grid_search' folder. Terminating to avoid overwriting data.");
                 return; // Exit the program
             }
         } else {
