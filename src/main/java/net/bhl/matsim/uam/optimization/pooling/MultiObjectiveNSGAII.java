@@ -1033,9 +1033,9 @@ public class MultiObjectiveNSGAII {
 
                     for (TripItemForOptimization trip : trips) {
                         Map<Integer, Boolean> tripChoices = allChoices.get(trip.tripID);
+                        scenarioTrips++; // Increment total trips for this scenario
                         if (tripChoices != null && tripChoices.get(scenario) != null && tripChoices.get(scenario)) {
                             acceptedTripsForVehicle++;
-                            scenarioTrips++; // Increment total trips for this scenario
                             anyTripAccepted = true;
 
                             // Check if this is a pooled trip
