@@ -321,7 +321,7 @@ public class MultiObjectiveNSGAII {
         // Use the shareability network to calculate deadheading distance
         UAMOptimizationController optimizer = new UAMOptimizationController(
                 individualAssignments,
-                MAX_DETOUR_RATIO,                // maxDetourRatio
+                0.0,                // maxDetourRatio
                 1,                  // maxPassengersPerVehicle (1 for non-pooled)
                 MAX_CONNECTION_TIME_MINUTES,                 // maxConnectionTimeMinutes
                 VEHICLE_CRUISE_SPEED,
