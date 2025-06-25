@@ -435,7 +435,7 @@ public class MultiObjectiveNSGAII {
     }
 
     // Initialize population with random assignments
-    private List<SolutionFitnessPair> initializePopulationTrash() {
+    private List<SolutionFitnessPair> initializePopulation() {
         List<SolutionFitnessPair> population = new ArrayList<>();
         for (int i = 0; i < MultiObjectiveNSGAII.POP_SIZE; i++) {
             int[] individual = generateIndividual();
@@ -447,7 +447,7 @@ public class MultiObjectiveNSGAII {
     /**
      * Enhanced initialization of population using multiple guided strategies
      */
-    private List<SolutionFitnessPair> initializePopulation() {
+    private List<SolutionFitnessPair> initializePopulationTrash() {
         List<SolutionFitnessPair> population = new ArrayList<>();
 
         // Use different initialization strategies
@@ -993,6 +993,7 @@ public class MultiObjectiveNSGAII {
             // Store fitness in indicatorData
             indicatorData.setFitness(fitness);
             indicatorData.setVehicleAssignments(vehicleAssignments);
+            indicatorData.setChoiceModel(choiceModel);
 
             // Get choice model results for all trips
             Map<String, Map<Integer, Boolean>> allChoices = choiceModel.getAllSimulationChoices();
@@ -1143,7 +1144,9 @@ public class MultiObjectiveNSGAII {
         // Initialize ticket revenue, travel cost for final solutions
         if (isFinalSolutions) {
             indicatorData.setUamTicketRevenueChange(0.0);
+            indicatorData.setUamTicketRevenueNonSharedCost(0.0);
             indicatorData.setTravelMonetaryCostChange(0.0);
+            indicatorData.setTravelMonetaryCostNonSharedCost(0.0);
         }
 
         // Calculate fitness per vehicle
@@ -1428,6 +1431,7 @@ public class MultiObjectiveNSGAII {
                     // Calculate UAM ticket revenue
                     double ticketRevenueChange = acceptanceProbability * sharedCost + (1-acceptanceProbability-1) * nonSharedCost;
                     indicatorData.addUamTicketRevenueChange(ticketRevenueChange);
+                    indicatorData.addUamTicketRevenueNonSharedCost(nonSharedCost);
 
                     // Calculate travel monetary cost (UAM ticket + access/egress cost)
                     double accessDistance = trip.originNeighborVertiportCandidatesTimeAndDistance.get(originStationOfVehicle).get("distance");
@@ -1442,6 +1446,7 @@ public class MultiObjectiveNSGAII {
 
                     double totalTravelCostChange = acceptanceProbability * (sharedCost + accessCost + egressCost) + (1-acceptanceProbability-1) * (nonSharedCost + accessPoolingCost + egressPoolingCost);
                     indicatorData.addTravelMonetaryCostChange(totalTravelCostChange);
+                    indicatorData.addTravelMonetaryCostNonSharedCost(nonSharedCost + accessPoolingCost + egressPoolingCost);
                 }
             }
         }
@@ -2173,22 +2178,32 @@ public class MultiObjectiveNSGAII {
         private double uamVehicleMeter;
 
         private double deadHeadingFlightDistance;
-        private int fleetSize;
+        private double fleetSize;
         private Map<Integer, List<TripItemForOptimization>> vehicleAssignments;
 
         private double uamTicketRevenueChange;
+        private double uamTicketRevenueNonSharedCost;
         private double horizontalFlightDistance;
         private double verticalFlightDistance;
         private double travelMonetaryCostChange;
-        private int vtolOperations;
+        private double travelMonetaryCostNonSharedCost;
+        private double vtolOperations;
+        private double fleetSizeChangeRate;
+        private double uamTicketRevenueChangeRate;
+        private double travelMonetaryCostChangeRate;
+
+        private UAMModeChoiceModel choiceModel;
 
         public SolutionIndicatorData(int[] solution) {
             this.solution = solution;
             this.uamTicketRevenueChange = 0.0;
+            this.uamTicketRevenueNonSharedCost = 0.0;
             this.horizontalFlightDistance = 0.0;
             this.verticalFlightDistance = 0.0;
             this.travelMonetaryCostChange = 0.0;
+            this.travelMonetaryCostNonSharedCost = 0.0;
             this.vtolOperations = 0;
+            this.choiceModel = null; // Initialize as null
         }
 
         // Getters and setters for all fields
@@ -2280,12 +2295,14 @@ public class MultiObjectiveNSGAII {
         public double getDeadHeadingFlightDistance() {
             return this.deadHeadingFlightDistance;
         }
-        public void setFleetSize(int fleetSize) {
+        public void setFleetSize(double fleetSize) {
             this.fleetSize = fleetSize;
         }
-        public int getFleetSize() {
+        public double getFleetSize() {
             return this.fleetSize;
         }
+        public double getFleetSizeChangeRate() { return fleetSizeChangeRate; }
+        public void setFleetSizeChangeRate(double fleetSizeChangeRate) { this.fleetSizeChangeRate = fleetSizeChangeRate; }
         public void setVehicleAssignments(Map<Integer, List<TripItemForOptimization>> vehicleAssignments) {
             this.vehicleAssignments = vehicleAssignments;
         }
@@ -2296,6 +2313,13 @@ public class MultiObjectiveNSGAII {
         public double getUamTicketRevenueChange() { return uamTicketRevenueChange; }
         public void setUamTicketRevenueChange(double UamTicketRevenueChange) { this.uamTicketRevenueChange = UamTicketRevenueChange; }
         public void addUamTicketRevenueChange(double additionalRevenue) { this.uamTicketRevenueChange += additionalRevenue; }
+
+        public double getUamTicketRevenueNonSharedCost() { return uamTicketRevenueNonSharedCost; }
+        public void setUamTicketRevenueNonSharedCost(double UamTicketRevenueNonSharedCost) { this.uamTicketRevenueNonSharedCost = UamTicketRevenueNonSharedCost; }
+        public void addUamTicketRevenueNonSharedCost(double additionalNonSharedCost) { this.uamTicketRevenueNonSharedCost += additionalNonSharedCost; }
+
+        public double getUamTicketRevenueChangeRate() { return uamTicketRevenueChangeRate; }
+        public void setUamTicketRevenueChangeRate(double uamTicketRevenueChangeRate) { this.uamTicketRevenueChangeRate = uamTicketRevenueChangeRate; }
 
         public double getHorizontalFlightDistance() { return horizontalFlightDistance; }
         public void setHorizontalFlightDistance(double horizontalFlightDistance) { this.horizontalFlightDistance = horizontalFlightDistance; }
@@ -2309,9 +2333,19 @@ public class MultiObjectiveNSGAII {
         public void setTravelMonetaryCostChange(double TravelMonetaryCostChange) { this.travelMonetaryCostChange = TravelMonetaryCostChange; }
         public void addTravelMonetaryCostChange(double additionalCost) { this.travelMonetaryCostChange += additionalCost; }
 
-        public int getVtolOperations() { return vtolOperations; }
-        public void setVtolOperations(int vtolOperations) { this.vtolOperations = vtolOperations; }
-        public void addVtolOperations(int additionalOperations) { this.vtolOperations += additionalOperations; }
+        public double getTravelMonetaryCostNonSharedCost() { return travelMonetaryCostNonSharedCost; }
+        public void setTravelMonetaryCostNonSharedCost(double TravelMonetaryCostNonSharedCost) { this.travelMonetaryCostNonSharedCost = TravelMonetaryCostNonSharedCost; }
+        public void addTravelMonetaryCostNonSharedCost(double additionalNonSharedCost) { this.travelMonetaryCostNonSharedCost += additionalNonSharedCost; }
+
+        public double getTravelMonetaryCostChangeRate() { return travelMonetaryCostChangeRate; }
+        public void setTravelMonetaryCostChangeRate(double travelMonetaryCostChangeRate) { this.travelMonetaryCostChangeRate = travelMonetaryCostChangeRate; }
+
+        public double getVtolOperations() { return vtolOperations; }
+        public void setVtolOperations(double vtolOperations) { this.vtolOperations = vtolOperations; }
+        public void addVtolOperations(double additionalOperations) { this.vtolOperations += additionalOperations; }
+
+        public UAMModeChoiceModel getChoiceModel() { return choiceModel; }
+        public void setChoiceModel(UAMModeChoiceModel choiceModel) { this.choiceModel = choiceModel; }
     }
     private SolutionFitnessPair calculatePopulationIndicators(List<SolutionFitnessPair> population) {
         List<SolutionIndicatorData> indicatorDataList = new ArrayList<>();
@@ -2372,24 +2406,11 @@ public class MultiObjectiveNSGAII {
         indicatorData.setPercentile5thTotalTravelTime(calculatePercentile(totalTravelTimes, 5));
         indicatorData.setPercentile95thTotalTravelTime(calculatePercentile(totalTravelTimes, 95));
 
-        // Calculate deadheading distance and fleet size using shareability network
-        UAMOptimizationController optimizer = new UAMOptimizationController(
-                indicatorData.getVehicleAssignments(),  // Your vehicle assignments map
-                MAX_DETOUR_RATIO,                // maxDetourRatio
-                VEHICLE_CAPACITY,   // maxPassengersPerVehicle
-                MAX_CONNECTION_TIME_MINUTES,                 // maxConnectionTimeMinutes
-                VEHICLE_CRUISE_SPEED, // flightSpeedMetersPerSecond
-                vehicleOriginStationMap,
-                vehicleDestinationStationMap
-        );
-        OptimizationResult result = optimizer.optimize();
-        //double deadheadingDistance = result.getTotalDeadheadingFlightDistance();
-        //indicatorData.setDeadheadingFlightDistance(deadheadingDistance);
-        indicatorData.setFleetSize(result.getFleetSize());
+        indicatorData.setUamTicketRevenueChangeRate(indicatorData.getUamTicketRevenueChange()/indicatorData.getUamTicketRevenueNonSharedCost());
+        indicatorData.setTravelMonetaryCostChangeRate(indicatorData.getTravelMonetaryCostChange()/indicatorData.getTravelMonetaryCostNonSharedCost());
 
-        // Calculate VTOL operations
-        int totalVtolOperations = result.getVtolOperations();
-        indicatorData.setVtolOperations(totalVtolOperations);
+        // Calculate fleet size and VTOL operations across all scenarios using shareability network
+        calculateScenarioBasedMetrics(indicatorData);
     }
     private double calculateAverage(List<Double> values) {
         return values.isEmpty() ? Double.NaN : values.stream().mapToDouble(Double::doubleValue).average().orElse(Double.NaN);
@@ -2401,18 +2422,116 @@ public class MultiObjectiveNSGAII {
         int index = (int) Math.ceil(percentile / 100.0 * sortedValues.size()) - 1;
         return sortedValues.get(Math.max(0, Math.min(sortedValues.size() - 1, index)));
     }
+    private void calculateScenarioBasedMetrics(SolutionIndicatorData indicatorData) {
+        UAMModeChoiceModel choiceModel = indicatorData.getChoiceModel();
+        Map<Integer, List<TripItemForOptimization>> originalVehicleAssignments = indicatorData.getVehicleAssignments();
+
+        if (choiceModel == null || originalVehicleAssignments == null) {
+            // Fallback to original calculation
+            UAMOptimizationController optimizer = new UAMOptimizationController(
+                    originalVehicleAssignments,
+                    MAX_DETOUR_RATIO,
+                    VEHICLE_CAPACITY,
+                    MAX_CONNECTION_TIME_MINUTES,
+                    VEHICLE_CRUISE_SPEED,
+                    vehicleOriginStationMap,
+                    vehicleDestinationStationMap
+            );
+            OptimizationResult result = optimizer.optimize();
+            indicatorData.setFleetSize(result.getFleetSize());
+            indicatorData.setVtolOperations(result.getVtolOperations());
+            return;
+        }
+
+        // Get all simulation choices
+        Map<String, Map<Integer, Boolean>> allChoices = choiceModel.getAllSimulationChoices();
+
+        // Find maximum vehicle ID to start new vehicle IDs from
+        int maxVehicleId = originalVehicleAssignments.keySet().stream()
+                .mapToInt(Integer::intValue)
+                .max()
+                .orElse(0);
+
+        int totalFleetSizeAcrossScenarios = 0;
+        int totalVtolOperationsAcrossScenarios = 0;
+
+        // Calculate fleet size and VTOL operations for each scenario
+        for (int scenario = 0; scenario < NUM_SIMULATIONS; scenario++) {
+            Map<Integer, List<TripItemForOptimization>> scenarioVehicleAssignments = new HashMap<>();
+            int newVehicleIdCounter = maxVehicleId + 1;
+
+            // Process each original vehicle assignment
+            for (Map.Entry<Integer, List<TripItemForOptimization>> entry : originalVehicleAssignments.entrySet()) {
+                int originalVehicleId = entry.getKey();
+                List<TripItemForOptimization> assignedTrips = entry.getValue();
+
+                List<TripItemForOptimization> acceptedTrips = new ArrayList<>();
+                List<TripItemForOptimization> rejectedTrips = new ArrayList<>();
+
+                // Separate accepted and rejected trips for this scenario
+                for (TripItemForOptimization trip : assignedTrips) {
+                    Map<Integer, Boolean> tripChoices = allChoices.get(trip.tripID);
+                    boolean isAccepted = tripChoices != null &&
+                            tripChoices.getOrDefault(scenario, false);
+
+                    if (isAccepted) {
+                        acceptedTrips.add(trip);
+                    } else {
+                        rejectedTrips.add(trip);
+                    }
+                }
+
+                // Add accepted trips to original vehicle (if any)
+                if (!acceptedTrips.isEmpty()) {
+                    scenarioVehicleAssignments.put(originalVehicleId, acceptedTrips);
+                }
+
+                // Create new individual vehicles for rejected trips
+                for (TripItemForOptimization rejectedTrip : rejectedTrips) {
+                    List<TripItemForOptimization> individualTrip = new ArrayList<>();
+                    individualTrip.add(rejectedTrip);
+                    scenarioVehicleAssignments.put(newVehicleIdCounter++, individualTrip);
+                }
+            }
+
+            // Calculate metrics for this scenario using shareability network
+            if (!scenarioVehicleAssignments.isEmpty()) {
+                UAMOptimizationController scenarioOptimizer = new UAMOptimizationController(
+                        scenarioVehicleAssignments,
+                        MAX_DETOUR_RATIO,
+                        VEHICLE_CAPACITY,
+                        MAX_CONNECTION_TIME_MINUTES,
+                        VEHICLE_CRUISE_SPEED,
+                        vehicleOriginStationMap,
+                        vehicleDestinationStationMap
+                );
+
+                OptimizationResult scenarioResult = scenarioOptimizer.optimize();
+                totalFleetSizeAcrossScenarios += scenarioResult.getFleetSize();
+                totalVtolOperationsAcrossScenarios += scenarioResult.getVtolOperations();
+            }
+        }
+
+        // Calculate average fleet size and VTOL operations across all scenarios
+        double averageFleetSize = (double) totalFleetSizeAcrossScenarios / NUM_SIMULATIONS;
+        double averageVtolOperations = (double) totalVtolOperationsAcrossScenarios / NUM_SIMULATIONS;
+
+        indicatorData.setVtolOperations(averageVtolOperations);
+        indicatorData.setFleetSize(averageFleetSize);
+        indicatorData.setFleetSizeChangeRate((indicatorData.getFleetSize()-getNonPooledFleetSize())/getNonPooledFleetSize());
+    }
     private void writeIndicatorsToCsv(List<SolutionIndicatorData> indicatorDataList, String fileName) {
         try (FileWriter writer = new FileWriter(fileName)) {
             // Write header
             writer.append("TotalFitness,TotalFlightDistanceChange,TotalTravelTimeChange,TotalCapacityViolationPenalty,PoolingRate,Capacity0Rate,Capacity1Rate,Capacity2Rate,Capacity3Rate,Capacity4Rate,SharedRidesExceedingThresholdRate,TotalSharedRidesExceedingThresholdRate,AvgTravelTimeChange,5thPercentileTravelTimeChange,95thPercentileTravelTimeChange,AvgFlightDistanceChange,5thPercentileFlightDistanceChange,95thPercentileFlightDistanceChange,AvgDepartureRedirectionRate,5thPercentileDepartureRedirectionRate,95thPercentileDepartureRedirectionRate,AvgArrivalRedirectionRate,5thPercentileArrivalRedirectionRate,95thPercentileArrivalRedirectionRate,AvgTotalTravelTime,5thPercentileTotalTravelTime,95thPercentileTotalTravelTime,TotalVehicleMeter,NumberOfVehiclesUsed," +
                     //"DeadheadingFlightDistanceChange," +
-                    "FleetSizeChange,UamTicketRevenueChange,HorizontalFlightDistance,VerticalFlightDistance,TravelMonetaryCostChange,VtolOperationsChange,AveragePooledTrips,ToTalTrips\n");
+                    "FleetSizeChange,FleetSizeChangeRate,UamTicketRevenueChange,UamTicketRevenueChangeRate,HorizontalFlightDistance,VerticalFlightDistance,TravelMonetaryCostChange,TravelMonetaryCostChangeRate,VtolOperationsChange,AveragePooledTrips,ToTalTrips\n");
 
             // Write data for each solution
             for (SolutionIndicatorData data : indicatorDataList) {
                 writer.append(String.format("%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%d," +
 //                              "%f," +
-                                "%d,%f,%f,%f,%f,%d,%f,%f\n",
+                                "%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f\n",
                         data.getFitness()[0], REVERT_SIGN * data.getFitness()[1], REVERT_SIGN * data.getFitness()[2], REVERT_SIGN * data.getFitness()[3],
                         data.getPoolingRate(),
                         data.getVehicleCapacityRates().getOrDefault(0, 0.0),
@@ -2441,10 +2560,13 @@ public class MultiObjectiveNSGAII {
                         data.getNumberOfUAMVehiclesUsed(), // This is actually the number of UAM vehicle-operations
                         //data.getDeadHeadingFlightDistance()-getNonPooledDeadheadingDistance(),
                         data.getFleetSize() - getNonPooledFleetSize(),
+                        data.getFleetSizeChangeRate(),
                         data.getUamTicketRevenueChange(),
+                        data.getUamTicketRevenueChangeRate(),
                         data.getHorizontalFlightDistance(),
                         data.getVerticalFlightDistance(),
                         data.getTravelMonetaryCostChange(),
+                        data.getTravelMonetaryCostChangeRate(),
                         data.getVtolOperations() - getNonPooledVtolOperations(),
                         data.getAveragePooledTrips(),
                         data.getAverageTrips()
