@@ -2410,7 +2410,7 @@ public class MultiObjectiveNSGAII {
         indicatorData.setTravelMonetaryCostChangeRate(indicatorData.getTravelMonetaryCostChange()/indicatorData.getTravelMonetaryCostNonSharedCost());
 
         // Calculate fleet size and VTOL operations across all scenarios using shareability network
-        calculateScenarioBasedMetrics(indicatorData);
+        calculateScenarioBasedMetricsSimplified(indicatorData);
     }
     private double calculateAverage(List<Double> values) {
         return values.isEmpty() ? Double.NaN : values.stream().mapToDouble(Double::doubleValue).average().orElse(Double.NaN);
@@ -2422,18 +2422,36 @@ public class MultiObjectiveNSGAII {
         int index = (int) Math.ceil(percentile / 100.0 * sortedValues.size()) - 1;
         return sortedValues.get(Math.max(0, Math.min(sortedValues.size() - 1, index)));
     }
+    private void calculateScenarioBasedMetricsSimplified(SolutionIndicatorData indicatorData) {
+        UAMOptimizationController optimizer = new UAMOptimizationController(
+                indicatorData.getVehicleAssignments(),
+                MAX_DETOUR_RATIO,
+                VEHICLE_CAPACITY,
+                MAX_CONNECTION_TIME_MINUTES,
+                VEHICLE_CRUISE_SPEED, //MetersPerSecond
+                vehicleOriginStationMap,
+                vehicleDestinationStationMap
+        );
+        OptimizationResult result = optimizer.optimize();
+
+        // Calculate average fleet size and VTOL operations across all scenarios
+        //indicatorData.setDeadheadingFlightDistance(result.getTotalDeadheadingFlightDistance());
+        indicatorData.setVtolOperations(result.getVtolOperations());
+        indicatorData.setFleetSize(result.getFleetSize());
+        indicatorData.setFleetSizeChangeRate((indicatorData.getFleetSize()-getNonPooledFleetSize())/getNonPooledFleetSize());
+    }
     private void calculateScenarioBasedMetrics(SolutionIndicatorData indicatorData) {
         UAMModeChoiceModel choiceModel = indicatorData.getChoiceModel();
         Map<Integer, List<TripItemForOptimization>> originalVehicleAssignments = indicatorData.getVehicleAssignments();
 
-        if (choiceModel == null || originalVehicleAssignments == null) {
+        if (choiceModel == null) {
             // Fallback to original calculation
             UAMOptimizationController optimizer = new UAMOptimizationController(
                     originalVehicleAssignments,
                     MAX_DETOUR_RATIO,
                     VEHICLE_CAPACITY,
                     MAX_CONNECTION_TIME_MINUTES,
-                    VEHICLE_CRUISE_SPEED,
+                    VEHICLE_CRUISE_SPEED, //MetersPerSecond
                     vehicleOriginStationMap,
                     vehicleDestinationStationMap
             );
