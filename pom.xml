@@ -28,6 +28,7 @@
 			<plugin>
 				<artifactId>maven-assembly-plugin</artifactId>
 				<configuration>
+					<finalName>${project.artifactId}-${project.version}-local-search</finalName>
 					<archive>
 						<manifest>
 							<mainClass>net.bhl.matsim.uam.run.RunUAMScenario</mainClass>
