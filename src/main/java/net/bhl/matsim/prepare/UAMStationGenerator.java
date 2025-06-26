@@ -11,7 +11,7 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.util.*;
 
-public class MATSimStationGenerator {
+public class UAMStationGenerator {
 
     // Inner class to represent a 2D point
     public static class Point {
