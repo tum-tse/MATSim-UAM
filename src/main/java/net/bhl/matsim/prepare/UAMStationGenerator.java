@@ -222,7 +222,7 @@ public class UAMStationGenerator {
             // Write station data
             for (int i = 0; i < centroids.size(); i++) {
                 Point centroid = centroids.get(i);
-                writer.append(String.format("%d,station_%d,%.0f,%.0f,0,600,1000,50,500,100,300,180,600,99999,99999\n",
+                writer.append(String.format("%d,station_%d,%.0f,%.0f,0,600,1000,50,500,100,300,180,600,99999,0.0972\n",
                         i + 1, i + 1, centroid.x, centroid.y));
             }
 
