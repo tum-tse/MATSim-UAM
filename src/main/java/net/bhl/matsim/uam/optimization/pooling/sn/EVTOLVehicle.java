@@ -17,9 +17,9 @@ public class EVTOLVehicle {
     private long currentTime; // Current simulation time in seconds
     private boolean isAvailable;
 
-    public EVTOLVehicle(String vehicleId) {
+    public EVTOLVehicle(String vehicleId, double chargingRateKwhPerSecond) {
         this.vehicleId = vehicleId;
-        this.batteryManager = new EVTOLBatteryManager(); // Start with full battery
+        this.batteryManager = new EVTOLBatteryManager(EVTOLBatteryManager.BATTERY_CAPACITY_KWH, chargingRateKwhPerSecond); // Start with full battery
         this.assignedTrips = new ArrayList<>();
         this.currentLocation = null;
         this.currentTime = 0;
@@ -175,14 +175,16 @@ public class EVTOLVehicle {
         }
 
         double energyToCharge = totalEnergyNeeded - tempBattery.getCurrentBatteryLevel();
-        return (long) (energyToCharge / EVTOLBatteryManager.CHARGING_RATE_KWH_PER_SECOND);
+        return (long) (energyToCharge / batteryManager.getChargingRateKwhPerSecond());
     }
 
     /**
      * Reset vehicle to initial state (for optimization iterations)
      */
     public void reset() {
-        this.batteryManager = new EVTOLBatteryManager(); // Full battery
+        // Preserve charging rate when resetting
+        double chargingRate = batteryManager.getChargingRateKwhPerSecond();
+        this.batteryManager = new EVTOLBatteryManager(EVTOLBatteryManager.BATTERY_CAPACITY_KWH, chargingRate);
         this.assignedTrips.clear();
         this.isAvailable = true;
         this.currentTime = 0;
@@ -296,7 +298,7 @@ public class EVTOLVehicle {
             if (i < assignedTrips.size() - 1) {
                 VehicleTrip nextTrip = assignedTrips.get(i + 1);
                 long chargingTime = nextTrip.getDepartureTime() - trip.getArrivalTime();
-                double chargedEnergy = chargingTime * EVTOLBatteryManager.CHARGING_RATE_KWH_PER_SECOND;
+                double chargedEnergy = chargingTime * batteryManager.getChargingRateKwhPerSecond();
                 System.out.printf("  Charging: %d seconds, %.2f kWh charged\n", chargingTime, chargedEnergy);
             }
 

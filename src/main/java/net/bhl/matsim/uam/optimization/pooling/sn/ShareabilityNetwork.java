@@ -15,16 +15,18 @@ public class ShareabilityNetwork {
     private Map<String, EVTOLVehicle> vehiclePool; // Available vehicles
     private int maxConnectionTimeMinutes;
     private double flightSpeedMetersPerSecond;
+    private double chargingRateKwhPerSecond; // Charging rate for vehicles
     private int nextVehicleId;
     private BatteryStatistics lastBatteryStatistics; // Store statistics from last optimization
 
     public ShareabilityNetwork(List<VehicleTrip> trips, int maxConnectionTimeMinutes,
-                               double flightSpeedMetersPerSecond) {
+                               double flightSpeedMetersPerSecond, double chargingRateKwhPerSecond) {
         this.trips = new ArrayList<>(trips);
         this.adjacencyList = new HashMap<>();
         this.vehiclePool = new HashMap<>();
         this.maxConnectionTimeMinutes = maxConnectionTimeMinutes;
         this.flightSpeedMetersPerSecond = flightSpeedMetersPerSecond;
+        this.chargingRateKwhPerSecond = chargingRateKwhPerSecond;
         this.nextVehicleId = 1;
         this.lastBatteryStatistics = null;
 
@@ -69,7 +71,7 @@ public class ShareabilityNetwork {
         }
 
         // Check battery constraints with a temporary vehicle
-        EVTOLVehicle tempVehicle = new EVTOLVehicle("TEMP");
+        EVTOLVehicle tempVehicle = new EVTOLVehicle("TEMP", chargingRateKwhPerSecond);
         long connectionTimeSeconds = t2.getDepartureTime() - t1.getArrivalTime();
 
         return tempVehicle.canExecuteConsecutiveTrips(t1, t2, connectionTimeSeconds);
@@ -143,7 +145,7 @@ public class ShareabilityNetwork {
      * Find the longest path starting from a specific trip, considering battery constraints
      */
     private BatteryAwareRouteResult findLongestBatteryAwarePath(VehicleTrip startTrip, Set<String> availableTrips) {
-        EVTOLVehicle vehicle = new EVTOLVehicle("V" + nextVehicleId++);
+        EVTOLVehicle vehicle = new EVTOLVehicle("V" + nextVehicleId++, chargingRateKwhPerSecond);
         List<VehicleTrip> route = new ArrayList<>();
         Set<String> remainingTrips = new HashSet<>(availableTrips);
 
@@ -228,7 +230,7 @@ public class ShareabilityNetwork {
 
             // If not assigned, create new vehicle
             if (!assigned) {
-                EVTOLVehicle newVehicle = new EVTOLVehicle("V" + nextVehicleId++);
+                EVTOLVehicle newVehicle = new EVTOLVehicle("V" + nextVehicleId++, chargingRateKwhPerSecond);
                 newVehicle.setCurrentLocation(trip.getOrigin());
                 newVehicle.setCurrentTime(trip.getDepartureTime());
                 newVehicle.executeTrip(trip);
@@ -299,7 +301,7 @@ public class ShareabilityNetwork {
             if (route.isEmpty()) continue;
 
             // Create a temporary vehicle to simulate the route
-            EVTOLVehicle tempVehicle = new EVTOLVehicle("STATS_VEHICLE");
+            EVTOLVehicle tempVehicle = new EVTOLVehicle("STATS_VEHICLE", chargingRateKwhPerSecond);
             double totalEnergyUsed = 0;
             double totalChargingTime = 0;
             long totalChargingTimeSeconds = 0;

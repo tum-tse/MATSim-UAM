@@ -11,16 +11,19 @@ public class OptimizationResult {
     private final int fleetSize;
     private final int vtolOperations;
     private final ShareabilityNetwork.BatteryStatistics batteryStatistics; // New field for battery stats
+    private final double chargingRateKwhPerSecond; // Charging rate used for this optimization
 
     // Enhanced constructor with battery statistics
     public OptimizationResult(List<List<VehicleTrip>> vehicleRoutes,
                               int fleetSize,
                               int vtolOperations,
-                              ShareabilityNetwork.BatteryStatistics batteryStatistics) {
+                              ShareabilityNetwork.BatteryStatistics batteryStatistics,
+                              double chargingRateKwhPerSecond) {
         this.vehicleRoutes = vehicleRoutes;
         this.fleetSize = fleetSize;
         this.vtolOperations = vtolOperations;
         this.batteryStatistics = batteryStatistics;
+        this.chargingRateKwhPerSecond = chargingRateKwhPerSecond;
     }
 
     // Backward compatibility constructor (original signature)
@@ -31,6 +34,7 @@ public class OptimizationResult {
         this.fleetSize = fleetSize;
         this.vtolOperations = vtolOperations;
         this.batteryStatistics = null; // No battery statistics provided
+        this.chargingRateKwhPerSecond = Double.MIN_VALUE;
     }
 
     // Getters (maintaining original interface)
@@ -127,7 +131,7 @@ public class OptimizationResult {
 
             // Calculate total energy for this route
             double totalRouteEnergy = 0;
-            EVTOLBatteryManager tempBattery = new EVTOLBatteryManager();
+            EVTOLBatteryManager tempBattery = new EVTOLBatteryManager(EVTOLBatteryManager.BATTERY_CAPACITY_KWH, chargingRateKwhPerSecond);
 
             for (int j = 0; j < route.size(); j++) {
                 VehicleTrip trip = route.get(j);
@@ -161,7 +165,7 @@ public class OptimizationResult {
                 if (j < route.size() - 1) {
                     VehicleTrip nextTrip = route.get(j + 1);
                     long connectionTime = nextTrip.getDepartureTime() - trip.getArrivalTime();
-                    double chargedEnergy = connectionTime * EVTOLBatteryManager.CHARGING_RATE_KWH_PER_SECOND;
+                    double chargedEnergy = connectionTime * tempBattery.getChargingRateKwhPerSecond();
                     System.out.printf("    Connection time to next trip: %d s (%.1f min)\n",
                             connectionTime, connectionTime / 60.0);
                     System.out.printf("    Energy charged during connection: %.2f kWh\n", chargedEnergy);

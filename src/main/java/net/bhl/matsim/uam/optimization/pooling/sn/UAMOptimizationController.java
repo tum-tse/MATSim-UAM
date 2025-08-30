@@ -1,6 +1,7 @@
 package net.bhl.matsim.uam.optimization.pooling.sn;
 
 import net.bhl.matsim.uam.optimization.Vertiport;
+import net.bhl.matsim.uam.optimization.pooling.SensitivityConfig;
 import net.bhl.matsim.uam.optimization.utils.TripItemForOptimization;
 import org.matsim.api.core.v01.Coord;
 import org.matsim.api.core.v01.Id;
@@ -19,6 +20,7 @@ public class UAMOptimizationController {
     private int maxPassengersPerVehicle;
     private int maxConnectionTimeMinutes;
     private double flightSpeedMetersPerSecond;
+    private double chargingRateKwhPerSecond; // Charging rate for vehicles
     private Map<Id<DvrpVehicle>, Vertiport> vehicleOriginStationMap;
     private Map<Id<DvrpVehicle>, Vertiport> vehicleDestinationStationMap;
 
@@ -29,12 +31,14 @@ public class UAMOptimizationController {
                                      int maxConnectionTimeMinutes,
                                      double flightSpeedMetersPerSecond,
                                      Map<Id<DvrpVehicle>, Vertiport> vehicleOriginStationMap,
-                                     Map<Id<DvrpVehicle>, Vertiport> vehicleDestinationStationMap) {
+                                     Map<Id<DvrpVehicle>, Vertiport> vehicleDestinationStationMap,
+                                     SensitivityConfig sensitivityConfig) {
 
         this.maxDetourRatio = maxDetourRatio;
         this.maxPassengersPerVehicle = maxPassengersPerVehicle;
         this.maxConnectionTimeMinutes = maxConnectionTimeMinutes;
         this.flightSpeedMetersPerSecond = flightSpeedMetersPerSecond;
+        this.chargingRateKwhPerSecond = sensitivityConfig.getChargingRateKwhPerSecond();
 
         // Convert vehicle assignments directly to vehicle trips
         this.vehicleTrips = convertAssignmentsToTrips(vehicleAssignments);
@@ -55,6 +59,7 @@ public class UAMOptimizationController {
         this.maxPassengersPerVehicle = maxPassengersPerVehicle;
         this.maxConnectionTimeMinutes = maxConnectionTimeMinutes;
         this.flightSpeedMetersPerSecond = flightSpeedMetersPerSecond;
+        this.chargingRateKwhPerSecond = EVTOLBatteryManager.DEFAULT_CHARGING_RATE_KWH_PER_SECOND;
         this.vehicleOriginStationMap = null;
         this.vehicleDestinationStationMap = null;
     }
@@ -69,7 +74,8 @@ public class UAMOptimizationController {
         ShareabilityNetwork network = new ShareabilityNetwork(
                 vehicleTrips,
                 maxConnectionTimeMinutes,
-                flightSpeedMetersPerSecond
+                flightSpeedMetersPerSecond,
+                chargingRateKwhPerSecond
         );
 
         // Find optimal vehicle assignments (automatically calculates battery statistics)
@@ -83,7 +89,7 @@ public class UAMOptimizationController {
         int vtolOperations = calculateVtolOperations(vehicleRoutes);
 
         // Return enhanced result with battery statistics
-        return new OptimizationResult(vehicleRoutes, fleetSize, vtolOperations, batteryStats);
+        return new OptimizationResult(vehicleRoutes, fleetSize, vtolOperations, batteryStats, chargingRateKwhPerSecond);
     }
 
     /**
@@ -95,7 +101,8 @@ public class UAMOptimizationController {
         ShareabilityNetwork network = new ShareabilityNetwork(
                 vehicleTrips,
                 maxConnectionTimeMinutes,
-                flightSpeedMetersPerSecond
+                flightSpeedMetersPerSecond,
+                chargingRateKwhPerSecond
         );
 
         // Use alternative assignment strategy
@@ -109,7 +116,7 @@ public class UAMOptimizationController {
         int vtolOperations = calculateVtolOperations(vehicleRoutes);
 
         // Return enhanced result with battery statistics
-        return new OptimizationResult(vehicleRoutes, fleetSize, vtolOperations, batteryStats);
+        return new OptimizationResult(vehicleRoutes, fleetSize, vtolOperations, batteryStats, chargingRateKwhPerSecond);
     }
 
     /**
@@ -219,7 +226,7 @@ public class UAMOptimizationController {
     public ShareabilityNetwork.BatteryStatistics getBatteryStatisticsForRoutes(List<List<VehicleTrip>> routes) {
         // Create a temporary network just to use its battery calculation methods
         ShareabilityNetwork tempNetwork = new ShareabilityNetwork(
-                vehicleTrips, maxConnectionTimeMinutes, flightSpeedMetersPerSecond
+                vehicleTrips, maxConnectionTimeMinutes, flightSpeedMetersPerSecond, chargingRateKwhPerSecond
         );
         return tempNetwork.getBatteryStatistics(routes);
     }
@@ -230,7 +237,7 @@ public class UAMOptimizationController {
     public void printBatteryAnalysis() {
         System.out.println("=== eVTOL Battery Analysis for Current Trips ===");
 
-        EVTOLBatteryManager tempBattery = new EVTOLBatteryManager();
+        EVTOLBatteryManager tempBattery = new EVTOLBatteryManager(EVTOLBatteryManager.BATTERY_CAPACITY_KWH, chargingRateKwhPerSecond);
         double totalEnergyNeeded = 0;
 
         System.out.println("Individual trip energy requirements:");
@@ -251,8 +258,8 @@ public class UAMOptimizationController {
                 (int) Math.ceil(totalEnergyNeeded / EVTOLBatteryManager.BATTERY_CAPACITY_KWH));
         System.out.printf("Battery capacity per vehicle: %.2f kWh\n", EVTOLBatteryManager.BATTERY_CAPACITY_KWH);
         System.out.printf("Charging rate: %.3f kWh/second (%.2f kWh/minute)\n",
-                EVTOLBatteryManager.CHARGING_RATE_KWH_PER_SECOND,
-                EVTOLBatteryManager.CHARGING_RATE_KWH_PER_SECOND * 60);
+                tempBattery.getChargingRateKwhPerSecond(),
+                tempBattery.getChargingRateKwhPerSecond() * 60);
         System.out.printf("Vertical energy consumption: %.6f kWh/passenger/meter\n",
                 EVTOLBatteryManager.VERTICAL_ENERGY_CONSUMPTION_KWH_PER_PASSENGER_PER_METER);
         System.out.printf("Horizontal energy consumption: %.6f kWh/passenger/meter\n",

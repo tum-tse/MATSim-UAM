@@ -16,7 +16,7 @@ public class GridSearch {
     private static final int numProcessors = Runtime.getRuntime().availableProcessors();
     private static final int bufferDivider = 1;
     private static final Logger logger = Logger.getLogger(GridSearch.class.getName());
-    private static final int TIMEOUT_MINUTES = 60*24*10;
+    public static final int TIMEOUT_MINUTES = 60*24*10;
 
     public static void main(String[] args) throws Exception {
         // Configure logger

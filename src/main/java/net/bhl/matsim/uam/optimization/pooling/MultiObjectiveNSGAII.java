@@ -137,8 +137,11 @@ public class MultiObjectiveNSGAII {
     private static final int MAX_CONNECTION_TIME_MINUTES = 30;
 
     // Settings for demand uncertainty and mode choice model ===========================================================
-    // Number of Monte Carlo simulations per choice evaluation
-    private static final int NUM_SIMULATIONS = 1000;
+    // Number of Monte Carlo simulations per choice evaluation (instance variable to avoid thread conflicts)
+    private int NUM_SIMULATIONS = 1000;
+    
+    // Sensitivity configuration (instance variable to avoid thread conflicts)
+    private SensitivityConfig sensitivityConfig = null;
     private static final double NON_SHARED_UAM_FARE = 3.0; // euros per km
 
 /*    // Static initializer block
@@ -195,7 +198,7 @@ public class MultiObjectiveNSGAII {
     // Main method to run the specified algorithm ==================================================================
     public static void initialization(String[] args) throws IOException, InterruptedException {
         if (args.length < 5) {
-            System.out.println("Necessary: <Trip_Item> <Config> <Vertiport_Unit_Candidate> <Scenario_Configuration> <Result_Output> Optional: <BUFFER_END_TIME> <SEARCH_RADIUS_ORIGIN> <SEARCH_RADIUS_DESTINATION> <ENABLE_LOCAL_SEARCH> <ENABLE_PRINT_RESULTS>");
+            System.out.println("Necessary: <Trip_Item> <Config> <Vertiport_Unit_Candidate> <Scenario_Configuration> <Result_Output> Optional: <BUFFER_END_TIME> <SEARCH_RADIUS_ORIGIN> <SEARCH_RADIUS_DESTINATION> <ENABLE_LOCAL_SEARCH> <ENABLE_PRINT_RESULTS> <OUTPUT_SUBFOLDER> <SENSITIVITY_CONFIG>");
             System.exit(1);
         }
 
@@ -216,6 +219,21 @@ public class MultiObjectiveNSGAII {
             ENABLE_PRINT_RESULTS = Boolean.parseBoolean(args[9]);
             outputSubFolder = outputFile.endsWith("/") ? outputFile + args[10] : outputFile + "/" + args[10];
         }
+        
+        // Initialize sensitivity configuration if provided
+        if (args.length > 11) {
+            // Parse sensitivity configuration (format: "numSimulations,chargingRate")
+            String sensitivityConfigStr = args[11];
+            String[] configParts = sensitivityConfigStr.split(",");
+            if (configParts.length >= 2) {
+                int numSimulations = Integer.parseInt(configParts[0]);
+                double chargingRate = Double.parseDouble(configParts[1]);
+                sensitivityConfig = new SensitivityConfig(numSimulations, chargingRate);
+                NUM_SIMULATIONS = sensitivityConfig.getNumSimulations();
+                log.info("Sensitivity config loaded: " + sensitivityConfig);
+            }
+        }
+        
         // Check if the output folder exists, if not create it
         createFolder(outputSubFolder);
 
@@ -326,7 +344,8 @@ public class MultiObjectiveNSGAII {
                 MAX_CONNECTION_TIME_MINUTES,                 // maxConnectionTimeMinutes
                 VEHICLE_CRUISE_SPEED,
                 null,
-                null
+                null,
+                sensitivityConfig
         );
 
         OptimizationResult result = optimizer.optimize();
@@ -2430,7 +2449,8 @@ public class MultiObjectiveNSGAII {
                 MAX_CONNECTION_TIME_MINUTES,
                 VEHICLE_CRUISE_SPEED, //MetersPerSecond
                 vehicleOriginStationMap,
-                vehicleDestinationStationMap
+                vehicleDestinationStationMap,
+                sensitivityConfig
         );
         OptimizationResult result = optimizer.optimize();
 
@@ -2453,7 +2473,8 @@ public class MultiObjectiveNSGAII {
                     MAX_CONNECTION_TIME_MINUTES,
                     VEHICLE_CRUISE_SPEED, //MetersPerSecond
                     vehicleOriginStationMap,
-                    vehicleDestinationStationMap
+                    vehicleDestinationStationMap,
+                    sensitivityConfig
             );
             OptimizationResult result = optimizer.optimize();
             indicatorData.setFleetSize(result.getFleetSize());
@@ -2521,7 +2542,8 @@ public class MultiObjectiveNSGAII {
                         MAX_CONNECTION_TIME_MINUTES,
                         VEHICLE_CRUISE_SPEED,
                         vehicleOriginStationMap,
-                        vehicleDestinationStationMap
+                        vehicleDestinationStationMap,
+                        sensitivityConfig
                 );
 
                 OptimizationResult scenarioResult = scenarioOptimizer.optimize();

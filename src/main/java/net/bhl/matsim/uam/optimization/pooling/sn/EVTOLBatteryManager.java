@@ -10,19 +10,22 @@ public class EVTOLBatteryManager {
 
     // Constants from requirements (converted to proper units)
     public static final double BATTERY_CAPACITY_KWH = 125.0; // kWh
-    public static final double CHARGING_RATE_KWH_PER_SECOND = 10.42 / 60.0; // 10.42 kWh/min = 0.1737 kWh/s
+    public static final double DEFAULT_CHARGING_RATE_KWH_PER_SECOND = 10.42 / 60.0; // 10.42 kWh/min = 0.1737 kWh/s (default)
     public static final double VERTICAL_ENERGY_CONSUMPTION_KWH_PER_PASSENGER_PER_METER = 0.408 / 1000.0; // 0.408 kWh/pkm
     public static final double HORIZONTAL_ENERGY_CONSUMPTION_KWH_PER_PASSENGER_PER_METER = 0.4847 / 1000.0; // 0.4847 kWh/pkm
     public static final double EVTOL_ALTITUDE_METERS = 600.0; // From literature
 
     private double currentBatteryLevel; // in kWh
+    private final double chargingRateKwhPerSecond; // Instance-specific charging rate
 
     public EVTOLBatteryManager() {
         this.currentBatteryLevel = BATTERY_CAPACITY_KWH; // Start fully charged
+        this.chargingRateKwhPerSecond = DEFAULT_CHARGING_RATE_KWH_PER_SECOND;
     }
 
-    public EVTOLBatteryManager(double initialBatteryLevel) {
+    public EVTOLBatteryManager(double initialBatteryLevel, double chargingRateKwhPerSecond) {
         this.currentBatteryLevel = Math.min(initialBatteryLevel, BATTERY_CAPACITY_KWH);
+        this.chargingRateKwhPerSecond = chargingRateKwhPerSecond;
     }
 
     /**
@@ -128,7 +131,7 @@ public class EVTOLBatteryManager {
      * @return Amount of energy charged in kWh
      */
     public double chargeBattery(long connectionTimeSeconds) {
-        double maxPossibleCharge = connectionTimeSeconds * CHARGING_RATE_KWH_PER_SECOND;
+        double maxPossibleCharge = connectionTimeSeconds * chargingRateKwhPerSecond;
         double actualCharge = Math.min(maxPossibleCharge, BATTERY_CAPACITY_KWH - currentBatteryLevel);
 
         currentBatteryLevel += actualCharge;
@@ -141,7 +144,7 @@ public class EVTOLBatteryManager {
      */
     public long getTimeToFullCharge() {
         double energyNeeded = BATTERY_CAPACITY_KWH - currentBatteryLevel;
-        return (long) (energyNeeded / CHARGING_RATE_KWH_PER_SECOND);
+        return (long) (energyNeeded / chargingRateKwhPerSecond);
     }
 
     /**
@@ -163,7 +166,7 @@ public class EVTOLBatteryManager {
         }
 
         double energyToCharge = requiredEnergy - currentBatteryLevel;
-        return (long) (energyToCharge / CHARGING_RATE_KWH_PER_SECOND);
+        return (long) (energyToCharge / chargingRateKwhPerSecond);
     }
 
     private double calculateHorizontalDistance(Coord c1, Coord c2) {
@@ -190,6 +193,14 @@ public class EVTOLBatteryManager {
     }
 
     public EVTOLBatteryManager copy() {
-        return new EVTOLBatteryManager(this.currentBatteryLevel);
+        return new EVTOLBatteryManager(this.currentBatteryLevel, this.chargingRateKwhPerSecond);
+    }
+    
+    /**
+     * Get the charging rate for this instance
+     * @return Instance charging rate in kWh per second
+     */
+    public double getChargingRateKwhPerSecond() {
+        return chargingRateKwhPerSecond;
     }
 }
