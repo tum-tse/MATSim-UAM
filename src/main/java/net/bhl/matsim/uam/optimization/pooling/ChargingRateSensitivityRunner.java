@@ -19,7 +19,7 @@ import static net.bhl.matsim.uam.optimization.pooling.GridSearch.TIMEOUT_MINUTES
 public class ChargingRateSensitivityRunner {
     
     // Fixed pooling parameters as requested (obtained from SensitivityConfig)
-    private static final boolean ENABLE_LOCAL_SEARCH = false;
+    private static final boolean ENABLE_LOCAL_SEARCH = true;
     private static final boolean ENABLE_PRINT_RESULTS = true;
     
     // Charging rate values to test (kWh/second)

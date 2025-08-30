@@ -19,7 +19,7 @@ import static net.bhl.matsim.uam.optimization.pooling.GridSearch.TIMEOUT_MINUTES
 public class MonteCarloSensitivityRunner {
     
     // Fixed pooling parameters as requested (obtained from SensitivityConfig)
-    private static final boolean ENABLE_LOCAL_SEARCH = false;
+    private static final boolean ENABLE_LOCAL_SEARCH = true;
     private static final boolean ENABLE_PRINT_RESULTS = true;
     
     // Monte Carlo simulation values to test
