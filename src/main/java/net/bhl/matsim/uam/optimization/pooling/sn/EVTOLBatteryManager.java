@@ -11,8 +11,8 @@ public class EVTOLBatteryManager {
     // Constants from requirements (converted to proper units)
     public static final double BATTERY_CAPACITY_KWH = 125.0; // kWh
     public static final double DEFAULT_CHARGING_RATE_KWH_PER_SECOND = 10.42 / 60.0; // 10.42 kWh/min = 0.1737 kWh/s (default)
-    public static final double VERTICAL_ENERGY_CONSUMPTION_KWH_PER_PASSENGER_PER_METER = 0.408 / 1000.0; // 0.408 kWh/pkm
-    public static final double HORIZONTAL_ENERGY_CONSUMPTION_KWH_PER_PASSENGER_PER_METER = 0.4847 / 1000.0; // 0.4847 kWh/pkm
+    public static final double VERTICAL_ENERGY_CONSUMPTION_KWH_PER_PASSENGER_PER_METER = 0.485 / 1000.0; // 0.485 kWh/pkm
+    public static final double HORIZONTAL_ENERGY_CONSUMPTION_KWH_PER_PASSENGER_PER_METER = 6.961 / 1000.0; // 6.961 kWh/pkm
     public static final double EVTOL_ALTITUDE_METERS = 600.0; // From literature
 
     private double currentBatteryLevel; // in kWh
@@ -43,8 +43,8 @@ public class EVTOLBatteryManager {
         double verticalDistance = 2 * EVTOL_ALTITUDE_METERS;
 
         // Calculate energy consumption
-        double horizontalEnergy = horizontalDistance * HORIZONTAL_ENERGY_CONSUMPTION_KWH_PER_PASSENGER_PER_METER * numPassengers;
-        double verticalEnergy = verticalDistance * VERTICAL_ENERGY_CONSUMPTION_KWH_PER_PASSENGER_PER_METER * numPassengers;
+        double horizontalEnergy = horizontalDistance * HORIZONTAL_ENERGY_CONSUMPTION_KWH_PER_PASSENGER_PER_METER;
+        double verticalEnergy = verticalDistance * VERTICAL_ENERGY_CONSUMPTION_KWH_PER_PASSENGER_PER_METER;
 
         return horizontalEnergy + verticalEnergy;
     }
