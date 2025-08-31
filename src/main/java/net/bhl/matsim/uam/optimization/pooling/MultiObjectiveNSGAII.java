@@ -141,7 +141,7 @@ public class MultiObjectiveNSGAII {
     private int NUM_SIMULATIONS = 1000;
     
     // Sensitivity configuration (instance variable to avoid thread conflicts)
-    private SensitivityConfig sensitivityConfig = null;
+    private SensitivityConfig sensitivityConfig = new  SensitivityConfig();
     private static final double NON_SHARED_UAM_FARE = 3.0; // euros per km
 
 /*    // Static initializer block

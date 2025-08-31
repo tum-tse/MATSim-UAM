@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.ArrayList;
 
 import static net.bhl.matsim.uam.optimization.pooling.GridSearch.TIMEOUT_MINUTES;
+import static net.bhl.matsim.uam.optimization.pooling.MultiObjectiveNSGAII.setFilePaths;
 
 /**
  * Runner class for conducting sensitivity analysis on Monte Carlo simulations (NUM_SIMULATIONS parameter)
@@ -25,7 +26,10 @@ public class MonteCarloSensitivityRunner {
     // Monte Carlo simulation values to test
     private static final int[] NUM_SIMULATIONS_VALUES = {100, 200, 400, 800, 1600, 3200, 6400, 12800};
     
-    public static void main(String[] args) {
+    public static void main(String[] args) throws IOException, InterruptedException {
+        // Initialize and run the optimization
+        MultiObjectiveNSGAII.initialization(args);
+
         if (args.length < 5) {
             System.out.println("Usage: MonteCarloSensitivityRunner <Trip_Item> <Config> <Vertiport_Unit_Candidate> <Scenario_Configuration> <Result_Output>");
             System.exit(1);
@@ -36,10 +40,11 @@ public class MonteCarloSensitivityRunner {
         String vertiportFile = args[2];
         String scenarioFile = args[3];
         String baseOutputDir = args[4];
-        
-        // Create timestamped directory for this sensitivity analysis
-        String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss"));
-        String sensitivityOutputDir = baseOutputDir + "/sensitivity_analysis_" + timestamp;
+
+        // Create directory for this sensitivity analysis
+        String sensitivityOutputDir = baseOutputDir + "/monte_carlo/";
+        MultiObjectiveNSGAII.createFolder(sensitivityOutputDir);
+        setFilePaths(args[0], args[1], args[2], args[3], sensitivityOutputDir);
         
         // Get fixed parameters from SensitivityConfig
         SensitivityConfig defaultConfig = new SensitivityConfig();
@@ -96,8 +101,6 @@ public class MonteCarloSensitivityRunner {
                                           String vertiportFile, String scenarioFile, 
                                           String baseOutputDir, int numSimulations) {
         try {
-            String experimentDir = baseOutputDir + "/monte_carlo_" + numSimulations;
-            
             // Create SensitivityConfig object and convert to string format
             SensitivityConfig config = SensitivityConfig.forMonteCarloAnalysis(numSimulations);
             String sensitivityConfig = config.getNumSimulations() + "," + config.getChargingRateKwhPerSecond();
@@ -108,20 +111,18 @@ public class MonteCarloSensitivityRunner {
                 configFile,                      // Config
                 vertiportFile,                   // Vertiport_Unit_Candidate
                 scenarioFile,                    // Scenario_Configuration
-                experimentDir,                   // Result_Output
+                baseOutputDir,                   // Result_Output
                 String.valueOf(config.getPoolingTimeWindow()),  // BUFFER_END_TIME (convert seconds to minutes)
                 String.valueOf(config.getOriginSearchRadius()), // SEARCH_RADIUS_ORIGIN
                 String.valueOf(config.getDestinationSearchRadius()), // SEARCH_RADIUS_DESTINATION
                 String.valueOf(ENABLE_LOCAL_SEARCH),  // ENABLE_LOCAL_SEARCH
                 String.valueOf(ENABLE_PRINT_RESULTS), // ENABLE_PRINT_RESULTS
-                "monte_carlo_" + numSimulations,      // OUTPUT_SUBFOLDER
+                numSimulations + "/",      // OUTPUT_SUBFOLDER
                 sensitivityConfig                     // SENSITIVITY_CONFIG
             };
             
             System.out.println("Running experiment with " + numSimulations + " Monte Carlo simulations...");
-            
-            // Initialize and run the optimization
-            MultiObjectiveNSGAII.initialization(optimizationArgs);
+
             double[] results = MultiObjectiveNSGAII.callAlgorithm(optimizationArgs);
             
             System.out.println("Completed experiment with " + numSimulations + 

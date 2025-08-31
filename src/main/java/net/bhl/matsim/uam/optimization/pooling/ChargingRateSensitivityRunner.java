@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.ArrayList;
 
 import static net.bhl.matsim.uam.optimization.pooling.GridSearch.TIMEOUT_MINUTES;
+import static net.bhl.matsim.uam.optimization.pooling.MultiObjectiveNSGAII.setFilePaths;
 
 /**
  * Runner class for conducting sensitivity analysis on charging rates (CHARGING_RATE_KWH_PER_SECOND parameter)
@@ -36,11 +37,14 @@ public class ChargingRateSensitivityRunner {
     };
     
     private static final String[] CHARGING_RATE_LABELS = {
-        "charging_rate_1c", "charging_rate_2c", "charging_rate_3c", "charging_rate_4c",
-        "charging_rate_5c", "charging_rate_6c", "charging_rate_7c", "charging_rate_8c"
+        "1c", "2c", "3c", "4c",
+        "5c", "6c", "7c", "8c"
     };
     
-    public static void main(String[] args) {
+    public static void main(String[] args) throws IOException, InterruptedException {
+        // Initialize and run the optimization
+        MultiObjectiveNSGAII.initialization(args);
+
         if (args.length < 5) {
             System.out.println("Usage: ChargingRateSensitivityRunner <Trip_Item> <Config> <Vertiport_Unit_Candidate> <Scenario_Configuration> <Result_Output>");
             System.exit(1);
@@ -51,10 +55,11 @@ public class ChargingRateSensitivityRunner {
         String vertiportFile = args[2];
         String scenarioFile = args[3];
         String baseOutputDir = args[4];
-        
-        // Create timestamped directory for this sensitivity analysis
-        String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss"));
-        String sensitivityOutputDir = baseOutputDir + "/sensitivity_analysis_" + timestamp;
+
+        // Create directory for this sensitivity analysis
+        String sensitivityOutputDir = baseOutputDir + "/charging_rate/";
+        MultiObjectiveNSGAII.createFolder(sensitivityOutputDir);
+        setFilePaths(args[0], args[1], args[2], args[3], sensitivityOutputDir);
         
         // Get fixed parameters from SensitivityConfig
         SensitivityConfig defaultConfig = new SensitivityConfig();
@@ -121,8 +126,6 @@ public class ChargingRateSensitivityRunner {
                                           String vertiportFile, String scenarioFile, 
                                           String baseOutputDir, double chargingRate, String label) {
         try {
-            String experimentDir = baseOutputDir + "/" + label;
-            
             // Create SensitivityConfig object and convert to string format
             SensitivityConfig config = SensitivityConfig.forChargingRateAnalysis(chargingRate);
             String sensitivityConfig = config.getNumSimulations() + "," + config.getChargingRateKwhPerSecond();
@@ -133,21 +136,19 @@ public class ChargingRateSensitivityRunner {
                 configFile,                      // Config
                 vertiportFile,                   // Vertiport_Unit_Candidate
                 scenarioFile,                    // Scenario_Configuration
-                experimentDir,                   // Result_Output
+                baseOutputDir,                   // Result_Output
                 String.valueOf(config.getPoolingTimeWindow()),  // BUFFER_END_TIME (convert seconds to minutes)
                 String.valueOf(config.getOriginSearchRadius()), // SEARCH_RADIUS_ORIGIN
                 String.valueOf(config.getDestinationSearchRadius()), // SEARCH_RADIUS_DESTINATION
                 String.valueOf(ENABLE_LOCAL_SEARCH),  // ENABLE_LOCAL_SEARCH
                 String.valueOf(ENABLE_PRINT_RESULTS), // ENABLE_PRINT_RESULTS
-                label,                               // OUTPUT_SUBFOLDER
+                label + "/",                               // OUTPUT_SUBFOLDER
                 sensitivityConfig                     // SENSITIVITY_CONFIG
             };
             
             System.out.printf("Running experiment with charging rate: %.4f kWh/s (%.2f kWh/min)...%n", 
                              chargingRate, chargingRate * 60);
-            
-            // Initialize and run the optimization
-            MultiObjectiveNSGAII.initialization(optimizationArgs);
+
             double[] results = MultiObjectiveNSGAII.callAlgorithm(optimizationArgs);
             
             System.out.printf("Completed experiment with charging rate %.4f kWh/s. Best fitness: %.6f%n", 
