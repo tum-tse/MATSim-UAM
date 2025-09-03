@@ -24,7 +24,7 @@ public class MonteCarloSensitivityRunner {
     private static final boolean ENABLE_PRINT_RESULTS = true;
     
     // Monte Carlo simulation values to test
-    private static final int[] NUM_SIMULATIONS_VALUES = {100, 200, 400, 800, 1600, 3200, 6400, 12800};
+    private static final int[] NUM_SIMULATIONS_VALUES = {25, 50, 100, 200, 400, 800, 1600, 3200, 6400, 12800};
     
     public static void main(String[] args) throws IOException, InterruptedException {
         // Initialize and run the optimization
