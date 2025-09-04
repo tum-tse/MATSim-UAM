@@ -1,9 +1,15 @@
 package net.bhl.matsim.uam.optimization.pooling;
 
 import net.bhl.matsim.uam.optimization.pooling.sn.EVTOLBatteryManager;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.Properties;
 
 /**
  * Configuration class for sensitivity analysis parameters in UAM optimization
+ * Reads configuration from a properties file.
  */
 public class SensitivityConfig {
     // Monte Carlo simulation parameters
@@ -13,33 +19,54 @@ public class SensitivityConfig {
     private double chargingRateKwhPerSecond;
     
     // Fixed pooling parameters (as requested)
-    private final double poolingTimeWindow = 3.0 ; // 3 minutes
-    private final double originSearchRadius = 6000.0; // meters
-    private final double destinationSearchRadius = 6000.0; // meters
+    private double poolingTimeWindow; // 3 minutes
+    private double originSearchRadius; // meters
+    private double destinationSearchRadius; // meters
     
-    // Default constructor with default values
-    public SensitivityConfig() {
-        this.numSimulations = 1000; // Default value
-        this.chargingRateKwhPerSecond = EVTOLBatteryManager.DEFAULT_CHARGING_RATE_KWH_PER_SECOND;
+    // Constructor that reads from config file path
+    public SensitivityConfig(String configFilePath) throws IOException {
+        loadFromFile(configFilePath);
     }
     
-    // Constructor with specific parameters
-    public SensitivityConfig(int numSimulations, double chargingRateKwhPerSecond) {
-        this.numSimulations = numSimulations;
-        this.chargingRateKwhPerSecond = chargingRateKwhPerSecond;
+    // Private method to load configuration from file
+    private void loadFromFile(String configFilePath) throws IOException {
+        // Check if config file exists
+        if (!Files.exists(Paths.get(configFilePath))) {
+            throw new IOException("Configuration file not found: " + configFilePath);
+        }
+        
+        // Try to load from file and override defaults if successful
+        Properties props = new Properties();
+        
+        try (FileInputStream fis = new FileInputStream(configFilePath)) {
+            props.load(fis);
+            
+            // Override defaults with values from file (using Properties.getProperty with defaults)
+            this.poolingTimeWindow = Double.parseDouble(
+                    props.getProperty("poolingTimeWindow", "3.0")
+            );
+            this.originSearchRadius = Double.parseDouble(
+                    props.getProperty("originSearchRadius", "6000.0")
+            );
+            this.destinationSearchRadius = Double.parseDouble(
+                    props.getProperty("destinationSearchRadius", "6000.0")
+            );
+
+            this.numSimulations = Integer.parseInt(
+                props.getProperty("numSimulations", "1000")
+            );
+            
+            this.chargingRateKwhPerSecond = Double.parseDouble(
+                props.getProperty("chargingRateKwhPerSecond", 
+                    String.valueOf(EVTOLBatteryManager.DEFAULT_CHARGING_RATE_KWH_PER_SECOND))
+            );
+
+        }
     }
     
-    // Static factory methods for creating specific configurations
-    public static SensitivityConfig forMonteCarloAnalysis(int numSimulations) {
-        SensitivityConfig config = new SensitivityConfig();
-        config.setNumSimulations(numSimulations);
-        return config;
-    }
-    
-    public static SensitivityConfig forChargingRateAnalysis(double chargingRateKwhPerSecond) {
-        SensitivityConfig config = new SensitivityConfig();
-        config.setChargingRateKwhPerSecond(chargingRateKwhPerSecond);
-        return config;
+    // Static factory methods for creating specific configurations from file
+    public static SensitivityConfig fromFile(String configFilePath) throws IOException {
+        return new SensitivityConfig(configFilePath);
     }
     
     // Getters and setters
@@ -47,16 +74,8 @@ public class SensitivityConfig {
         return numSimulations;
     }
     
-    public void setNumSimulations(int numSimulations) {
-        this.numSimulations = numSimulations;
-    }
-    
     public double getChargingRateKwhPerSecond() {
         return chargingRateKwhPerSecond;
-    }
-    
-    public void setChargingRateKwhPerSecond(double chargingRateKwhPerSecond) {
-        this.chargingRateKwhPerSecond = chargingRateKwhPerSecond;
     }
     
     public double getPoolingTimeWindow() {
@@ -69,11 +88,6 @@ public class SensitivityConfig {
     
     public double getDestinationSearchRadius() {
         return destinationSearchRadius;
-    }
-    
-    // Utility method to create a descriptive string for output directories
-    public String getParameterString() {
-        return String.format("mc_%d_charging_%.4f", numSimulations, chargingRateKwhPerSecond);
     }
     
     @Override

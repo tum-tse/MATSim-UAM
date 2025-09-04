@@ -141,7 +141,7 @@ public class MultiObjectiveNSGAII {
     private int NUM_SIMULATIONS = 1000;
     
     // Sensitivity configuration (instance variable to avoid thread conflicts)
-    private SensitivityConfig sensitivityConfig = new  SensitivityConfig();
+    private SensitivityConfig sensitivityConfig;
     private static final double NON_SHARED_UAM_FARE = 3.0; // euros per km
 
 /*    // Static initializer block
@@ -222,16 +222,23 @@ public class MultiObjectiveNSGAII {
         
         // Initialize sensitivity configuration if provided
         if (args.length > 11) {
-            // Parse sensitivity configuration (format: "numSimulations,chargingRate")
-            String sensitivityConfigStr = args[11];
-            String[] configParts = sensitivityConfigStr.split(",");
-            if (configParts.length >= 2) {
-                int numSimulations = Integer.parseInt(configParts[0]);
-                double chargingRate = Double.parseDouble(configParts[1]);
-                sensitivityConfig = new SensitivityConfig(numSimulations, chargingRate);
+            try {
+                // Now args[11] should be the path to the config file
+                String configFilePath = args[11];
+                sensitivityConfig = SensitivityConfig.fromFile(configFilePath);
                 NUM_SIMULATIONS = sensitivityConfig.getNumSimulations();
-                log.info("Sensitivity config loaded: " + sensitivityConfig);
+                BUFFER_END_TIME = BUFFER_START_TIME + sensitivityConfig.getPoolingTimeWindow();
+                SEARCH_RADIUS_ORIGIN = sensitivityConfig.getOriginSearchRadius();
+                SEARCH_RADIUS_DESTINATION = sensitivityConfig.getDestinationSearchRadius();
+
+                log.info("Sensitivity config loaded from file: " + sensitivityConfig);
+            } catch (IOException e) {
+                log.error("Failed to load sensitivity config from file: " + e.getMessage());
+                throw new RuntimeException("Failed to load sensitivity config from file: " + e.getMessage());
             }
+        } else {
+            log.error("Sensitivity Config file is not provided!");
+            throw new RuntimeException("Sensitivity Config file is not provided!");
         }
         
         // Check if the output folder exists, if not create it

@@ -45,8 +45,8 @@ public class ChargingRateSensitivityRunner {
         // Initialize and run the optimization
         MultiObjectiveNSGAII.initialization(args);
 
-        if (args.length < 5) {
-            System.out.println("Usage: ChargingRateSensitivityRunner <Trip_Item> <Config> <Vertiport_Unit_Candidate> <Scenario_Configuration> <Result_Output>");
+        if (args.length < 6) {
+            System.out.println("Usage: ChargingRateSensitivityRunner <Trip_Item> <Config> <Vertiport_Unit_Candidate> <Scenario_Configuration> <Result_Output> <Sensitivity_Config_File>");
             System.exit(1);
         }
         
@@ -55,21 +55,25 @@ public class ChargingRateSensitivityRunner {
         String vertiportFile = args[2];
         String scenarioFile = args[3];
         String baseOutputDir = args[4];
+        String sensitivityConfigFile = args[5];
 
         // Create directory for this sensitivity analysis
         String sensitivityOutputDir = baseOutputDir + "/charging_rate/";
         MultiObjectiveNSGAII.createFolder(sensitivityOutputDir);
         setFilePaths(args[0], args[1], args[2], args[3], sensitivityOutputDir);
         
-        // Get fixed parameters from SensitivityConfig
-        SensitivityConfig defaultConfig = new SensitivityConfig();
+        // Load base configuration from file
+        SensitivityConfig baseConfig;
+        try {
+            baseConfig = SensitivityConfig.fromFile(sensitivityConfigFile);
+        } catch (IOException e) {
+            System.err.println("Failed to load sensitivity config from file: " + e.getMessage());
+            System.exit(1);
+            return;
+        }
         
         System.out.println("Starting Charging Rate Sensitivity Analysis...");
         System.out.println("Fixed parameters:");
-        System.out.println("  Pooling time window: " + defaultConfig.getPoolingTimeWindow() + " minutes");
-        System.out.println("  Origin search radius: " + defaultConfig.getOriginSearchRadius() + " meters");
-        System.out.println("  Destination search radius: " + defaultConfig.getDestinationSearchRadius() + " meters");
-        System.out.println("  Number of Monte Carlo simulations: " + defaultConfig.getNumSimulations());
         System.out.println("Output directory: " + sensitivityOutputDir);
         System.out.println("Testing charging rates:");
         for (int i = 0; i < CHARGING_RATES_KWH_PER_SECOND.length; i++) {
@@ -80,14 +84,14 @@ public class ChargingRateSensitivityRunner {
         }
         
         // Run experiments in parallel
-        runParallelExperiments(tripItemFile, configFile, vertiportFile, scenarioFile, sensitivityOutputDir);
+        runParallelExperiments(tripItemFile, configFile, vertiportFile, scenarioFile, sensitivityOutputDir, baseConfig);
         
         System.out.println("Charging Rate Sensitivity Analysis completed!");
         System.out.println("Results saved in: " + sensitivityOutputDir);
     }
     
     private static void runParallelExperiments(String tripItemFile, String configFile, 
-                                             String vertiportFile, String scenarioFile, String outputDir) {
+                                             String vertiportFile, String scenarioFile, String outputDir, SensitivityConfig baseConfig) {
         int numThreads = Math.min(CHARGING_RATES_KWH_PER_SECOND.length, Runtime.getRuntime().availableProcessors());
         ExecutorService executor = Executors.newFixedThreadPool(numThreads);
         List<Future<?>> futures = new ArrayList<>();
@@ -97,7 +101,7 @@ public class ChargingRateSensitivityRunner {
             final String label = CHARGING_RATE_LABELS[i];
             
             Future<?> future = executor.submit(() -> runSingleExperiment(
-                tripItemFile, configFile, vertiportFile, scenarioFile, outputDir, chargingRate, label));
+                tripItemFile, configFile, vertiportFile, scenarioFile, outputDir, chargingRate, label, baseConfig));
             futures.add(future);
         }
         
@@ -124,11 +128,10 @@ public class ChargingRateSensitivityRunner {
     
     private static void runSingleExperiment(String tripItemFile, String configFile, 
                                           String vertiportFile, String scenarioFile, 
-                                          String baseOutputDir, double chargingRate, String label) {
+                                          String baseOutputDir, double chargingRate, String label, SensitivityConfig baseConfig) {
         try {
-            // Create SensitivityConfig object and convert to string format
-            SensitivityConfig config = SensitivityConfig.forChargingRateAnalysis(chargingRate);
-            String sensitivityConfig = config.getNumSimulations() + "," + config.getChargingRateKwhPerSecond();
+            // Create a temporary config file for this charging rate
+            String tempConfigPath = createTempConfigFile(baseConfig, chargingRate, label, baseOutputDir);
             
             // Build arguments array for MultiObjectiveNSGAII using SensitivityConfig values
             String[] optimizationArgs = {
@@ -137,13 +140,13 @@ public class ChargingRateSensitivityRunner {
                 vertiportFile,                   // Vertiport_Unit_Candidate
                 scenarioFile,                    // Scenario_Configuration
                 baseOutputDir,                   // Result_Output
-                String.valueOf(config.getPoolingTimeWindow()),  // BUFFER_END_TIME (convert seconds to minutes)
-                String.valueOf(config.getOriginSearchRadius()), // SEARCH_RADIUS_ORIGIN
-                String.valueOf(config.getDestinationSearchRadius()), // SEARCH_RADIUS_DESTINATION
+                String.valueOf(baseConfig.getPoolingTimeWindow()),  // BUFFER_END_TIME (convert seconds to minutes)
+                String.valueOf(baseConfig.getOriginSearchRadius()), // SEARCH_RADIUS_ORIGIN
+                String.valueOf(baseConfig.getDestinationSearchRadius()), // SEARCH_RADIUS_DESTINATION
                 String.valueOf(ENABLE_LOCAL_SEARCH),  // ENABLE_LOCAL_SEARCH
                 String.valueOf(ENABLE_PRINT_RESULTS), // ENABLE_PRINT_RESULTS
                 label + "/",                               // OUTPUT_SUBFOLDER
-                sensitivityConfig                     // SENSITIVITY_CONFIG
+                tempConfigPath                           // SENSITIVITY_CONFIG (path to temp config file)
             };
             
             System.out.printf("Running experiment with charging rate: %.4f kWh/s (%.2f kWh/min)...%n", 
@@ -153,11 +156,34 @@ public class ChargingRateSensitivityRunner {
             
             System.out.printf("Completed experiment with charging rate %.4f kWh/s. Best fitness: %.6f%n", 
                              chargingRate, results[3]);
+                             
+/*            // Clean up temp file
+            try {
+                java.nio.file.Files.deleteIfExists(java.nio.file.Paths.get(tempConfigPath));
+            } catch (IOException e) {
+                System.err.println("Warning: Could not delete temporary config file: " + tempConfigPath);
+            }*/
             
         } catch (Exception e) {
             System.err.printf("Error running experiment with charging rate %.4f kWh/s: %s%n", 
                              chargingRate, e.getMessage());
             e.printStackTrace();
         }
+    }
+
+    private static String createTempConfigFile(SensitivityConfig baseConfig, double chargingRate, String label, String baseOutputDir) throws IOException {
+        //String tempDir = System.getProperty("java.io.tmpdir");
+        String tempConfigPath = baseOutputDir + "/sensitivity_config_" + label + "_" + System.currentTimeMillis() + ".properties";
+        
+        try (java.io.FileWriter writer = new java.io.FileWriter(tempConfigPath)) {
+            writer.write("# Temporary sensitivity config for charging rate: " + chargingRate + " kWh/s\n");
+            writer.write("numSimulations=" + baseConfig.getNumSimulations() + "\n");
+            writer.write("chargingRateKwhPerSecond=" + chargingRate + "\n");
+            writer.write("poolingTimeWindow=" + 30 + "\n");
+            writer.write("originSearchRadius=" + 3000.0 + "\n");
+            writer.write("destinationSearchRadius=" + 3000.0 + "\n");
+        }
+        
+        return tempConfigPath;
     }
 }
