@@ -58,7 +58,7 @@ public class ChargingRateSensitivityRunner {
         String sensitivityConfigFile = args[5];
 
         // Create directory for this sensitivity analysis
-        String sensitivityOutputDir = baseOutputDir + "/charging_rate/";
+        String sensitivityOutputDir = baseOutputDir + "charging_rate/";
         MultiObjectiveNSGAII.createFolder(sensitivityOutputDir);
         setFilePaths(args[0], args[1], args[2], args[3], sensitivityOutputDir);
         

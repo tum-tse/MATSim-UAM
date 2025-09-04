@@ -43,7 +43,7 @@ public class MonteCarloSensitivityRunner {
         String sensitivityConfigFile = args[5];
 
         // Create directory for this sensitivity analysis
-        String sensitivityOutputDir = baseOutputDir + "/monte_carlo/";
+        String sensitivityOutputDir = baseOutputDir + "monte_carlo/";
         MultiObjectiveNSGAII.createFolder(sensitivityOutputDir);
         setFilePaths(args[0], args[1], args[2], args[3], sensitivityOutputDir);
         
