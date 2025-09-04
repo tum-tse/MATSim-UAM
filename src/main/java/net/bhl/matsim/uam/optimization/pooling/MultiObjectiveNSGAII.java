@@ -133,8 +133,8 @@ public class MultiObjectiveNSGAII {
     private static final double FINAL_LOCAL_SEARCH_PROBABILITY = 0.5;
 
     // Setting for the shareability network ============================================================================
-    private static final double MAX_DETOUR_RATIO = 0.3;
-    private static final int MAX_CONNECTION_TIME_MINUTES = 30;
+    public static final double MAX_DETOUR_RATIO = 0.3;
+    public static final int MAX_CONNECTION_TIME_MINUTES = 30;
 
     // Settings for demand uncertainty and mode choice model ===========================================================
     // Number of Monte Carlo simulations per choice evaluation (instance variable to avoid thread conflicts)

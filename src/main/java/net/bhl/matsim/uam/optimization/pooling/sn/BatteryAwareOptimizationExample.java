@@ -1,5 +1,6 @@
 package net.bhl.matsim.uam.optimization.pooling.sn;
 
+import net.bhl.matsim.uam.optimization.pooling.MultiObjectiveNSGAII;
 import org.matsim.api.core.v01.Coord;
 
 import java.util.ArrayList;
@@ -11,8 +12,10 @@ import java.util.List;
  */
 public class BatteryAwareOptimizationExample {
 
-    private static final int VEHICLE_CAPACITY = 4;
-    private static final double VEHICLE_CRUISE_SPEED = 55.56; // 200 km/h in m/s
+    private static final int VEHICLE_CAPACITY = MultiObjectiveNSGAII.VEHICLE_CAPACITY;
+    private static final double VEHICLE_CRUISE_SPEED = MultiObjectiveNSGAII.VEHICLE_CRUISE_SPEED;
+    private static final double MAX_DETOUR_RATIO = MultiObjectiveNSGAII.MAX_DETOUR_RATIO;
+    private static final int MAX_CONNECTION_TIME_MINUTES = MultiObjectiveNSGAII.MAX_CONNECTION_TIME_MINUTES;
 
     public static void main(String[] args) {
         System.out.println("=".repeat(80));
@@ -38,9 +41,9 @@ public class BatteryAwareOptimizationExample {
         // Create and configure the battery-aware optimizer
         UAMOptimizationController optimizer = new UAMOptimizationController(
                 trips,
-                0.3, // maxDetourRatio
+                MAX_DETOUR_RATIO,
                 VEHICLE_CAPACITY,
-                30,  // maxConnectionTimeMinutes
+                MAX_CONNECTION_TIME_MINUTES,
                 VEHICLE_CRUISE_SPEED
         );
 
@@ -164,7 +167,11 @@ public class BatteryAwareOptimizationExample {
                 32500, 34500, 4)); // Maximum passengers
 
         UAMOptimizationController highEnergyOptimizer = new UAMOptimizationController(
-                highEnergyTrips, 0.3, VEHICLE_CAPACITY, 30, VEHICLE_CRUISE_SPEED
+                highEnergyTrips,
+                MAX_DETOUR_RATIO,
+                VEHICLE_CAPACITY,
+                MAX_CONNECTION_TIME_MINUTES,
+                VEHICLE_CRUISE_SPEED
         );
 
         OptimizationResult highEnergyResult = highEnergyOptimizer.optimize();
@@ -197,7 +204,11 @@ public class BatteryAwareOptimizationExample {
         }
 
         UAMOptimizationController lowEnergyOptimizer = new UAMOptimizationController(
-                lowEnergyTrips, 0.3, VEHICLE_CAPACITY, 30, VEHICLE_CRUISE_SPEED
+                lowEnergyTrips,
+                MAX_DETOUR_RATIO,
+                VEHICLE_CAPACITY,
+                MAX_CONNECTION_TIME_MINUTES,
+                VEHICLE_CRUISE_SPEED
         );
 
         OptimizationResult lowEnergyResult = lowEnergyOptimizer.optimize();

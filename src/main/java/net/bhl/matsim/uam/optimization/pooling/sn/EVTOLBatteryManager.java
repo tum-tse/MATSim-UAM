@@ -44,7 +44,10 @@ public class EVTOLBatteryManager {
 
         // Calculate energy consumption
         double horizontalEnergy = horizontalDistance * HORIZONTAL_ENERGY_CONSUMPTION_KWH_PER_PASSENGER_PER_METER;
-        double verticalEnergy = verticalDistance * VERTICAL_ENERGY_CONSUMPTION_KWH_PER_PASSENGER_PER_METER;
+        double verticalEnergy = 0;
+        if (horizontalDistance!=0){
+        verticalEnergy = verticalDistance * VERTICAL_ENERGY_CONSUMPTION_KWH_PER_PASSENGER_PER_METER;
+        }
 
         return horizontalEnergy + verticalEnergy;
     }
