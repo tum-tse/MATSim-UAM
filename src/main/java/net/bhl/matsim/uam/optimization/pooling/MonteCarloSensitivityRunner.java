@@ -151,7 +151,7 @@ public class MonteCarloSensitivityRunner {
     
     private static String createTempConfigFile(SensitivityConfig baseConfig, int numSimulations, String baseOutputDir) throws IOException {
         //String tempDir = System.getProperty("java.io.tmpdir");
-        String tempConfigPath = baseOutputDir + "/sensitivity_config_mc_" + numSimulations + "_" + System.currentTimeMillis() + ".properties";
+        String tempConfigPath = baseOutputDir + "sensitivity_config_mc_" + numSimulations + "_" + System.currentTimeMillis() + ".properties";
         
         try (java.io.FileWriter writer = new java.io.FileWriter(tempConfigPath)) {
             writer.write("# Temporary sensitivity config for Monte Carlo simulations: " + numSimulations + "\n");

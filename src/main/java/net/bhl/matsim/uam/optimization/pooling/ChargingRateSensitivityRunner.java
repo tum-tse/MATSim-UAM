@@ -173,7 +173,7 @@ public class ChargingRateSensitivityRunner {
 
     private static String createTempConfigFile(SensitivityConfig baseConfig, double chargingRate, String label, String baseOutputDir) throws IOException {
         //String tempDir = System.getProperty("java.io.tmpdir");
-        String tempConfigPath = baseOutputDir + "/sensitivity_config_" + label + "_" + System.currentTimeMillis() + ".properties";
+        String tempConfigPath = baseOutputDir + "sensitivity_config_" + label + "_" + System.currentTimeMillis() + ".properties";
         
         try (java.io.FileWriter writer = new java.io.FileWriter(tempConfigPath)) {
             writer.write("# Temporary sensitivity config for charging rate: " + chargingRate + " kWh/s\n");
