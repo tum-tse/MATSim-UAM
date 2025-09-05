@@ -227,7 +227,7 @@ public class MultiObjectiveNSGAII {
                 String configFilePath = args[11];
                 sensitivityConfig = SensitivityConfig.fromFile(configFilePath);
                 NUM_SIMULATIONS = sensitivityConfig.getNumSimulations();
-                BUFFER_END_TIME = BUFFER_START_TIME + sensitivityConfig.getPoolingTimeWindow();
+                BUFFER_END_TIME = BUFFER_START_TIME + sensitivityConfig.getPoolingTimeWindow() * 60;
                 SEARCH_RADIUS_ORIGIN = sensitivityConfig.getOriginSearchRadius();
                 SEARCH_RADIUS_DESTINATION = sensitivityConfig.getDestinationSearchRadius();
 
