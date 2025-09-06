@@ -21,6 +21,7 @@ public class UAMOptimizationController {
     private int maxConnectionTimeMinutes;
     private double flightSpeedMetersPerSecond;
     private double chargingRateKwhPerSecond; // Charging rate for vehicles
+    private boolean vehicleReuseStrategy;
     private Map<Id<DvrpVehicle>, Vertiport> vehicleOriginStationMap;
     private Map<Id<DvrpVehicle>, Vertiport> vehicleDestinationStationMap;
 
@@ -39,6 +40,7 @@ public class UAMOptimizationController {
         this.maxConnectionTimeMinutes = maxConnectionTimeMinutes;
         this.flightSpeedMetersPerSecond = flightSpeedMetersPerSecond;
         this.chargingRateKwhPerSecond = sensitivityConfig.getChargingRateKwhPerSecond();
+        this.vehicleReuseStrategy = sensitivityConfig.getVehicleReuseStrategy();
 
         // Convert vehicle assignments directly to vehicle trips
         this.vehicleTrips = convertAssignmentsToTrips(vehicleAssignments);
@@ -52,7 +54,8 @@ public class UAMOptimizationController {
                                      double maxDetourRatio,
                                      int maxPassengersPerVehicle,
                                      int maxConnectionTimeMinutes,
-                                     double flightSpeedMetersPerSecond) {
+                                     double flightSpeedMetersPerSecond,
+                                     boolean vehicleReuseStrategy) {
 
         this.vehicleTrips = new ArrayList<>(vehicleTrips);
         this.maxDetourRatio = maxDetourRatio;
@@ -60,13 +63,13 @@ public class UAMOptimizationController {
         this.maxConnectionTimeMinutes = maxConnectionTimeMinutes;
         this.flightSpeedMetersPerSecond = flightSpeedMetersPerSecond;
         this.chargingRateKwhPerSecond = EVTOLBatteryManager.DEFAULT_CHARGING_RATE_KWH_PER_SECOND;
+        this.vehicleReuseStrategy = vehicleReuseStrategy;
         this.vehicleOriginStationMap = null;
         this.vehicleDestinationStationMap = null;
     }
 
     /**
      * Main optimization method with battery-aware routing
-     * This is the enhanced version that automatically includes battery statistics
      * @return OptimizationResult with battery statistics
      */
     public OptimizationResult optimize() {
@@ -78,35 +81,15 @@ public class UAMOptimizationController {
                 chargingRateKwhPerSecond
         );
 
-        // Find optimal vehicle assignments (automatically calculates battery statistics)
-        List<List<VehicleTrip>> vehicleRoutes = network.findOptimalVehicleAssignments();
-
-        // Get battery statistics from the network (calculated automatically during optimization)
-        ShareabilityNetwork.BatteryStatistics batteryStats = network.getLastBatteryStatistics();
-
-        // Calculate other metrics
-        int fleetSize = vehicleRoutes.size();
-        int vtolOperations = calculateVtolOperations(vehicleRoutes);
-
-        // Return enhanced result with battery statistics
-        return new OptimizationResult(vehicleRoutes, fleetSize, vtolOperations, batteryStats, chargingRateKwhPerSecond);
-    }
-
-    /**
-     * Alternative optimization method using vehicle reuse strategy
-     * @return OptimizationResult with battery statistics
-     */
-    public OptimizationResult optimizeWithVehicleReuse() {
-        // Build shareability network with battery-aware optimization
-        ShareabilityNetwork network = new ShareabilityNetwork(
-                vehicleTrips,
-                maxConnectionTimeMinutes,
-                flightSpeedMetersPerSecond,
-                chargingRateKwhPerSecond
-        );
-
-        // Use alternative assignment strategy
-        List<List<VehicleTrip>> vehicleRoutes = network.findOptimalVehicleAssignmentsWithReuse();
+        // Find optimal vehicle assignments based on strategy
+        List<List<VehicleTrip>> vehicleRoutes;
+        if (vehicleReuseStrategy) {
+            // Use alternative assignment strategy with vehicle reuse
+            vehicleRoutes = network.findOptimalVehicleAssignmentsWithReuse();
+        } else {
+            // Use standard assignment strategy
+            vehicleRoutes = network.findOptimalVehicleAssignments();
+        }
 
         // Get battery statistics from the network
         ShareabilityNetwork.BatteryStatistics batteryStats = network.getLastBatteryStatistics();

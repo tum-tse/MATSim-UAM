@@ -44,7 +44,8 @@ public class BatteryAwareOptimizationExample {
                 MAX_DETOUR_RATIO,
                 VEHICLE_CAPACITY,
                 MAX_CONNECTION_TIME_MINUTES,
-                VEHICLE_CRUISE_SPEED
+                VEHICLE_CRUISE_SPEED,
+                false
         );
 
         // Run complete analysis
@@ -59,8 +60,17 @@ public class BatteryAwareOptimizationExample {
         OptimizationResult standardResult = optimizer.optimize();
         System.out.println(standardResult.getSummaryString());
 
+        // Create and configure the battery-aware optimizer
+        UAMOptimizationController optimizerWithvehicleReuseStrategy = new UAMOptimizationController(
+                trips,
+                MAX_DETOUR_RATIO,
+                VEHICLE_CAPACITY,
+                MAX_CONNECTION_TIME_MINUTES,
+                VEHICLE_CRUISE_SPEED,
+                true
+        );
         System.out.println("\n2. Vehicle Reuse Strategy:");
-        OptimizationResult reuseResult = optimizer.optimizeWithVehicleReuse();
+        OptimizationResult reuseResult = optimizerWithvehicleReuseStrategy.optimize();
         System.out.println(reuseResult.getSummaryString());
 
         // Show detailed comparison
@@ -171,7 +181,8 @@ public class BatteryAwareOptimizationExample {
                 MAX_DETOUR_RATIO,
                 VEHICLE_CAPACITY,
                 MAX_CONNECTION_TIME_MINUTES,
-                VEHICLE_CRUISE_SPEED
+                VEHICLE_CRUISE_SPEED,
+                false
         );
 
         OptimizationResult highEnergyResult = highEnergyOptimizer.optimize();
@@ -208,7 +219,8 @@ public class BatteryAwareOptimizationExample {
                 MAX_DETOUR_RATIO,
                 VEHICLE_CAPACITY,
                 MAX_CONNECTION_TIME_MINUTES,
-                VEHICLE_CRUISE_SPEED
+                VEHICLE_CRUISE_SPEED,
+                false
         );
 
         OptimizationResult lowEnergyResult = lowEnergyOptimizer.optimize();

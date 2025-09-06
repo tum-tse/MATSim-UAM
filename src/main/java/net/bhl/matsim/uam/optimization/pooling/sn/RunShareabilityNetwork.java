@@ -75,7 +75,8 @@ public class RunShareabilityNetwork {
                 0.3, // maxDetourRatio
                 VEHICLE_CAPACITY,   // maxPassengersPerVehicle
                 30,  // maxConnectionTimeMinutes
-                VEHICLE_CRUISE_SPEED // flightSpeedMetersPerSecond
+                VEHICLE_CRUISE_SPEED, // flightSpeedMetersPerSecond
+                false
         );
 
         OptimizationResult result = optimizer.optimize();
