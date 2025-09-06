@@ -6,6 +6,8 @@ import org.matsim.api.core.v01.Coord;
 import java.util.ArrayList;
 import java.util.List;
 
+import static net.bhl.matsim.uam.optimization.pooling.sn.EVTOLBatteryManager.DEFAULT_CHARGING_RATE_KWH_PER_SECOND;
+
 /**
  * Complete example demonstrating the battery-aware eVTOL optimization system
  * Shows how battery statistics are automatically calculated and printed with printSummary()
@@ -45,6 +47,7 @@ public class BatteryAwareOptimizationExample {
                 VEHICLE_CAPACITY,
                 MAX_CONNECTION_TIME_MINUTES,
                 VEHICLE_CRUISE_SPEED,
+                DEFAULT_CHARGING_RATE_KWH_PER_SECOND,
                 false
         );
 
@@ -67,6 +70,7 @@ public class BatteryAwareOptimizationExample {
                 VEHICLE_CAPACITY,
                 MAX_CONNECTION_TIME_MINUTES,
                 VEHICLE_CRUISE_SPEED,
+                DEFAULT_CHARGING_RATE_KWH_PER_SECOND,
                 true
         );
         System.out.println("\n2. Vehicle Reuse Strategy:");
@@ -182,6 +186,7 @@ public class BatteryAwareOptimizationExample {
                 VEHICLE_CAPACITY,
                 MAX_CONNECTION_TIME_MINUTES,
                 VEHICLE_CRUISE_SPEED,
+                DEFAULT_CHARGING_RATE_KWH_PER_SECOND,
                 false
         );
 
@@ -220,6 +225,7 @@ public class BatteryAwareOptimizationExample {
                 VEHICLE_CAPACITY,
                 MAX_CONNECTION_TIME_MINUTES,
                 VEHICLE_CRUISE_SPEED,
+                DEFAULT_CHARGING_RATE_KWH_PER_SECOND,
                 false
         );
 

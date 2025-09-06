@@ -7,6 +7,7 @@ import java.util.List;
 
 import static net.bhl.matsim.uam.optimization.pooling.MultiObjectiveNSGAII.VEHICLE_CAPACITY;
 import static net.bhl.matsim.uam.optimization.pooling.MultiObjectiveNSGAII.VEHICLE_CRUISE_SPEED;
+import static net.bhl.matsim.uam.optimization.pooling.sn.EVTOLBatteryManager.DEFAULT_CHARGING_RATE_KWH_PER_SECOND;
 
 // Example usage
 public class RunShareabilityNetwork {
@@ -76,6 +77,7 @@ public class RunShareabilityNetwork {
                 VEHICLE_CAPACITY,   // maxPassengersPerVehicle
                 30,  // maxConnectionTimeMinutes
                 VEHICLE_CRUISE_SPEED, // flightSpeedMetersPerSecond
+                DEFAULT_CHARGING_RATE_KWH_PER_SECOND,
                 false
         );
 

@@ -55,6 +55,7 @@ public class UAMOptimizationController {
                                      int maxPassengersPerVehicle,
                                      int maxConnectionTimeMinutes,
                                      double flightSpeedMetersPerSecond,
+                                     double chargingRateKwhPerSecond,
                                      boolean vehicleReuseStrategy) {
 
         this.vehicleTrips = new ArrayList<>(vehicleTrips);
@@ -62,7 +63,7 @@ public class UAMOptimizationController {
         this.maxPassengersPerVehicle = maxPassengersPerVehicle;
         this.maxConnectionTimeMinutes = maxConnectionTimeMinutes;
         this.flightSpeedMetersPerSecond = flightSpeedMetersPerSecond;
-        this.chargingRateKwhPerSecond = EVTOLBatteryManager.DEFAULT_CHARGING_RATE_KWH_PER_SECOND;
+        this.chargingRateKwhPerSecond = chargingRateKwhPerSecond;
         this.vehicleReuseStrategy = vehicleReuseStrategy;
         this.vehicleOriginStationMap = null;
         this.vehicleDestinationStationMap = null;
