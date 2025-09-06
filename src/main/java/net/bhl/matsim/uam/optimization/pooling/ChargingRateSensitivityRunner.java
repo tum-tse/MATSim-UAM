@@ -26,6 +26,8 @@ public class ChargingRateSensitivityRunner {
     // Charging rate values to test (kWh/second)
     // Based on the GuideForSensitivityAnalysis.md document
     private static final double[] CHARGING_RATES_KWH_PER_SECOND = {
+        0 / 60.0,   // No charging (0C) - 0 kWh/min = 0 kWh/s
+        1.04 / 60.0,   // Extremely slow charging (0.5C) - 1.04 kWh/min = 0.0173 kWh/s
         2.08 / 60.0,   // Very slow charging (1C) - 2.08 kWh/min = 0.0347 kWh/s
         4.17 / 60.0,   // Slow charging (2C) - 4.17 kWh/min = 0.0695 kWh/s
         6.24 / 60.0,   // Default charging rate (3C) - 6.24 kWh/min = 0.104 kWh/s
@@ -37,6 +39,7 @@ public class ChargingRateSensitivityRunner {
     };
     
     private static final String[] CHARGING_RATE_LABELS = {
+        "0c", "0.5c",
         "1c", "2c", "3c", "4c",
         "5c", "6c", "7c", "8c"
     };
@@ -179,7 +182,7 @@ public class ChargingRateSensitivityRunner {
             writer.write("# Temporary sensitivity config for charging rate: " + chargingRate + " kWh/s\n");
             writer.write("numSimulations=" + baseConfig.getNumSimulations() + "\n");
             writer.write("chargingRateKwhPerSecond=" + chargingRate + "\n");
-            writer.write("poolingTimeWindow=" + 30 + "\n");
+            writer.write("poolingTimeWindow=" + 60 + "\n");
             writer.write("originSearchRadius=" + 3000.0 + "\n");
             writer.write("destinationSearchRadius=" + 3000.0 + "\n");
         }
