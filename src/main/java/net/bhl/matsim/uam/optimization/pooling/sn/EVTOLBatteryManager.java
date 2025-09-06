@@ -35,7 +35,7 @@ public class EVTOLBatteryManager {
      * @param numPassengers Number of passengers
      * @return Energy consumption in kWh
      */
-    public double calculateEnergyConsumption(Coord origin, Coord destination, int numPassengers) {
+    public double calculateEnergyConsumption(Coord origin, Coord destination, int numPassengers) { //TODO: could also investigate the impacts of number of passengers!
         // Calculate horizontal distance
         double horizontalDistance = calculateHorizontalDistance(origin, destination);
 
@@ -92,7 +92,7 @@ public class EVTOLBatteryManager {
                 nextTripOrigin
         );
 
-        return currentBatteryLevel >= (currentTripEnergy + deadheadingEnergy);
+        return currentBatteryLevel >= (currentTripEnergy + deadheadingEnergy); //TODO: could also check whether could charging first and then execute the deadheading flight.
     }
 
     /**
