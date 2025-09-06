@@ -209,7 +209,7 @@ public class ShareabilityNetwork {
     /**
      * Alternative assignment method that tries to assign trips to existing vehicles first
      */
-    public List<List<VehicleTrip>> findOptimalVehicleAssignmentsWithReuse() {
+    public List<List<VehicleTrip>> findOptimalVehicleAssignmentsWithReuse() { // TODO: Need to be optimized!
         List<EVTOLVehicle> vehicles = new ArrayList<>();
         List<VehicleTrip> unassignedTrips = new ArrayList<>(trips);
 
