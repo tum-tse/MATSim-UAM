@@ -197,7 +197,7 @@ public class ShareabilityNetwork {
                     foundNext = true;
                 } else {
                     // This should not happen if canExecuteTripAfterCharging returned true
-                    System.err.println("Error: Could not execute trip after battery check passed");
+                    System.out.println("Warning: Could not execute trip after battery check passed");
                     break;
                 }
             }
