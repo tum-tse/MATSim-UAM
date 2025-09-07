@@ -20,6 +20,7 @@ public class SensitivityConfig {
     private boolean vehicleReuseStrategy;
     
     // Fixed pooling parameters (as requested)
+    private double bufferStartTime;
     private double poolingTimeWindow; // 3 minutes
     private double originSearchRadius; // meters
     private double destinationSearchRadius; // meters
@@ -43,6 +44,9 @@ public class SensitivityConfig {
             props.load(fis);
             
             // Override defaults with values from file (using Properties.getProperty with defaults)
+            this.bufferStartTime = Double.parseDouble(
+                    props.getProperty("bufferStartTime", "25200.0")
+            );
             this.poolingTimeWindow = Double.parseDouble(
                     props.getProperty("poolingTimeWindow", "3.0")
             );
@@ -84,6 +88,8 @@ public class SensitivityConfig {
     }
 
     public boolean getVehicleReuseStrategy() {return vehicleReuseStrategy;}
+
+    public double getBufferStartTime() {return bufferStartTime;}
     
     public double getPoolingTimeWindow() {
         return poolingTimeWindow;
@@ -99,7 +105,7 @@ public class SensitivityConfig {
     
     @Override
     public String toString() {
-        return String.format("SensitivityConfig{numSimulations=%d, chargingRateKwhPerSecond=%.6f, enableOptimization=%b, poolingTimeWindow=%.1f, originSearchRadius=%.1f, destinationSearchRadius=%.1f}",
-                numSimulations, chargingRateKwhPerSecond, vehicleReuseStrategy, poolingTimeWindow, originSearchRadius, destinationSearchRadius);
+        return String.format("SensitivityConfig{numSimulations=%d, chargingRateKwhPerSecond=%.6f, vehicleReuseStrategy=%b, bufferStartTime=%.1f, poolingTimeWindow=%.1f, originSearchRadius=%.1f, destinationSearchRadius=%.1f}",
+                numSimulations, chargingRateKwhPerSecond, vehicleReuseStrategy, bufferStartTime, poolingTimeWindow, originSearchRadius, destinationSearchRadius);
     }
 }
