@@ -26,6 +26,7 @@ public class BatteryAwareOptimizationExample {
             4.17 / 60.0,    // Slow charging (2C)
             6.24 / 60.0,    // Default charging rate (3C)
             8.34 / 60.0,    // Fast charging (4C)
+            10.42 / 60.0,  // Very fast charging (5C)
             16.68 / 60.0    // Maximum charging (8C)
     };
 
@@ -57,7 +58,7 @@ public class BatteryAwareOptimizationExample {
 
         // Test with different charging strategies
         String[] criticalRateNames = {
-                "No charging", "Slow charging", "Default Rate", "Fast charging", "Maximum charging"
+                "No charging", "Slow charging", "Default Rate", "Fast charging", "Very fast charging", "Maximum charging"
         };
 
         System.out.println("\n--- Critical Charging Rate Comparison ---");
@@ -97,7 +98,7 @@ public class BatteryAwareOptimizationExample {
      */
     private static List<VehicleTrip> createExtremeStressTestTrips() {
         List<VehicleTrip> trips = new ArrayList<>();
-        Random random = new Random(12345); // Fixed seed for reproducibility
+        Random random = new Random(54321); // Fixed seed for reproducibility
 
         int baseTime = 28800; // 8:00 AM
         int timeWindow = 3600;  // 60 minutes (extreme density)
@@ -107,7 +108,7 @@ public class BatteryAwareOptimizationExample {
             // Create high-density urban scenario with shorter distances
             double centerX = 75000; // City center
             double centerY = 75000;
-            double urbanRadius = 10000; // 30km radius urban area
+            double urbanRadius = 10000; // 10km radius urban area
 
             // Origins clustered around urban centers
             double originAngle = random.nextDouble() * 2 * Math.PI;
@@ -134,14 +135,14 @@ public class BatteryAwareOptimizationExample {
             int tripDuration = (int) (distance / VEHICLE_CRUISE_SPEED) + 300 + random.nextInt(300);
 
             // Higher passenger loads in extreme scenario
-            int passengers = random.nextDouble() < 0.7 ? VEHICLE_CAPACITY - 1 + random.nextInt(2) : 1;
+            //int passengers = random.nextDouble() < 0.7 ? VEHICLE_CAPACITY - 1 + random.nextInt(2) : 1;
 
             trips.add(new VehicleTrip("EX" + i,
                     origin,
                     destination,
                     departureTime,
                     departureTime + tripDuration,
-                    passengers));
+                    VEHICLE_CAPACITY));
         }
 
         return trips;
