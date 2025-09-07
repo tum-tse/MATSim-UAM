@@ -182,7 +182,7 @@ public class ChargingRateSensitivityRunner {
             writer.write("# Temporary sensitivity config for charging rate: " + chargingRate + " kWh/s\n");
             writer.write("numSimulations=" + baseConfig.getNumSimulations() + "\n");
             writer.write("chargingRateKwhPerSecond=" + chargingRate + "\n");
-            writer.write("vehicleReuseStrategy=" + true + "\n");
+            writer.write("vehicleReuseStrategy=" + false + "\n");
             writer.write("bufferStartTime=" + 25200.0 + "\n");
             writer.write("poolingTimeWindow=" + 120.0 + "\n");
             writer.write("originSearchRadius=" + 2000.0 + "\n");
