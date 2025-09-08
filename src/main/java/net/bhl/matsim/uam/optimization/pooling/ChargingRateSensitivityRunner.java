@@ -183,8 +183,8 @@ public class ChargingRateSensitivityRunner {
             writer.write("numSimulations=" + baseConfig.getNumSimulations() + "\n");
             writer.write("chargingRateKwhPerSecond=" + chargingRate + "\n");
             writer.write("vehicleReuseStrategy=" + false + "\n");
-            writer.write("bufferStartTime=" + 25200.0 + "\n");
-            writer.write("poolingTimeWindow=" + 120.0 + "\n");
+            writer.write("bufferStartTime=" + 48600.0 + "\n");
+            writer.write("poolingTimeWindow=" + 210.0 + "\n");
             writer.write("originSearchRadius=" + 2000.0 + "\n");
             writer.write("destinationSearchRadius=" + 2000.0 + "\n");
         }
